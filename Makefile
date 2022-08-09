@@ -64,9 +64,11 @@ tags:
 	@echo "===>  GENERATE  TAGS"
 	$(Q)ctags -R
 
-
 $(BUILD_DIR):
 	@mkdir $(BUILD_DIR)
+
+test:
+	make -C tests run
 
 ifeq ($(findstring $(MAKECMDGOALS),clean),)
 -include $(OBJ:.o=.d)

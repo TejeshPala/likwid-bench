@@ -26,19 +26,30 @@
 #
 # =======================================================================================
 
-INCLUDES=-I../include -fsanitize=address -fsanitize=leak
+INCLUDES=-g -I../include -fsanitize=address -fsanitize=leak
 
-test_read_yaml_ptt: test_read_yaml_ptt.c ../src/read_yaml_ptt.c ../src/bstrlib.c ../src/bstrlib_helper.c
-	$(CC) $(INCLUDES) test_read_yaml_ptt.c ../src/read_yaml_ptt.c ../src/bstrlib.c ../src/bstrlib_helper.c -o $@
+TESTS = test_read_yaml_ptt \
+	test_getopt_extra \
+	test_results
 
-test_results: test_results.c ../src/results.c ../src/map.c ../src/ghash.c ../src/calculator.c ../src/stack.c
-	$(CC) $(INCLUDES) -DCALCULATOR_AS_LIB test_results.c ../src/results.c ../src/map.c ../src/ghash.c ../src/calculator.c ../src/stack.c -o $@ -lm
+BSTRLIB_OBJ := ../src/bstrlib.c ../src/bstrlib_helper.c
+MAP_OBJ := ../src/map.c ../src/ghash.c
+CALCULATOR_OBJ := ../src/calculator.c ../src/stack.c
 
-test_config_getopt: test_config_getopt.c ../src/config_getopt.c ../src/bstrlib.c ../src/map.c ../src/ghash.c
-	$(CC) $(INCLUDES) test_config_getopt.c ../src/config_getopt.c ../src/bstrlib.c ../src/map.c ../src/ghash.c -o $@
+all: $(TESTS)
 
-test_getopt_extra: test_getopt_extra.c ../src/getopt_extra.c ../src/bstrlib.c ../src/bstrlib_helper.c ../src/map.c ../src/ghash.c
-	$(CC) $(INCLUDES) test_getopt_extra.c ../src/getopt_extra.c  ../src/bstrlib.c ../src/bstrlib_helper.c ../src/map.c ../src/ghash.c -o $@
+test_read_yaml_ptt: test_read_yaml_ptt.c ../src/read_yaml_ptt.c $(BSTRLIB_OBJ)
+	$(CC) $(INCLUDES) test_read_yaml_ptt.c ../src/read_yaml_ptt.c $(BSTRLIB_OBJ) -o $@
+
+test_results: test_results.c ../src/results.c $(MAP_OBJ) $(CALCULATOR_OBJ)
+	$(CC) $(INCLUDES) -DCALCULATOR_AS_LIB test_results.c ../src/results.c $(MAP_OBJ) $(CALCULATOR_OBJ) -o $@ -lm
+
+
+test_getopt_extra: test_getopt_extra.c ../src/getopt_extra.c $(BSTRLIB_OBJ) $(MAP_OBJ)
+	$(CC) $(INCLUDES) test_getopt_extra.c ../src/getopt_extra.c $(BSTRLIB_OBJ) $(MAP_OBJ) -o $@
+
+run: $(TESTS)
+	@for T in $(TESTS); do ./$$T; done
 
 clean:
-	rm -f test_read_yaml_ptt test_results test_config_getopt test_getopt_extra
+	rm -f test_read_yaml_ptt test_results test_getopt_extra
