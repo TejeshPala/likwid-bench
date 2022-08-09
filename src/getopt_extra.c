@@ -452,6 +452,10 @@ static int _getopt_long_extra_addlist(struct option_extra_return* retopt, char* 
 
 static int _getopt_extra_set_bstr(struct option_extra_return* retopt, char* arg)
 {
+    if (blength(retopt->value.bstrvalue) >= 0)
+    {
+        bdestroy(retopt->value.bstrvalue);
+    }
     retopt->value.bstrvalue = (arg != NULL ? bfromcstr(arg) : bfromcstr(""));
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting bstring '%s', bdata(retopt->value.bstrvalue));
     return 0;
@@ -724,7 +728,7 @@ void free_returns(void* value)
     {
         if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying bstring value);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying bstring value '%s', bdata(retopt->value.bstrvalue));
             bdestroy(retopt->value.bstrvalue);
         }
     }
