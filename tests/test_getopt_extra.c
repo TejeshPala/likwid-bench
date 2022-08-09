@@ -9,12 +9,14 @@
 #include <getopt_extra.h>
 #include <map.h>
 
+int global_verbosity = 3;
+
 static struct option_extra options[] = {
-    {"help", 'h', RETURN_TYPE_BOOL_FLAG},
-    {"test", 't', RETURN_TYPE_BSTRING_FLAG, required_argument},
-    {"file", 'f', RETURN_TYPE_BSTRING_FLAG|RETURN_TYPE_FILE_FLAG, required_argument},
-    {"iters", 'i', RETURN_TYPE_TIME_FLAG, required_argument},
-    {"workgroup", 'w', RETURN_TYPE_BSTRING_FLAG|RETURN_TYPE_LIST_FLAG, required_argument},
+    {"help", 'h', RETURN_TYPE_MASK(RETURN_TYPE_BOOL)},
+    {"test", 't', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument},
+    {"file", 'f', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument, "Filename", ARG_FLAG_MASK(ARG_FLAG_FILE)},
+    {"iters", 'i', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument, "Iteration time", ARG_FLAG_MASK(ARG_FLAG_TIME)},
+    {"workgroup", 'w', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING)|RETURN_TYPE_MASK(RETURN_TYPE_LIST), required_argument},
     {0,0,},
 };
 
@@ -58,13 +60,13 @@ int main(int argc, char* argv[])
     printf("Empty options\n");
     print_options(options);
     printf("Add --help\n");
-    add_option_params("help", 'h', RETURN_TYPE_BOOL_FLAG, no_argument, &options);
+    add_option_params("help", 'h', RETURN_TYPE_MASK(RETURN_TYPE_BOOL), no_argument, &options, 0);
     print_options(options);
     printf("Add --test\n");
-    add_option_params("test", 't', RETURN_TYPE_BSTRING_FLAG, required_argument, &options);
+    add_option_params("test", 't', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument, &options, 0);
     print_options(options);
     printf("Add --workgroup\n");
-    add_option_params("workgroup", 'w', RETURN_TYPE_BSTRING_FLAG|RETURN_TYPE_LIST_FLAG, required_argument, &options);
+    add_option_params("workgroup", 'w', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING)|RETURN_TYPE_MASK(RETURN_TYPE_LIST), required_argument, &options, 0);
     print_options(options);
     printf("Delete --test\n");
     del_option("test", &options);
@@ -73,7 +75,7 @@ int main(int argc, char* argv[])
     del_option("help", &options);
     print_options(options);
     printf("Add --help\n");
-    add_option_params("help", 'h', RETURN_TYPE_BOOL_FLAG, no_argument, &options);
+    add_option_params("help", 'h', RETURN_TYPE_MASK(RETURN_TYPE_BOOL), no_argument, &options, 0);
     print_options(options);
     free(options);
     return 0;
