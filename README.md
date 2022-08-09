@@ -64,3 +64,14 @@ runtime.
 
 
 
+## Development plan
+
+- [ ] Parsing of workgroup(s) `S0:2`
+- [ ] Compile assembly from YAML file to object code
+- [ ] Allocate streams with given sizes
+- [ ] Create threads according to workgroup(s)
+- [ ] Run benchmark (`dlopen`, etc.)
+- [ ] Evaluate given metrics using given variables and runtime measurements
+- [ ] Print out results in various formats
+
+
