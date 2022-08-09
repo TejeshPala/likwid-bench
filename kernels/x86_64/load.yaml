@@ -1,0 +1,51 @@
+---
+- Name: load
+- Description: Double-precision load, only scalar operations
+- Parameters:
+  - N:
+      description: Size of array that should be loaded
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+  - STR1:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+- Variables:
+  UOPS_PER_ITER: 8
+  BYTES_PER_ELEM: 8
+  LOADS_PER_ELEM: 1
+  BYTES_PER_ITER: 64
+  LOADS_PER_ITER: 8
+  INST_PER_ITER: 8
+  UNROLL_FACTOR: 8 
+
+- Metrics:
+  Read bandwidth [MByte/s]: BYTES_PER_ITER*ITER/TIME
+  Total bandwidth [MByte/s]: BYTES_PER_ITER*ITER/TIME
+  Total instructions: INST_PER_ITER*ITER
+  Total uops: UOPS_PER_ITER*ITER
+- Threads:
+  offsets:
+    - THREAD_ID*(N/NUM_THREADS)
+  sizes:
+    - N/NUM_THREADS
+- Language: asm
+...
+LOOP(loop, rax=0, <, rdi=N, UNROLL_FACTOR)
+movsd    xmm0, [STR0 + rax * 8]
+movsd    xmm1, [STR0 + rax * 8 + 8]
+movsd    xmm2, [STR0 + rax * 8 + 16]
+movsd    xmm3, [STR0 + rax * 8 + 24]
+movsd    xmm4, [STR0 + rax * 8 + 32]
+movsd    xmm5, [STR0 + rax * 8 + 40]
+movsd    xmm6, [STR0 + rax * 8 + 48]
+movsd    xmm7, [STR0 + rax * 8 + 56]
+LOOPEND(loop)

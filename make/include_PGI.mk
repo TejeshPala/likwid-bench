@@ -1,0 +1,17 @@
+CC  = pgcc
+CXX = pgc++
+FC  = pgf90
+LINKER = $(CC)
+
+ANSI_CFLAGS = -Xa
+ANSI_CXXFLAGS = -a
+WARNINGS =
+
+CFLAGS   = -c99 -O2 $(WARNINGS) $(ANSI_CFLAGS)
+CXXFLAGS = -O2 --c++11 $(WARNINGS) $(ANSI_CXXFLAGS)
+FCFLAGS  = -module ./
+LFLAGS   =
+DEFINES  = -D_GNU_SOURCE
+INCLUDES =
+LIBDIRS  =
+LIBS     =
