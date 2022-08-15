@@ -74,4 +74,6 @@ runtime.
 - [ ] Evaluate given metrics using given variables and runtime measurements
 - [ ] Print out results in various formats
 
+## Decisions
+- YAML instead of JSON. The parser is much simpler and integrated. With JSON, there would be a dependency to a JSON parser lib like [JSMN](https://github.com/zserge/jsmn). It's valid YAML but quite similar to the PTT format used before.
 
