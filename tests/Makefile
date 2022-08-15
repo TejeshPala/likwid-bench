@@ -34,26 +34,33 @@ TESTS = test_read_yaml_ptt \
 	test_results
 
 BSTRLIB_OBJ := ../src/bstrlib.c ../src/bstrlib_helper.c
+BSTRLIB_HEADER := ../include/bstrlib.h ../include/bstrlib_helper.h 
 MAP_OBJ := ../src/map.c ../src/ghash.c
+MAP_HEADER := ../include/map.h ../include/ghash.h
 CALCULATOR_OBJ := ../src/calculator.c ../src/stack.c
+CALCULATOR_HEADER := ../include/calculator.h ../include/stack.h
+TOPOLOGY_OBJ := ../src/topology.c
+TOPOLOGY_HEADER := ../include/topology.h
+READ_YAML_OBJ := ../src/read_yaml_ptt.c
+READ_YAML_HEADER := ../include/read_yaml_ptt.h
 
 all: $(TESTS)
 
-test_read_yaml_ptt: test_read_yaml_ptt.c ../src/read_yaml_ptt.c $(BSTRLIB_OBJ)
-	$(CC) $(INCLUDES) -DWITH_BSTRING test_read_yaml_ptt.c ../src/read_yaml_ptt.c $(BSTRLIB_OBJ) -o $@
+test_read_yaml_ptt: test_read_yaml_ptt.c $(READ_YAML_OBJ) $(READ_YAML_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
+	$(CC) $(INCLUDES) -DWITH_BSTRING test_read_yaml_ptt.c $(READ_YAML_OBJ) $(BSTRLIB_OBJ) -o $@
 
-test_results: test_results.c ../src/results.c $(BSTRLIB_OBJ) $(MAP_OBJ) $(CALCULATOR_OBJ)
+test_results: test_results.c ../src/results.c $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(MAP_OBJ) $(MAP_HEADER) $(CALCULATOR_OBJ) $(CALCULATOR_HEADER)
 	$(CC) $(INCLUDES) -DWITH_BSTRING -DCALCULATOR_AS_LIB test_results.c ../src/results.c $(BSTRLIB_OBJ) $(MAP_OBJ) $(CALCULATOR_OBJ) -o $@ -lm
 
 
-test_getopt_extra: test_getopt_extra.c ../src/getopt_extra.c $(BSTRLIB_OBJ) $(MAP_OBJ)
+test_getopt_extra: test_getopt_extra.c ../src/getopt_extra.c $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(MAP_OBJ) $(MAP_HEADER)
 	$(CC) $(INCLUDES) -DWITH_BSTRING test_getopt_extra.c ../src/getopt_extra.c $(BSTRLIB_OBJ) $(MAP_OBJ) -o $@
 
-test_topology: test_topology.c ../src/topology.c $(BSTRLIB_OBJ)
-	$(CC) $(INCLUDES) test_topology.c ../src/topology.c $(BSTRLIB_OBJ) -o $@
+test_topology: test_topology.c $(TOPOLOGY_OBJ) $(TOPOLOGY_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
+	$(CC) $(INCLUDES) test_topology.c $(TOPOLOGY_OBJ) $(BSTRLIB_OBJ) -o $@
 
 run: $(TESTS)
 	@for T in $(TESTS); do ./$$T; done
 
 clean:
-	rm -f test_read_yaml_ptt test_results test_getopt_extra
+	rm -f $(TESTS)
