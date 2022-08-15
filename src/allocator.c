@@ -5,9 +5,9 @@
 #include <unistd.h>
 #include <error.h>
 
-#include <test_types.h>
+#include "test_types.h"
 
-#include <allocator.h>
+#include "allocator.h"
 
 size_t getstreamelems(RuntimeStreamConfig *sdata)
 {

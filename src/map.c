@@ -33,7 +33,7 @@
 #include <errno.h>
 #include <stdint.h>
 
-#include <map.h>
+#include "map.h"
 
 #ifdef WITH_BSTRING
 #include <bstrlib.h>

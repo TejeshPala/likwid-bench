@@ -3,12 +3,12 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include <bstrlib.h>
-#include <bstrlib_helper.h>
-#include <map.h>
+#include "bstrlib.h"
+#include "bstrlib_helper.h"
+#include "map.h"
 
-#include <read_yaml_ptt.h>
-#include <test_types.h>
+#include "read_yaml_ptt.h"
+#include "test_types.h"
 
 struct tagbstring byaml_end = bsStatic("...");
 struct tagbstring byaml_begin = bsStatic("---");

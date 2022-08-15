@@ -4,11 +4,11 @@
 #include <unistd.h>
 #include <error.h>
 
-#include <bstrlib.h>
-#include <bstrlib_helper.h>
-#include <test_types.h>
+#include "bstrlib.h"
+#include "bstrlib_helper.h"
+#include "test_types.h"
 
-#include <workgroups.h>
+#include "workgroups.h"
 #include <pthread.h>
 
 

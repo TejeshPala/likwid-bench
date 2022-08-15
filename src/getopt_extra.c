@@ -7,11 +7,18 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <error.h>
-#include <bstrlib.h>
-#include <bstrlib_helper.h>
-#include <map.h>
-#include <getopt_extra.h>
+#include "error.h"
+#include "map.h"
+#include "getopt_extra.h"
+
+#ifndef WITH_BSTRING
+#define WITH_BSTRING
+#endif
+
+#ifdef WITH_BSTRING
+#include "bstrlib.h"
+#include "bstrlib_helper.h"
+#endif /* WITH_BSTRING */
 
 /*#ifndef global_verbosity*/
 /*int global_verbosity = DEBUGLEV_DEVELOP;*/
@@ -21,14 +28,16 @@ static char* _getopt_extra_typestring(int return_flag)
 {
     if (return_flag & RETURN_TYPE_MASK(RETURN_TYPE_LIST))
     {
-        if (return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
-        {
-            return "bstring list";
-        }
-        else if (return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BOOL))
+        if (return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BOOL))
         {
             return "boolean list";
         }
+#ifdef WITH_BSTRING
+        else if (return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
+        {
+            return "bstring list";
+        }
+#endif /* WITH_BSTRING */
         else if (return_flag & RETURN_TYPE_MASK(RETURN_TYPE_INT))
         {
             return "integer list";
@@ -68,14 +77,16 @@ static char* _getopt_extra_typestring(int return_flag)
     }
     else
     {
-        if (return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
-        {
-            return "bstring";
-        }
-        else if (return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BOOL))
+        if (return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BOOL))
         {
             return "boolean";
         }
+#ifdef WITH_BSTRING
+        else if (return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
+        {
+            return "bstring";
+        }
+#endif /* WITH_BSTRING */
         else if (return_flag & RETURN_TYPE_MASK(RETURN_TYPE_INT))
         {
             return "integer";
@@ -326,6 +337,7 @@ static int clioption_generate_getopt_strs(struct option_extra* options, bstring 
     return num_opts;
 }
 
+#ifdef WITH_BSTRING
 static int _getopt_extra_add_bstrlist(struct option_extra_return* retopt, char* arg)
 {
     if (retopt->qty == 0 && retopt->value.bstrlist == NULL)
@@ -341,6 +353,7 @@ static int _getopt_extra_add_bstrlist(struct option_extra_return* retopt, char* 
     }
     return 0;
 }
+#endif /* WITH_BSTRING */
 
 static int _getopt_extra_add_intlist(struct option_extra_return* retopt, char* arg)
 {
@@ -419,11 +432,7 @@ static int _getopt_long_extra_addlist(struct option_extra_return* retopt, char* 
             }
         }
     }
-    if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
-    {
-        ret = _getopt_extra_add_bstrlist(retopt, optarg);
-    }
-    else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_FLOAT))
+    if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_FLOAT))
     {
         ret = _getopt_extra_add_floatlist(retopt, optarg);
     }
@@ -431,6 +440,12 @@ static int _getopt_long_extra_addlist(struct option_extra_return* retopt, char* 
     {
         ret = _getopt_extra_add_doublelist(retopt, optarg);
     }
+#ifdef WITH_BSTRING
+    else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
+    {
+        ret = _getopt_extra_add_bstrlist(retopt, optarg);
+    }
+#endif /*WITH_BSTRING */
 /*    else if (return_flag & RETURN_TYPE_STRING_FLAG)*/
 /*    {*/
 /*        ret = _getopt_extra_add_strlist(retopt, optarg);*/
@@ -450,6 +465,7 @@ static int _getopt_long_extra_addlist(struct option_extra_return* retopt, char* 
     return ret;
 }
 
+#ifdef WITH_BSTRING
 static int _getopt_extra_set_bstr(struct option_extra_return* retopt, char* arg)
 {
     if (blength(retopt->value.bstrvalue) >= 0)
@@ -460,6 +476,7 @@ static int _getopt_extra_set_bstr(struct option_extra_return* retopt, char* arg)
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting bstring '%s', bdata(retopt->value.bstrvalue));
     return 0;
 }
+#endif /*WITH_BSTRING */
 
 static int _getopt_extra_set_int(struct option_extra_return* retopt, char* arg)
 {
@@ -643,16 +660,18 @@ static int _getopt_long_extra_setvalue(struct option_extra_return* retopt, char*
             }
         }
     }
-    if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
-    {
-        ret = _getopt_extra_set_bstr(retopt, optarg);
-    }
-    else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BOOL))
+    if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BOOL))
     {
         retopt->value.boolvalue = 1;
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting boolean '%d', retopt->value.boolvalue);
         ret = 0;
     }
+#ifdef WITH_BSTRING
+    else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
+    {
+        ret = _getopt_extra_set_bstr(retopt, optarg);
+    }
+#endif /* WITH_BSTRING */
     else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_FLOAT))
     {
         ret = _getopt_extra_set_float(retopt, optarg);
@@ -712,25 +731,29 @@ void free_returns(void* value)
     struct option_extra_return* retopt = (struct option_extra_return*) value;
     if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_LIST))
     {
-        if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
-        {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying bstring list);
-            bstrListDestroy(retopt->value.bstrlist);
-        }
-        else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_INT))
+        if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_INT))
         {
             DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying integer list);
             free(retopt->value.intlist);
         }
+#ifdef WITH_BSTRING
+        else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
+        {
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying bstring list);
+            bstrListDestroy(retopt->value.bstrlist);
+        }
+#endif /* WITH_BSTRING */
         retopt->qty = 0;
     }
     else
     {
+#ifdef WITH_BSTRING
         if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
         {
             DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying bstring value '%s', bdata(retopt->value.bstrvalue));
             bdestroy(retopt->value.bstrvalue);
         }
+#endif /* WITH_BSTRING */
     }
     free(retopt);
 }
@@ -773,11 +796,20 @@ int __check_flags_and_types(struct option_extra* options) {
             ERROR_PRINT(Option --%s uses multiple arg flags, options[i].longname);
             ret = -1;
         }
-        if ((options[i].arg_flag & ARG_FLAG_MASK(ARG_FLAG_FILE) || options[i].arg_flag & ARG_FLAG_MASK(ARG_FLAG_DIR))   &&
-            (!(options[i].return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING)|| options[i].return_flag & RETURN_TYPE_MASK(RETURN_TYPE_STRING))))
+        if ((options[i].arg_flag & ARG_FLAG_MASK(ARG_FLAG_FILE) || options[i].arg_flag & ARG_FLAG_MASK(ARG_FLAG_DIR)))
         {
-            ERROR_PRINT(Option --%s uses FILE or DIR flag but return type is not a string type, options[i].longname);
-            ret = -1;
+            if (!(options[i].return_flag & RETURN_TYPE_MASK(RETURN_TYPE_STRING)))
+            {
+                ERROR_PRINT(Option --%s uses FILE or DIR flag but return type is not a string type, options[i].longname);
+                ret = -1;
+            }
+#ifdef WITH_BSTRING
+            else if (!(options[i].return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING)))
+            {
+                ERROR_PRINT(Option --%s uses FILE or DIR flag but return type is not a string type, options[i].longname);
+                ret = -1;
+            }
+#endif /* WITH_BSTRING */
         }
         if (ret < 0)
             break;
@@ -880,6 +912,7 @@ int getopt_long_extra(int argc, char* argv[], char* shortopts, struct option_ext
                         }
                         else
                         {
+                            free_returns(retopt);
                             ret = _getopt_long_extra_setvalue(retopt, optarg);
                         }
                     }
