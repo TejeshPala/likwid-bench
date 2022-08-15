@@ -30,6 +30,7 @@ INCLUDES=-g -I../include -fsanitize=address -fsanitize=leak
 
 TESTS = test_read_yaml_ptt \
 	test_getopt_extra \
+	test_topology \
 	test_results
 
 BSTRLIB_OBJ := ../src/bstrlib.c ../src/bstrlib_helper.c
@@ -39,14 +40,17 @@ CALCULATOR_OBJ := ../src/calculator.c ../src/stack.c
 all: $(TESTS)
 
 test_read_yaml_ptt: test_read_yaml_ptt.c ../src/read_yaml_ptt.c $(BSTRLIB_OBJ)
-	$(CC) $(INCLUDES) test_read_yaml_ptt.c ../src/read_yaml_ptt.c $(BSTRLIB_OBJ) -o $@
+	$(CC) $(INCLUDES) -DWITH_BSTRING test_read_yaml_ptt.c ../src/read_yaml_ptt.c $(BSTRLIB_OBJ) -o $@
 
-test_results: test_results.c ../src/results.c $(MAP_OBJ) $(CALCULATOR_OBJ)
-	$(CC) $(INCLUDES) -DCALCULATOR_AS_LIB test_results.c ../src/results.c $(MAP_OBJ) $(CALCULATOR_OBJ) -o $@ -lm
+test_results: test_results.c ../src/results.c $(BSTRLIB_OBJ) $(MAP_OBJ) $(CALCULATOR_OBJ)
+	$(CC) $(INCLUDES) -DWITH_BSTRING -DCALCULATOR_AS_LIB test_results.c ../src/results.c $(BSTRLIB_OBJ) $(MAP_OBJ) $(CALCULATOR_OBJ) -o $@ -lm
 
 
 test_getopt_extra: test_getopt_extra.c ../src/getopt_extra.c $(BSTRLIB_OBJ) $(MAP_OBJ)
-	$(CC) $(INCLUDES) test_getopt_extra.c ../src/getopt_extra.c $(BSTRLIB_OBJ) $(MAP_OBJ) -o $@
+	$(CC) $(INCLUDES) -DWITH_BSTRING test_getopt_extra.c ../src/getopt_extra.c $(BSTRLIB_OBJ) $(MAP_OBJ) -o $@
+
+test_topology: test_topology.c ../src/topology.c $(BSTRLIB_OBJ)
+	$(CC) $(INCLUDES) test_topology.c ../src/topology.c $(BSTRLIB_OBJ) -o $@
 
 run: $(TESTS)
 	@for T in $(TESTS); do ./$$T; done
