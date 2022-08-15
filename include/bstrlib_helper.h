@@ -1,7 +1,7 @@
 #ifndef BSTRLIB_HELPER_INCLUDE
 #define BSTRLIB_HELPER_INCLUDE
 
-#include <bstrlib.h>
+#include "bstrlib.h"
 
 #ifdef __cplusplus
 extern "C" {

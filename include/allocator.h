@@ -1,7 +1,7 @@
 #ifndef ALLOCATOR_H
 #define ALLOCATOR_H
 
-#include <test_types.h>
+#include "test_types.h"
 
 int allocate_arrays(RuntimeStreamConfig *sdata);
 void release_arrays(RuntimeStreamConfig *sdata);

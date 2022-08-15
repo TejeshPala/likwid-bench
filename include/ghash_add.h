@@ -5,11 +5,11 @@
  *
  *      Description:  Header File for ghash's g_hash_table_new_full function
  *
- *      Version:   1.0
- *      Released:  21.04.2021
+ *      Version:   <VERSION>
+ *      Released:  <DATE>
  *
  *      Author:   Thomas Gruber (tg), thomas.gruber@googlemail.com
- *      Project:  c-map
+ *      Project:  likwid-bench
  *
  *      Copyright (C) 2019 RRZE, University Erlangen-Nuremberg
  *
@@ -31,8 +31,10 @@
 #ifndef __G_HASH_ADD_H__
 #define __G_HASH_ADD_H__
 
+#include "ghash.h"
+
 GHashTable * g_hash_table_new_full (GHashFunc      hash_func,
 				    GEqualFunc     key_equal_func,
 				    GDestroyNotify key_destroy_func,
 				    GDestroyNotify value_destroy_func);
-#endif
+#endif /* __G_HASH_ADD_H__ */

@@ -1,9 +1,41 @@
+/*
+ * =======================================================================================
+ *
+ *      Filename:  getopt_extra.h
+ *
+ *      Description:  Header File for getopt with extra functionality
+ *
+ *      Version:   <VERSION>
+ *      Released:  <DATE>
+ *
+ *      Author:   Thomas Gruber (tg), thomas.gruber@googlemail.com
+ *      Project:  likwid-bench
+ *
+ *      Copyright (C) 2019 RRZE, University Erlangen-Nuremberg
+ *
+ *      This program is free software: you can redistribute it and/or modify it under
+ *      the terms of the GNU General Public License as published by the Free Software
+ *      Foundation, either version 2 of the License, or (at your option) any later
+ *      version.
+ *
+ *      This program is distributed in the hope that it will be useful, but WITHOUT ANY
+ *      WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+ *      PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ *
+ *      You should have received a copy of the GNU General Public License along with
+ *      this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * =======================================================================================
+ */
+
 #ifndef GETOPT_EXTRA_H
 #define GETOPT_EXTRA_H
 
 #include <stdint.h>
-#include <bstrlib.h>
-#include <map.h>
+#include "map.h"
+#ifdef WITH_BSTRING
+#include "bstrlib.h"
+#endif /* WITH_BSTRING */
 
 typedef enum {
     ARG_FLAG_UNDEF = 0,
@@ -24,7 +56,9 @@ typedef enum {
     RETURN_TYPE_BOOL = 0,   // unsigned
     RETURN_TYPE_INT,        // int
     RETURN_TYPE_UINT64,     // uint64_t
+#ifdef WITH_BSTRING
     RETURN_TYPE_BSTRING,    // bstring, see https://github.com/websnarf/bstrlib
+#endif /* WITH_BSTRING */
     RETURN_TYPE_STRING,     // char* allocated
     RETURN_TYPE_FLOAT,      // float
     RETURN_TYPE_DOUBLE,     // double
@@ -67,7 +101,9 @@ typedef struct option_extra_return {
         int intvalue;
         uint64_t uint64value;
         unsigned boolvalue;
+#ifdef WITH_BSTRING
         bstring bstrvalue;
+#endif /* WITH_BSTRING */
         char* strvalue;
         float floatvalue;
         double doublevalue;
@@ -101,4 +137,4 @@ int del_option(char* longname, struct option_extra** options);
 void print_options(struct option_extra* options);
 void print_help(struct option_extra* options);
 
-#endif
+#endif /* GETOPT_EXTRA_H */

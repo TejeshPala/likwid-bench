@@ -5,11 +5,11 @@
  *
  *      Description:  Header File for C Hashmap
  *
- *      Version:   1.0
- *      Released:  21.04.2021
+ *      Version:   <VERSION>
+ *      Released:  <DATE>
  *
  *      Author:   Thomas Gruber (tg), thomas.gruber@googlemail.com
- *      Project:  c-map
+ *      Project:  likwid-bench
  *
  *      Copyright (C) 2019 RRZE, University Erlangen-Nuremberg
  *
@@ -31,12 +31,12 @@
 #ifndef MAP_H
 #define MAP_H
 
-#include <ghash.h>
-#include <ghash_add.h>
+#include "ghash.h"
+#include "ghash_add.h"
 
 #ifdef WITH_BSTRING
-#include <bstrlib.h>
-#endif
+#include "bstrlib.h"
+#endif /* WITH_BSTRING */
 
 typedef void* mpointer;
 typedef void (*map_value_destroy_func)(mpointer data);
@@ -48,7 +48,7 @@ typedef enum {
     MAP_KEY_TYPE_UINT,
 #ifdef WITH_BSTRING
     MAP_KEY_TYPE_BSTR,
-#endif
+#endif /* WITH_BSTRING */
     MAX_MAP_KEY_TYPE
 } MapKeyType;
 
@@ -87,6 +87,6 @@ declare_map_type(u, uint64_t)
 declare_map_type(s, char*)
 #ifdef WITH_BSTRING
 declare_map_type(b, bstring)
-#endif
+#endif /* WITH_BSTRING */
 
-#endif
+#endif /* MAP_H */
