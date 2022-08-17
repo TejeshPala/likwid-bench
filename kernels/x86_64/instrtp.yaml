@@ -1,0 +1,59 @@
+---
+- Name: instrtp
+- Description: Placeholder for any instruction throughput benchmark
+- Parameters:
+  - instruction:
+      description: Mnemonic of instruction
+      options:
+        - required
+  - op1:
+      description: First operand type (destination)
+  - op2:
+      description: Second operand type (first source)
+  - op3:
+      description: Third operand type (second source)
+  - op4:
+      description: Fourth operand type (third source)
+  - op5:
+      description: Fifth operand type (fourth source)
+  - unroll_fac:
+      description: Number of unrolling within one loop
+      options:
+        - required
+      default: 8
+  - uops_per_inst:
+      description: Number of uops per instruction
+      options:
+        - required
+      default: 1
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      dimsize:
+        - 4000 
+- Variables:
+  UOPS_PER_ITER: uops_per_inst
+  BYTES_PER_ELEM: 0
+  LOADS_PER_ELEM: 0
+  BYTES_PER_ITER: 0
+  LOADS_PER_ITER: 0
+  INST_PER_ITER: 8
+  UNROLL_FACTOR: unroll_fac
+
+- Metrics:
+  Total instructions: INST_PER_ITER*ITER
+  Total uops: UOPS_PER_ITER*ITER
+- Threads:
+  offsets:
+    - THREAD_ID*(N/NUM_THREADS)
+  sizes:
+    - N/NUM_THREADS
+- warmup: True
+- Language: asm
+...
+LOOP(loop, rax=0, <, rdi=1000000, 1)
+UNROLL(UNROLL_FACTOR)
+    instruction    op1, op2, op3, op4, op5
+UNROLLEND()
+LOOPEND(loop)

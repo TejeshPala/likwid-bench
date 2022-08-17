@@ -1,0 +1,59 @@
+---
+- Name: instrlt
+- Description: Placeholder for any instruction latency benchmark
+- Parameters:
+  - instruction:
+      description: Mnemonic of instruction
+      options:
+        - required
+  - op1:
+      description: First operand type (destination)
+  - op2:
+      description: Second operand type (first source)
+  - op3:
+      description: Third operand type (second source)
+  - op4:
+      description: Fourth operand type (third source)
+  - op5:
+      description: Fifth operand type (fourth source)
+  - dependency_reg:
+      description: Register which will be included in a dependency chain with the target (destination) register (possible values: \{2, 3, 4, 5 \})
+      options:
+        - required
+      default: 2
+  - uops_per_inst:
+      description: Number of uops per instruction
+      options:
+        - required
+      default: 1
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      dimsize:
+        - 4000 
+- Variables:
+  UOPS_PER_ITER: uops_per_inst
+  BYTES_PER_ELEM: 0
+  LOADS_PER_ELEM: 0
+  BYTES_PER_ITER: 0
+  LOADS_PER_ITER: 0
+  INST_PER_ITER: 8
+  UNROLL_FACTOR: 1 
+
+- Metrics:
+  Total instructions: INST_PER_ITER*ITER
+  Total uops: UOPS_PER_ITER*ITER
+- Threads:
+  offsets:
+    - THREAD_ID*(N/NUM_THREADS)
+  sizes:
+    - N/NUM_THREADS
+- warmup: True
+- Language: asm
+...
+LOOP(loop, rax=0, <, rdi=1000000, 8)
+BUILD_DEP_CHAIN(op1, dependency_reg, 8)
+  instruction    op1, op2, op3, op4, op5
+BULD_DEP_CHAINEND()
+LOOPEND(loop)
