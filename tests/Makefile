@@ -31,7 +31,8 @@ INCLUDES=-g -I../include -fsanitize=address -fsanitize=leak
 TESTS = test_read_yaml_ptt \
 	test_getopt_extra \
 	test_topology \
-	test_results
+	test_results \
+	test_ptt2asm
 
 BSTRLIB_OBJ := ../src/bstrlib.c ../src/bstrlib_helper.c
 BSTRLIB_HEADER := ../include/bstrlib.h ../include/bstrlib_helper.h 
@@ -43,6 +44,10 @@ TOPOLOGY_OBJ := ../src/topology.c
 TOPOLOGY_HEADER := ../include/topology.h
 READ_YAML_OBJ := ../src/read_yaml_ptt.c
 READ_YAML_HEADER := ../include/read_yaml_ptt.h
+PTT2ASM_OBJ := ../src/ptt2asm.c
+PTT2ASM_HEADER := ../include/ptt2asm.h ../include/isa_armv7.h ../include/isa_armv8.h ../include/isa_ppc64.h ../include/isa_x86-64.h ../include/isa_x86.h
+PTT_KEYWORDS_HEADER := ../include/ptt_keyword_loop.h ../include/ptt_keyword_dummy.h
+
 
 all: $(TESTS)
 
@@ -58,6 +63,9 @@ test_getopt_extra: test_getopt_extra.c ../src/getopt_extra.c $(BSTRLIB_OBJ) $(BS
 
 test_topology: test_topology.c $(TOPOLOGY_OBJ) $(TOPOLOGY_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
 	$(CC) $(INCLUDES) test_topology.c $(TOPOLOGY_OBJ) $(BSTRLIB_OBJ) -o $@
+
+test_ptt2asm: test_ptt2asm.c $(PTT2ASM_OBJ) $(PTT2ASM_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(PTT_KEYWORDS_HEADER)
+	$(CC) $(INCLUDES) test_ptt2asm.c $(PTT2ASM_OBJ) $(BSTRLIB_OBJ) -o $@
 
 run: $(TESTS)
 	@for T in $(TESTS); do ./$$T; done
