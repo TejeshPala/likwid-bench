@@ -72,17 +72,45 @@ int bstrListDel(struct bstrList * sl, int idx)
 
 	for (i = idx+1; i < sl->qty; i++)
 	{
-		sl->entry[i-1] = bstrcpy(sl->entry[i]);
+		sl->entry[i-1] = sl->entry[i];
 	}
 	sl->qty--;
 
 	return BSTR_OK;
 }
 
+int bstrListRemove(struct bstrList * sl, bstring str)
+{
+    int i = 0;
+    if (!sl) return BSTR_ERR;
+    while (i < sl->qty)
+    {
+        if (bstrcmp(str, sl->entry[i]) == BSTR_OK)
+        {
+            bstrListDel(sl, i);
+            continue;
+        }
+        i++;
+    }
+    return BSTR_OK;
+}
+
 bstring bstrListGet(struct bstrList * sl, int idx)
 {
 	if (!sl || idx < 0 || idx >= sl->qty) return NULL;
 	return sl->entry[idx];
+}
+
+struct bstrList* bstrListCopy(struct bstrList * sl)
+{
+    int i = 0;
+    if (!sl) return NULL;
+    struct bstrList* ol = bstrListCreate();
+    for (i = 0; i < sl->qty; i++)
+    {
+        bstrListAdd(ol, sl->entry[i]);
+    }
+    return ol;
 }
 
 /*

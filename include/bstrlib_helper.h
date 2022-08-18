@@ -15,6 +15,9 @@ int bstrListDel(struct bstrList * sl, int idx);
 
 bstring bstrListGet(struct bstrList * sl, int idx);
 
+struct bstrList* bstrListCopy(struct bstrList * sl);
+int bstrListRemove(struct bstrList * sl, bstring str);
+
 void bstrListPrint(struct bstrList * sl);
 
 int btrimbrackets (bstring b);
