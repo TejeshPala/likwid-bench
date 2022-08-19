@@ -5,184 +5,24 @@
 #include <libgen.h>
 #include <sys/utsname.h>
 
-#include <error.h>
-#include <bstrlib.h>
-#include <bstrlib_helper.h>
+#include "error.h"
+#include "bstrlib.h"
+#include "bstrlib_helper.h"
 
-//#include <getopt.h>
 
-#include <test_types.h>
-#include <getopt_extra.h>
-#include <read_yaml_ptt.h>
 
-//#include <workgroups.h>
+#include "test_types.h"
+#include "getopt_extra.h"
+#include "read_yaml_ptt.h"
+#include "cli_parser.h"
+#include "workgroups.h"
+#include "ptt2asm.h"
+#include "allocator.h"
 
 #ifndef global_verbosity
 int global_verbosity = DEBUGLEV_DEVELOP;
 #endif
 
-static struct option_extra baseopts[5] = {
-    {"help", 'h', RETURN_TYPE_MASK(RETURN_TYPE_BOOL), 0, "Help and usage"},
-    {"test", 't', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument, "Test case to run"},
-    {"file", 'f', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument, "Test file run run", ARG_FLAG_MASK(ARG_FLAG_FILE)},
-    {"kfolder", 'd', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument, "Directory with benchmarks", ARG_FLAG_MASK(ARG_FLAG_DIR)},
-    {0, 0, 0, 0}
-};
-
-static struct option_extra basetestopts[4] = {
-    {"iters", 'i', RETURN_TYPE_MASK(RETURN_TYPE_UINT64), required_argument, "Number of test case executions"},
-    {"workgroup", 'w', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING)|RETURN_TYPE_MASK(RETURN_TYPE_LIST), required_argument, "Workgroup definition (Threads + Streams)"},
-    {"runtime", 'r', RETURN_TYPE_MASK(RETURN_TYPE_UINT64), required_argument, "Minimal runtime of a test case (use instead of -i/--iters)", ARG_FLAG_MASK(ARG_FLAG_TIME)},
-    {0, 0, 0, 0}
-};
-
-
-static void usage_print_header()
-{
-    printf("###########################################\n");
-    printf("# likwid-bench - Micro-benchmarking suite #\n");
-    printf("###########################################\n\n");
-}
-
-static void usage_print_baseopts(int message)
-{
-    printf(" -h/--help          : Print usage\n");
-    printf(" -t/--test <str>    : Name of testcase\n");
-    printf(" -f/--file <str>    : Filename for testcase\n");
-    printf(" -d/--kfolder <str> : Benchmark folder\n");
-    if (message)
-    {
-        printf("\n");
-        printf("With the testcase name or the filename, the options might expand if the benchmark requires more input\n");
-        printf("\n");
-    }
-}
-
-static void usage_print_basetestopts()
-{
-    printf(" -w/--workgroup <str>  : A workgroup definition like S0:2 (multiple options allowed)\n");
-    printf(" -i/--iterations <str> : Number of iterations for execution\n");
-    printf(" -r/--runtime <time>   : Runtime of benchmark (default 1s, automatically determines iterations)\n");
-    printf("\n");
-    printf("likwid-bench automatically detects the number of iterations (if not given) for the given or default\n");
-    printf("runtime.\n");
-    printf("\n");
-}
-
-
-/*static void read_array_option(bstring opt, bstring name, bstring datatype, struct bstrList* codelist , struct bstrList* calllist)*/
-/*{*/
-/*    FILE* fp = NULL;*/
-/*    bstring func = bstrcpy(opt);*/
-/*    bstring args = bfromcstr("");*/
-/*    bstring bcolon = bfromcstr(":");*/
-/*    bstring bslash = bfromcstr("/");*/
-/*    bstring bname = bfromcstr("<NAME>");*/
-/*    bstring bdatatype = bfromcstr("<DTYPE>");*/
-
-/*    int open = bstrchrp(func, '(', 0);*/
-/*    if (open != BSTR_ERR)*/
-/*    {*/
-/*        int close = bstrchrp(func, ')', open);*/
-/*        bdestroy(args);*/
-/*        args = bmidstr(func, open, close);*/
-/*        btrunc(func, open);*/
-/*        btrimbrackets(args);*/
-/*    }*/
-/*    else*/
-/*    {*/
-/*        open = 0;*/
-/*    }*/
-
-/*    bstring fname = bstrcpy(func);*/
-/*    int start = binstrrcaseless(func, blength(func), bcolon);*/
-/*    if (start != BSTR_ERR)*/
-/*    {*/
-/*        bdelete(func, 0, start+1);*/
-/*    }*/
-
-/*    bfindreplacecaseless(fname, bcolon, bslash, 0);*/
-/*    bcatcstr(fname, ".c");*/
-/*    bstring code = read_file(bdata(fname));*/
-
-
-/*    bfindreplacecaseless(code, bname, name, 0);*/
-/*    bfindreplacecaseless(code, bdatatype, datatype, 0);*/
-
-
-/*    if (blength(code) > 0)*/
-/*    {*/
-/*        bstrListAdd(codelist, code);*/
-/*    }*/
-
-/*    if (calllist)*/
-/*    {*/
-/*        bstring call = bformat("ret = %s_%s(%s, %s_LEN", bdata(func),*/
-/*                                                         bdata(name),*/
-/*                                                         bdata(name),*/
-/*                                                         bdata(name));*/
-/*        if (blength(args) > 0)*/
-/*        {*/
-/*            bstring t = bformat(", %s", bdata(args));*/
-/*            bconcat(call, t);*/
-/*            bdestroy(t);*/
-/*        }*/
-/*        bcatcstr(call, ");");*/
-/*        bstrListAdd(calllist, call);*/
-/*        bdestroy(call);*/
-/*    }*/
-
-
-
-/*    bdestroy(func);*/
-/*    bdestroy(args);*/
-/*    bdestroy(code);*/
-/*    bdestroy(fname);*/
-/*    bdestroy(bcolon);*/
-/*    bdestroy(bslash);*/
-/*    bdestroy(bname);*/
-/*    bdestroy(bdatatype);*/
-/*}*/
-
-
-void print_usage()
-{
-    printf("likwid-bench: Micro-benchmarking suite\n\n");
-    printf("likwid-bench -t <test> ... (test-specific options)\n");
-    printf("Test-specific options are available when calling\n");
-    printf("likwid-bench -t <test> -h\n");
-}
-
-
-
-void print_test_usage(TestConfig_t cfg)
-{
-    struct tagbstring bdelim = bsStatic(", ");
-    //printf("Parameters for testcase %s : \n", bdata(cfg->name));
-    //printf("Description: %s\n\n", bdata(cfg->description));
-    if (cfg->num_params > 0)
-    {
-        for (int i = 0; i < cfg->num_params; i++)
-        {
-            if (blength(cfg->params[i].name) == 1)
-            {
-                printf(" -%s <value> : %s (Options: ", bdata(cfg->params[i].name), bdata(cfg->params[i].description));
-            }
-            else
-            {
-                printf(" --%s <value> : %s (Options: ", bdata(cfg->params[i].name), bdata(cfg->params[i].description));
-            }
-            bstring opts = bjoin(cfg->params[i].options, &bdelim);
-            printf("%s)\n", bdata(opts));
-            bdestroy(opts);
-        }
-    }
-    else
-    {
-        printf("\nTestcase specifies no further options\n");
-    }
-    printf("\n");
-}
 
 static bstring get_architecture()
 {
@@ -195,7 +35,100 @@ static bstring get_architecture()
     return bfromcstr(buffer.machine);
 }
 
+int allocate_runtime_config(RuntimeConfig** config)
+{
+    RuntimeConfig* runcfg = malloc(sizeof(RuntimeConfig));
+    if (!runcfg)
+    {
+        ERROR_PRINT(Error allocating space for runtime configuration)
+        return -ENOMEM;
+    }
+    memset(runcfg, 0, sizeof(RuntimeConfig));
+    runcfg->wgroups = NULL;
+    runcfg->tcfg = NULL;
+    runcfg->codelines = NULL;
+    runcfg->streams = NULL;
+    runcfg->testname = bfromcstr("");
+    runcfg->pttfile = bfromcstr("");
+    runcfg->tmpfolder = bfromcstr("");
+    *config = runcfg;
+    return 0;
+}
 
+void free_runtime_config(RuntimeConfig* runcfg)
+{
+    if (runcfg)
+    {
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy pttfile in RuntimeConfig);
+        bdestroy(runcfg->pttfile);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy testname in RuntimeConfig);
+        bdestroy(runcfg->testname);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy tmpfolder in RuntimeConfig);
+        bdestroy(runcfg->tmpfolder);
+        if (runcfg->wgroups)
+        {
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy workgroups in RuntimeConfig);
+            for (int i = 0; i < runcfg->num_wgroups; i++)
+            {
+                bdestroy(runcfg->wgroups[i].str);
+                if (runcfg->wgroups[i].threads)
+                {
+                    free(runcfg->wgroups[i].threads);
+                }
+                if (runcfg->wgroups[i].cpulist)
+                {
+                    free(runcfg->wgroups[i].cpulist);
+                    runcfg->wgroups[i].cpulist = NULL;
+                    runcfg->wgroups[i].num_threads = 0;
+                }
+            }
+            free(runcfg->wgroups);
+            runcfg->wgroups = NULL;
+            runcfg->num_wgroups = 0;
+        }
+        if (runcfg->params)
+        {
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy parameter in RuntimeConfig);
+            for (int i = 0; i < runcfg->num_params; i++)
+            {
+                bdestroy(runcfg->params[i].name);
+                if (runcfg->params[i].type == RETURN_TYPE_BSTRING)
+                {
+                    bdestroy(runcfg->params[i].value.bstrvalue);
+                }
+                else if (runcfg->params[i].type == RETURN_TYPE_STRING)
+                {
+                    free(runcfg->params[i].value.strvalue);
+                }
+            }
+            free(runcfg->params);
+            runcfg->params = NULL;
+            runcfg->num_params = 0;
+        }
+        if (runcfg->tcfg)
+        {
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy TestConfig in RuntimeConfig);
+            close_yaml_ptt(runcfg->tcfg);
+            runcfg->tcfg = NULL;
+        }
+        if (runcfg->codelines)
+        {
+            bstrListDestroy(runcfg->codelines);
+            runcfg->codelines = NULL;
+        }
+        if (runcfg->streams)
+        {
+            for (int i = 0; i < runcfg->num_streams; i++)
+            {
+                free(runcfg->streams[i].ptr);
+            }
+            free(runcfg->streams);
+            runcfg->streams = NULL;
+            runcfg->num_streams = 0;
+        }
+        free(runcfg);
+    }
+}
 
 int main(int argc, char** argv)
 {
@@ -204,20 +137,20 @@ int main(int argc, char** argv)
     //BenchmarkConfig *cfg = NULL;
     RuntimeConfig* runcfg = NULL;
     Map_t useropts = NULL;
-    bstring yamlfile = bfromcstr("");
-    bstring testcase = bfromcstr("no-benchmark-given-so-it-does-not-exist");
+    int got_testcase = 0;
+/*    bstring yamlfile = bfromcstr("");*/
     //bstring bbaseopts = bfromcstr(baseopts_short);
     //bstring bbasetestopts = bfromcstr(basetestopts_short);
-    struct tagbstring brequired = bsStatic("required");
+    
+/*    bstring bccflags = bfromcstr("-fPIC -shared");*/
 
-    struct tagbstring boptional = bsStatic("optional");
-    bstring bccflags = bfromcstr("-fPIC -shared");
     bstring arch = get_architecture();
 #ifdef LIKWIDBENCH_KERNEL_FOLDER
     bstring kernelfolder = bformat("%s/%s/", TOSTRING(LIKWIDBENCH_KERNEL_FOLDER), bdata(arch));
 #else
     bstring kernelfolder = bformat("/tmp/likwid-bench-%d/%s/", getpid(), bdata(arch));
 #endif
+    bdestroy(arch);
     int (*ownaccess)(const char*, int) = access;
 
     if (argc ==  1)
@@ -228,263 +161,139 @@ int main(int argc, char** argv)
     }
 
     /*
-     * Prepare short and long options for getopt
+     * Allocate configuration structure for this tun
      */
-    Map_t cliopts = NULL;
-    struct option_extra* opts = NULL;
-    
-    add_option_list((struct option_extra*)baseopts, &opts);
-    int num_args = getopt_long_extra(argc, argv, NULL, opts, &cliopts);
-
-    struct option_extra_return* ret_arg = NULL;
-    int got_testcase = 0;
-    for (int i = 0; i < get_smap_size(cliopts); i++)
+    err = allocate_runtime_config(&runcfg);
+    if (err != 0)
     {
-        if (get_smap_by_idx(cliopts, i, (void**)&ret_arg) == 0)
-        {
-            printf("%d %x\n", i, ret_arg->return_flag);
-            if (ret_arg->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
-                printf("%s\n", bdata(ret_arg->value.bstrvalue));
-            else if (ret_arg->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BOOL))
-                printf("%s\n", (ret_arg->value.boolvalue ? "true" : "false"));
-        }
-    }
-    if (get_smap_by_key(cliopts, "kfolder", (void**)&ret_arg) == 0)
-    {
-        bdestroy(kernelfolder);
-        kernelfolder = bstrcpy(ret_arg->value.bstrvalue);
-    }
-    if (get_smap_by_key(cliopts, "test", (void**)&ret_arg) == 0)
-    {
-        bdestroy(testcase);
-        bdata(ret_arg->value.bstrvalue);
-        testcase = bstrcpy(ret_arg->value.bstrvalue);
-        bdestroy(yamlfile);
-        yamlfile = bformat("%s/%s.yaml", bdata(kernelfolder), bdata(testcase));
-        got_testcase = 1;
-    }
-    if (get_smap_by_key(cliopts, "file", (void**)&ret_arg) == 0)
-    {
-        struct tagbstring bdot = bsStatic(".");
-        bdestroy(yamlfile);
-        yamlfile = bstrcpy(ret_arg->value.bstrvalue);
-        bdestroy(testcase);
-        testcase = bformat("%s", basename(bdata(yamlfile)));
-        int dot = binstrr(testcase, blength(testcase)-1, &bdot);
-        if (dot != BSTR_ERR && dot >= 0)
-        {
-            btrunc(testcase, dot);
-        }
-        got_testcase = 1;
-    }
-    printf("Got testcase %s\n", bdata(testcase));
-    if (get_smap_by_key(cliopts, "help", (void**)&ret_arg) == 0)
-    {
-        if (!got_testcase)
-        {
-            usage_print_header();
-            usage_print_baseopts(1);
-            usage_print_basetestopts();
-            destroy_smap(cliopts);
-            free(opts);
-            goto main_out;
-        }
-        print_help = 1;
-    }
-    destroy_smap(cliopts);
-
-
-    TestConfig_t tcfg = NULL;
-    printf("read_yaml_ptt %s\n", bdata(yamlfile));
-    err = read_yaml_ptt(bdata(yamlfile), &tcfg);
-    if (err < 0)
-    {
-        fprintf(stderr, "Error reading %s\n", bdata(yamlfile));
-        if (tcfg)
-        {
-            free(tcfg);
-        }
-        free(opts);
         goto main_out;
     }
-    
-    
-    if (print_help && got_testcase)
+    bconcat(runcfg->tmpfolder, kernelfolder);
+    bdestroy(kernelfolder);
+
+    /*
+     * Prepare short and long options for getopt
+     */
+    err = parse_baseopts(argc, argv, runcfg);
+    if (err < 0)
+    {
+        usage_print_header();
+        usage_print_baseopts(1);
+        usage_print_basetestopts();
+        goto main_out;
+    }
+    if (runcfg->help && (blength(runcfg->testname) + blength(runcfg->pttfile)) == 0)
+    {
+        usage_print_header();
+        usage_print_baseopts(1);
+        usage_print_basetestopts();
+        goto main_out;
+    }
+    if (runcfg->verbosity > 0)
+    {
+        global_verbosity = runcfg->verbosity;
+    }
+    if (blength(runcfg->testname) > 0)
+    {
+        bdestroy(runcfg->pttfile);
+        runcfg->pttfile = bformat("%s/%s.yaml", bdata(runcfg->tmpfolder), bdata(runcfg->testname));
+        got_testcase = 1;
+    }
+    else if (blength(runcfg->pttfile) > 0)
+    {
+        struct tagbstring bdot = bsStatic(".");
+        bdestroy(runcfg->testname);
+        runcfg->testname = bformat("%s", basename(bdata(runcfg->pttfile)));
+        int dot = binstrr(runcfg->testname, blength(runcfg->testname)-1, &bdot);
+        if (dot != BSTR_ERR && dot >= 0)
+        {
+            btrunc(runcfg->testname, dot);
+        }
+        got_testcase = 1;
+    }
+    else
+    {
+        usage_print_header();
+        usage_print_baseopts(1);
+        usage_print_basetestopts();
+        goto main_out;
+    }
+
+    err = read_yaml_ptt(bdata(runcfg->pttfile), &runcfg->tcfg);
+    if (err < 0)
+    {
+        fprintf(stderr, "Error reading %s\n", bdata(runcfg->pttfile));
+        goto main_out;
+    }
+
+    if (runcfg->help && got_testcase)
     {
         usage_print_header();
         usage_print_baseopts(0);
         usage_print_basetestopts();
-        print_test_usage(tcfg);
-        close_yaml_ptt(tcfg);
-        free(opts);
+        print_test_usage(runcfg->tcfg);
         goto main_out;
     }
-    printf("tcfg %p\n", tcfg);
-    runcfg = malloc(sizeof(RuntimeConfig));
-    if (!runcfg)
+    err = parse_testopts(argc, argv, runcfg->tcfg, runcfg);
+    if (err < 0)
     {
-        fprintf(stderr, "Error allocating space for runtime configuration\n");
-        close_yaml_ptt(tcfg);
-        free(opts);
+        printf("Parsing of test CLI options failed\n");
         goto main_out;
     }
-    memset(runcfg, 0, sizeof(RuntimeConfig));
-    uint64_t iterations = -1;
-    double runtime = -1;
-    add_option_list((struct option_extra*)basetestopts, &opts);
-    struct tagbstring bbytes = bsStatic("bytes");
-    struct tagbstring btime = bsStatic("time");
-    for (int i = 0; i < tcfg->num_params; i++)
-    {
-        TestConfigParameter *p = &tcfg->params[i];
-        int rflags = RETURN_TYPE_MASK(RETURN_TYPE_UINT64);
-        int aflags = 0x0;
-        for (int j = 0; j < p->options->qty; j++)
-        {
-            if (bstrnicmp(p->options->entry[j], &bbytes, blength(&bbytes)) == BSTR_OK)
-            {
-                aflags = ARG_FLAG_MASK(ARG_FLAG_BYTES);
-            }
-            else if (bstrnicmp(p->options->entry[j], &btime, blength(&btime)) == BSTR_OK)
-            {
-                aflags = ARG_FLAG_MASK(ARG_FLAG_TIME);
-            }
-        }
-        printf("Add %s with arg flags 0x%x and return flags 0x%x\n", bdata(p->name), aflags, rflags);
-        add_option_params(bdata(p->name), bchar(p->name, 0), rflags, required_argument, &opts, aflags);
-    }
-    print_options(opts);
-    num_args = getopt_long_extra(argc, argv, NULL, opts, &cliopts);
-    if (get_smap_by_key(cliopts, "iters", (void**)&ret_arg) == 0)
-    {
-        runcfg->iterations = ret_arg->value.uint64value;
-    }
-    if (get_smap_by_key(cliopts, "runtime", (void**)&ret_arg) == 0)
-    {
-        runcfg->runtime = ret_arg->value.doublevalue;
-    }
-    // if (get_smap_by_key(cliopts, "workgroup", (void**)&ret_arg) == 0)
-    // {
-    //     struct bstrList* wlist = ret_arg->value.bstrlist;
-    //     runcfg->wgroups = malloc(wlist->qty * sizeof(RuntimeWorkgroupConfig));
-    //     if (!runcfg->wgroups)
-    //     {
-    //         destroy_smap(cliopts);
-    //         free(opts);
-    //         close_yaml_ptt(tcfg);
-    //         goto main_out;
-    //     }
-    //     runcfg->num_wgroups = 0;
-    //     for (int i = 0; i < wlist->qty; i++)
-    //     {
-    //         err = parse_workgroup(wlist->entry[i], &runcfg->wgroups[runcfg->num_wgroups]);
-    //         if (err != 0)
-    //         {
-    //             free(runcfg->wgroups);
-    //             destroy_smap(cliopts);
-    //             free(opts);
-    //             close_yaml_ptt(tcfg);
-    //             goto main_out;
-    //         }
-    //         runcfg->num_wgroups++;
-    //     }
-    // }
-    int required_missing = 0;
-    for (int i = 0; i < tcfg->num_params; i++)
-    {
-        int is_required = 0;
-        TestConfigParameter *p = &tcfg->params[i];
-        for (int j = 0; j < p->options->qty; j++)
-        {
-            printf("%s\n", bdata(p->options->entry[j]));
-            if (bstrnicmp(p->options->entry[j], &brequired, blength(&brequired)) == BSTR_OK)
-            {
-                is_required = 1;
-                break;
-            }
-        }
-        if (get_smap_by_key(cliopts, bdata(p->name), (void**)&ret_arg) == 0)
-        {
-            if (is_required)
-            {
-                printf("Got required test param '%s'\n", bdata(p->name));
-            }
-            else
-            {
-                printf("Got test param '%s'\n", bdata(p->name));
-            }
-        }
-        else
-        {
-            fprintf(stderr, "Missing required parameter '%s'\n", bdata(p->name));
-            required_missing++;
-        }
-    }
-    destroy_smap(cliopts);
-    free(opts);
-    close_yaml_ptt(tcfg);
-    
-    goto main_out;
-
-
 
     /*
      * Check if all required benchmark parameters are available
      */
-/*    if (num_required_params > 0)*/
-/*    {*/
-/*        printf("Required parameter missing %d\n", num_required_params);*/
-/*        for (int i = 0; i < cfg->num_params; i++)*/
-/*        {*/
-/*            bstring name;*/
-/*            bstring desc;*/
-/*            bstring def;*/
-/*            if (!get_smap_by_key(cfg->parameters[i], "name", (void**)&name))*/
-/*            {*/
-/*                void* tmp = NULL;*/
-/*                if (get_smap_by_key(runcfg->useropts, bdata(name), &tmp))*/
-/*                {*/
-/*                    printf("Name: %s\n", bdata(name));*/
-/*                    if (!get_smap_by_key(cfg->parameters[i], "default", (void**)&def))*/
-/*                    {*/
-/*                        printf("Parameter has default value: %s\n", bdata(def));*/
-/*                        add_smap(runcfg->useropts, bdata(name), bstrcpy(def));*/
-/*                    }*/
-/*                    else*/
-/*                    {*/
-/*                        printf("Option '%s' required", bdata(name));*/
-/*                        if (!get_smap_by_key(cfg->parameters[i], "description", (void**)&desc))*/
-/*                        {*/
-/*                            printf(": %s", bdata(desc));*/
-/*                        }*/
-/*                        printf("\n");*/
-/*                    }*/
-/*                }*/
-/*                else*/
-/*                {*/
-/*                    printf("Oops!?\n");*/
-/*                }*/
-/*            }*/
-/*        }*/
-/*    }*/
-
-    //int level = 0;
-    //foreach_in_smap(runcfg->useropts, print_map_elem, &level);
-/*    update_benchmark_config(cfg, runcfg->useropts);*/
+    int miss = check_required_params(runcfg->tcfg, runcfg);
+    if (miss > 0)
+    {
+        ERROR_PRINT(Required parameters missing);
+        goto main_out;
+    }
 
     /*
      * Analyse workgroups
      */
-/*    int num_workgroups = create_workgroups(runcfg, workgroups);*/
-/*    bstrListDestroy(workgroups);*/
+    err = resolve_workgroups(runcfg->num_wgroups, runcfg->wgroups);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error resolving workgroups);
+        goto main_out;
+    }
+    for (int i = 0; i < runcfg->num_wgroups; i++)
+    {
+        print_workgroup(&runcfg->wgroups[i]);
+    }
+
+    /*
+     * Evaluate variables, constants, ... for remaining operations
+     * There should be now all values available
+     */
 
     /*
      * Generate assembly
      */
+    runcfg->codelines = bstrListCreate();
+    err = generate_code(runcfg->tcfg, runcfg->codelines);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error generating code);
+        goto main_out;
+    }
+    for (int i = 0; i < runcfg->codelines->qty; i++)
+    {
+        DEBUG_PRINT(global_verbosity, "CODE: %s\n", bdata(runcfg->codelines->entry[i]));
+    }
 
     /*
      * Allocate arrays
      */
+     err = allocate_streams(runcfg);
+     if (err < 0)
+     {
+        ERROR_PRINT(Error allocating streams);
+        goto main_out;
+     }
 
     /*
      * Start threads
@@ -520,18 +329,8 @@ int main(int argc, char** argv)
 
 
 main_out:
-    bdestroy(bccflags);
-    bdestroy(testcase);
-    bdestroy(yamlfile);
-/*    bdestroy(bbaseopts);*/
-/*    bdestroy(bbasetestopts);*/
-    // bdestroy(boptional);
-    // bdestroy(brequired);
-    bdestroy(arch);
-    bdestroy(kernelfolder);
-/*    if (runcfg)*/
-/*        destroy_runtime_config(runcfg);*/
-/*    if (cfg)*/
-/*        destroy_benchmark_config(cfg);*/
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, MAIN_OUT);
+    free_runtime_config(runcfg);
+
     return 0;
 }
