@@ -9,6 +9,7 @@
 
 #include "read_yaml_ptt.h"
 #include "test_types.h"
+#include "error.h"
 
 struct tagbstring byaml_end = bsStatic("...");
 struct tagbstring byaml_begin = bsStatic("---");
@@ -242,6 +243,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
     struct tagbstring bmetrics = bsStatic("Metrics");
     struct tagbstring bparams = bsStatic("Parameters");
     struct tagbstring bparamopts = bsStatic("options");
+    struct tagbstring bparamdef = bsStatic("default");
     struct tagbstring bparamdesc = bsStatic("description");
     struct tagbstring bthreads = bsStatic("Threads");
     struct tagbstring bthreadsoff = bsStatic("offsets");
@@ -267,7 +269,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
         ret = read_keyvalue(objs->entry[i], &k, &v);
         if (ret == 0)
         {
-            if (bstrnicmp(k, &bstr, 7) == BSTR_OK)
+            if (bstrnicmp(k, &bstr, blength(&bstr)) == BSTR_OK)
             {
                 //printf("READ_OBJ STREAMS\n");
                 read_obj(v, &streams);
@@ -294,26 +296,26 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                                 ret = read_keyvalue(vars->entry[l], &vk, &vv);
                                 if (ret == 0)
                                 {
-                                    if (bstrnicmp(vk, &bstrdimensions, 10) == BSTR_OK)
+                                    if (bstrnicmp(vk, &bstrdimensions, blength(&bstrdimensions)) == BSTR_OK)
                                     {
                                         s->num_dims = myatoi(bdata(vv));
                                         //printf("num_dims %d\n", s->num_dims);
                                     }
-                                    else if (bstrnicmp(vk, &bstrdatatype, 8) == BSTR_OK)
+                                    else if (bstrnicmp(vk, &bstrdatatype, blength(&bstrdatatype)) == BSTR_OK)
                                     {
-                                        if (bstrnicmp(vv, &bstrdatatypedbl, 6) == BSTR_OK)
+                                        if (bstrnicmp(vv, &bstrdatatypedbl, blength(&bstrdatatypedbl)) == BSTR_OK)
                                         {
                                             s->btype = bstrcpy(vv);
                                             btrimws(s->btype);
                                             s->type = TEST_STREAM_TYPE_DOUBLE;
                                         }
-                                        else if (bstrnicmp(vv, &bstrdatatypesgl, 6) == BSTR_OK)
+                                        else if (bstrnicmp(vv, &bstrdatatypesgl, blength(&bstrdatatypesgl)) == BSTR_OK)
                                         {
                                             s->btype = bstrcpy(vv);
                                             btrimws(s->btype);
                                             s->type = TEST_STREAM_TYPE_SINGLE;
                                         }
-                                        else if (bstrnicmp(vv, &bstrdatatypeint, 7) == BSTR_OK)
+                                        else if (bstrnicmp(vv, &bstrdatatypeint, blength(&bstrdatatypeint)) == BSTR_OK)
                                         {
                                             s->btype = bstrcpy(vv);
                                             btrimws(s->btype);
@@ -342,36 +344,36 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                 }
                 bstrListDestroy(streams);
             }
-            else if (bstrnicmp(k, &bname, 4) == BSTR_OK)
+            else if (bstrnicmp(k, &bname, blength(&bname)) == BSTR_OK)
             {
                 conf->name = bstrcpy(v);
                 btrimws(conf->name);
                 //printf("Set name '%s'\n", bdata(conf->name));
             }
-            else if (bstrnicmp(k, &bdesc, 11) == BSTR_OK)
+            else if (bstrnicmp(k, &bdesc, blength(&bdesc)) == BSTR_OK)
             {
                 conf->description = bstrcpy(v);
                 btrimws(conf->description);
                 //printf("Set description '%s'\n", bdata(conf->description));
             }
-            else if (bstrnicmp(k, &blang, 8) == BSTR_OK)
+            else if (bstrnicmp(k, &blang, blength(&blang)) == BSTR_OK)
             {
                 conf->language = bstrcpy(v);
                 btrimws(conf->language);
             }
-            else if (bstrnicmp(k, &bvars, 9) == BSTR_OK)
+            else if (bstrnicmp(k, &bvars, blength(&bvars)) == BSTR_OK)
             {
                 conf->num_vars = read_yaml_ptt_dict(v, &conf->vars);
             }
-            else if (bstrnicmp(k, &bconstants, 9) == BSTR_OK)
+            else if (bstrnicmp(k, &bconstants, blength(&bconstants)) == BSTR_OK)
             {
                 conf->num_constants = read_yaml_ptt_dict(v, &conf->constants);
             }
-            else if (bstrnicmp(k, &bmetrics, 7) == BSTR_OK)
+            else if (bstrnicmp(k, &bmetrics, blength(&bmetrics)) == BSTR_OK)
             {
                 conf->num_metrics = read_yaml_ptt_dict(v, &conf->metrics);
             }
-            else if (bstrnicmp(k, &bparams, 10) == BSTR_OK)
+            else if (bstrnicmp(k, &bparams, blength(&bparamopts)) == BSTR_OK)
             {
                 struct bstrList* params = NULL;
                 read_obj(v, &params);
@@ -394,14 +396,19 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                                 bstring vk, vv;
                                 ret = read_keyvalue(pvars->entry[m], &vk, &vv);
                                 
-                                if (bstrnicmp(vk, &bparamdesc, 11) == BSTR_OK)
+                                if (bstrnicmp(vk, &bparamdesc, blength(&bparamdesc)) == BSTR_OK)
                                 {
                                     p->description = bstrcpy(vv);
                                     btrimws(p->description);
                                 }
-                                else if (bstrnicmp(vk, &bparamopts, 7) == BSTR_OK)
+                                else if (bstrnicmp(vk, &bparamopts, blength(&bparamopts)) == BSTR_OK)
                                 {
                                     read_yaml_ptt_list(vv, &p->options);
+                                }
+                                if (bstrnicmp(vk, &bparamdef, blength(&bparamdef)) == BSTR_OK)
+                                {
+                                    p->defvalue = bstrcpy(vv);
+                                    btrimws(p->defvalue);
                                 }
                                 bdestroy(vk);
                                 bdestroy(vv);
@@ -414,7 +421,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                 conf->num_params = params->qty;
                 bstrListDestroy(params);
             }
-            else if (bstrnicmp(k, &bflags, 5) == BSTR_OK)
+            else if (bstrnicmp(k, &bflags, blength(&bflags)) == BSTR_OK)
             {
                 read_yaml_ptt_list(v, &conf->flags);
             }
@@ -472,7 +479,7 @@ void close_vars(int num_vars, TestConfigVariable* vars)
     int i = 0;
     if (num_vars > 0 && vars)
     {
-        printf("Closing %d vars\n", num_vars);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying %d variables, num_vars);
         for (i = 0; i < num_vars; i++)
         {
             TestConfigVariable* s = &vars[i];
@@ -489,6 +496,7 @@ void close_streams(int num_streams, TestConfigStream* streams)
     int i = 0;
     if (num_streams > 0 && streams)
     {
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying %d streams, num_streams);
         for (i = 0; i < num_streams; i++)
         {
             TestConfigStream* s = &streams[i];
@@ -505,13 +513,14 @@ void close_parameters(int num_params, TestConfigParameter* params)
     int i = 0;
     if (num_params > 0 && params)
     {
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying %d parameters, num_params);
         for (i = 0; i < num_params; i++)
         {
             TestConfigParameter* p = &params[i];
-            printf("Closing param %s\n", bdata(p->name));
             if (p->name) bdestroy(p->name);
             if (p->description) bdestroy(p->description);
             if (p->options) bstrListDestroy(p->options);
+            if (p->defvalue) bdestroy(p->defvalue);
         }
         free(params);
     }
@@ -519,33 +528,32 @@ void close_parameters(int num_params, TestConfigParameter* params)
 
 void close_yaml_ptt(TestConfig_t config)
 {
-    printf("Free config\n");
     if (config)
     {
-        printf("Free config (name)\n");
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying name in TestConfig);
         bdestroy(config->name);
-        printf("Free config (description)\n");
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying description in TestConfig);
         bdestroy(config->description);
-        printf("Free config (language)\n");
-        bdestroy(config->language);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying language in TestConfig);
         if (config->code)
         {
-            printf("Free config (code)\n");
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying code in TestConfig);
             bdestroy(config->code);
             config->code = NULL;
         }
-        printf("Free config (constants)\n");
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying constants in TestConfig);
         close_vars(config->num_constants, config->constants);
-        printf("Free config (vars)\n");
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying variables in TestConfig);
         close_vars(config->num_vars, config->vars);
-        printf("Free config (metrics)\n");
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying metrics in TestConfig);
         close_vars(config->num_metrics, config->metrics);
-        printf("Free config (streams)\n");
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying streams in TestConfig);
         close_streams(config->num_streams, config->streams);
-        printf("Free config (params)\n");
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying parameters in TestConfig);
         close_parameters(config->num_params, config->params);
-        printf("Free config (flags)\n");
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying flags in TestConfig);
         bstrListDestroy(config->flags);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying TestConfig);
         free(config);
         config = NULL;
     }
