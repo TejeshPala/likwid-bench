@@ -46,7 +46,7 @@ typedef enum {
     ARG_FLAG_DIR,        // check that the string is an existing directory
     ARG_FLAG_MAX
 } CliOptionsArgFlag;
-#define ARG_FLAG_MIN ARG_FLAG_UNDEF
+#define ARG_FLAG_MIN ARG_FLAG_TIME
 
 #define ARG_FLAG_MASK(flag) (1ULL<<(flag))
 
@@ -64,7 +64,8 @@ typedef enum {
     RETURN_TYPE_DOUBLE,     // double
     // Defines single value or list options
     RETURN_TYPE_LIST,       // all types but array of it, like int*, double* and bstring*. Length in qty member.
-    RETURN_TYPE_MAX
+    RETURN_TYPE_MAX,
+    RETURN_TYPE_INVALID
 } CliOptionsReturnType;
 #define RETURN_TYPE_MIN RETURN_TYPE_BOOL
 
@@ -108,7 +109,9 @@ typedef struct option_extra_return {
         float floatvalue;
         double doublevalue;
         int* intlist;
+#ifdef WITH_BSTRING
         struct bstrList* bstrlist;
+#endif
         char** stringlist;
         float* floatlist;
         double* doublelist;
@@ -136,5 +139,7 @@ int add_option_list(struct option_extra* list, struct option_extra** out);
 int del_option(char* longname, struct option_extra** options);
 void print_options(struct option_extra* options);
 void print_help(struct option_extra* options);
+
+void print_option_map(int debuglev, Map_t options);
 
 #endif /* GETOPT_EXTRA_H */

@@ -132,6 +132,7 @@ static char* _getopt_extra_typestring(int return_flag)
     (opt_out)->shortname = (opt_in)->shortname; \
     (opt_out)->description = (opt_in)->description; \
     (opt_out)->return_flag = (opt_in)->return_flag; \
+    (opt_out)->arg_flag = (opt_in)->arg_flag; \
     (opt_out)->has_arg = (opt_in)->has_arg; \
     (opt_out)->flag = (opt_in)->flag; \
     (opt_out)->val = (opt_in)->val; \
@@ -177,7 +178,11 @@ int add_option(struct option_extra* option, struct option_extra** options)
             COPY_OPTION(option, &opts[num_opts]);
             if (opts[num_opts].return_flag == 0)
             {
-                opts[num_opts].return_flag = RETURN_TYPE_MASK(RETURN_TYPE_BOOL);
+#ifdef WITH_BSTRING
+                opts[num_opts].return_flag = RETURN_TYPE_MASK(RETURN_TYPE_BSTRING);
+#else
+                opts[num_opts].return_flag = RETURN_TYPE_MASK(RETURN_TYPE_STRING);
+#endif
             }
             DEBUG_PRINT(DEBUGLEV_DEVELOP, Clean option %d in option list, num_opts+1);
             memset(&opts[num_opts+1], 0, sizeof(struct option));
@@ -406,7 +411,8 @@ static int _getopt_extra_add_doublelist(struct option_extra_return* retopt, char
 static int _getopt_long_extra_addlist(struct option_extra_return* retopt, char* arg)
 {
     int ret = -EINVAL;
-    if (retopt->return_flag & ARG_FLAG_MASK(ARG_FLAG_FILE))
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Add %s to list, arg);
+    if (retopt->arg_flag & ARG_FLAG_MASK(ARG_FLAG_FILE))
     {
         if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING) || retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_STRING))
         {
@@ -417,7 +423,7 @@ static int _getopt_long_extra_addlist(struct option_extra_return* retopt, char* 
             DEBUG_PRINT(DEBUGLEV_DEVELOP, Arg '%s' is a file, arg);
         }
     }
-    if (retopt->return_flag & ARG_FLAG_MASK(ARG_FLAG_DIR))
+    if (retopt->arg_flag & ARG_FLAG_MASK(ARG_FLAG_DIR))
     {
         if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING) || retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_STRING))
         {
@@ -434,16 +440,17 @@ static int _getopt_long_extra_addlist(struct option_extra_return* retopt, char* 
     }
     if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_FLOAT))
     {
-        ret = _getopt_extra_add_floatlist(retopt, optarg);
+        ret = _getopt_extra_add_floatlist(retopt, arg);
     }
     else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_DOUBLE))
     {
-        ret = _getopt_extra_add_doublelist(retopt, optarg);
+        ret = _getopt_extra_add_doublelist(retopt, arg);
     }
 #ifdef WITH_BSTRING
     else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
     {
-        ret = _getopt_extra_add_bstrlist(retopt, optarg);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Add %s to bstring list, arg);
+        ret = _getopt_extra_add_bstrlist(retopt, arg);
     }
 #endif /*WITH_BSTRING */
 /*    else if (return_flag & RETURN_TYPE_STRING_FLAG)*/
@@ -452,7 +459,11 @@ static int _getopt_long_extra_addlist(struct option_extra_return* retopt, char* 
 /*    }*/
     else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_INT))
     {
-        ret = _getopt_extra_add_intlist(retopt, optarg);
+        ret = _getopt_extra_add_intlist(retopt, arg);
+    }
+    else
+    {
+        ERROR_PRINT(Cannot add %s to list -> no valid return type, arg)
     }
 /*    else if (return_flag & RETURN_TYPE_BYTES_FLAG)*/
 /*    {*/
@@ -468,10 +479,10 @@ static int _getopt_long_extra_addlist(struct option_extra_return* retopt, char* 
 #ifdef WITH_BSTRING
 static int _getopt_extra_set_bstr(struct option_extra_return* retopt, char* arg)
 {
-    if (blength(retopt->value.bstrvalue) >= 0)
-    {
-        bdestroy(retopt->value.bstrvalue);
-    }
+/*    if (blength(retopt->value.bstrvalue) >= 0)*/
+/*    {*/
+/*        bdestroy(retopt->value.bstrvalue);*/
+/*    }*/
     retopt->value.bstrvalue = (arg != NULL ? bfromcstr(arg) : bfromcstr(""));
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting bstring '%s', bdata(retopt->value.bstrvalue));
     return 0;
@@ -488,7 +499,7 @@ static int _getopt_extra_set_int(struct option_extra_return* retopt, char* arg)
 static int _getopt_extra_set_uint64(struct option_extra_return* retopt, char* arg)
 {
     retopt->value.uint64value = (arg != NULL ? strtoll(arg, NULL, 10) : 0);
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting uint64 '%ld', retopt->value.uint64value);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting uint64 '%ld' from '%s', retopt->value.uint64value, arg);
     return 0;
 }
 
@@ -669,28 +680,28 @@ static int _getopt_long_extra_setvalue(struct option_extra_return* retopt, char*
 #ifdef WITH_BSTRING
     else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
     {
-        ret = _getopt_extra_set_bstr(retopt, optarg);
+        ret = _getopt_extra_set_bstr(retopt, arg);
     }
 #endif /* WITH_BSTRING */
     else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_FLOAT))
     {
-        ret = _getopt_extra_set_float(retopt, optarg);
+        ret = _getopt_extra_set_float(retopt, arg);
     }
     else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_DOUBLE))
     {
-        ret = _getopt_extra_set_double(retopt, optarg);
+        ret = _getopt_extra_set_double(retopt, arg);
     }
     else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_STRING))
     {
-        ret = _getopt_extra_set_str(retopt, optarg);
+        ret = _getopt_extra_set_str(retopt, arg);
     }
     else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_INT))
     {
-        ret = _getopt_extra_set_int(retopt, optarg);
+        ret = _getopt_extra_set_int(retopt, arg);
     }
     else if (retopt->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_UINT64))
     {
-        ret = _getopt_extra_set_uint64(retopt, optarg);
+        ret = _getopt_extra_set_uint64(retopt, arg);
     }
     // else if (retopt->return_flag & RETURN_TYPE_BYTES_FLAG)
     // {
@@ -774,7 +785,7 @@ int __check_flags_and_types(struct option_extra* options) {
     while (options[i].longname != 0)
     {
         int count_type = 0;
-        for (int j = RETURN_TYPE_MIN; j <= RETURN_TYPE_DOUBLE; j++)
+        for (int j = RETURN_TYPE_MIN; j < RETURN_TYPE_MAX-1; j++)
         {
             if (options[i].return_flag & RETURN_TYPE_MASK(j))
                 count_type++;
@@ -798,18 +809,15 @@ int __check_flags_and_types(struct option_extra* options) {
         }
         if ((options[i].arg_flag & ARG_FLAG_MASK(ARG_FLAG_FILE) || options[i].arg_flag & ARG_FLAG_MASK(ARG_FLAG_DIR)))
         {
-            if (!(options[i].return_flag & RETURN_TYPE_MASK(RETURN_TYPE_STRING)))
-            {
-                ERROR_PRINT(Option --%s uses FILE or DIR flag but return type is not a string type, options[i].longname);
-                ret = -1;
-            }
+            int return_string = (options[i].return_flag & RETURN_TYPE_MASK(RETURN_TYPE_STRING));
+            int return_bstring = 0;
 #ifdef WITH_BSTRING
-            else if (!(options[i].return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING)))
+            return_bstring = (options[i].return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING));
+#endif
+            if ((!return_string) && (!return_bstring))
             {
                 ERROR_PRINT(Option --%s uses FILE or DIR flag but return type is not a string type, options[i].longname);
-                ret = -1;
             }
-#endif /* WITH_BSTRING */
         }
         if (ret < 0)
             break;
@@ -818,12 +826,14 @@ int __check_flags_and_types(struct option_extra* options) {
     return ret;
 }
 
+
 int getopt_long_extra(int argc, char* argv[], char* shortopts, struct option_extra* options, Map_t *optionmap)
 {
     int ret = 0;
     int c;
     int option_index = -1;
     int return_flag = RETURN_TYPE_BOOL;
+    int arg_flag = ARG_FLAG_UNDEF;
     int i = 0;
     int has_long = 0;
     ret = __check_flags_and_types(options);
@@ -889,6 +899,7 @@ int getopt_long_extra(int argc, char* argv[], char* shortopts, struct option_ext
                         printf("long %s = %s (type %s)\n", lopts[i].name, optarg, _getopt_extra_typestring(options[i].return_flag));
                         has_long = i;
                         return_flag = options[i].return_flag;
+                        arg_flag = options[i].arg_flag;
                         key = (char*)lopts[i].name;
                         break;
                     }
@@ -897,6 +908,23 @@ int getopt_long_extra(int argc, char* argv[], char* shortopts, struct option_ext
                 {
                     printf("short %c = %s (type %s)\n", c, optarg, _getopt_extra_typestring(options[i].return_flag));
                     key = (char*)&c;
+                }
+                bstring boptarg = bfromcstr(optarg);
+                if (arg_flag & ARG_FLAG_MASK(ARG_FLAG_BYTES))
+                {
+                    uint64_t bytes = 0;
+                    __getopt_extra_parse_bytes(optarg, &bytes);
+                    bdestroy(boptarg);
+                    boptarg = bformat("%ld", bytes);
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Transform '%s' to bytes -> %s, optarg, bdata(boptarg));
+                }
+                else if (arg_flag & ARG_FLAG_MASK(ARG_FLAG_TIME))
+                {
+                    double rtime = 0;
+                    __getopt_extra_parse_time(optarg, &rtime);
+                    bdestroy(boptarg);
+                    boptarg = bformat("%f", rtime);
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Transform '%s' to time -> %s, optarg, bdata(boptarg));
                 }
                 struct option_extra_return* retopt = NULL;
                 ret = get_smap_by_key(climap, (char*)key, (void**)&retopt);
@@ -908,31 +936,39 @@ int getopt_long_extra(int argc, char* argv[], char* shortopts, struct option_ext
                     {
                         if (return_flag & RETURN_TYPE_MASK(RETURN_TYPE_LIST))
                         {
-                            ret = _getopt_long_extra_addlist(retopt, optarg);
+                            ret = _getopt_long_extra_addlist(retopt, bdata(boptarg));
                         }
                         else
                         {
-                            free_returns(retopt);
-                            ret = _getopt_long_extra_setvalue(retopt, optarg);
+                            if (return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
+                            {
+                                bdestroy(retopt->value.bstrvalue);
+                            }
+                            else if (return_flag & RETURN_TYPE_MASK(RETURN_TYPE_STRING))
+                            {
+                                free(retopt->value.strvalue);
+                            }
+                            ret = _getopt_long_extra_setvalue(retopt, bdata(boptarg));
                         }
                     }
                 }
                 else
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, New key %s, key);
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, New key %s Value %s, key, bdata(boptarg));
                     retopt = malloc(sizeof(struct option_extra_return));
                     if (retopt)
                     {
                         memset(retopt, 0, sizeof(struct option_extra_return));
                         retopt->return_flag = return_flag;
+                        retopt->arg_flag = arg_flag;
                         retopt->qty = 0;
                         if (return_flag & RETURN_TYPE_MASK(RETURN_TYPE_LIST))
                         {
-                            ret = _getopt_long_extra_addlist(retopt, optarg);
+                            ret = _getopt_long_extra_addlist(retopt, bdata(boptarg));
                         }
                         else
                         {
-                            ret = _getopt_long_extra_setvalue(retopt, optarg);
+                            ret = _getopt_long_extra_setvalue(retopt, bdata(boptarg));
                         }
                         ret = add_smap(climap, (char*)key, (void*)retopt);
                         DEBUG_PRINT(DEBUGLEV_DEVELOP, Extending map at index %d, ret);
@@ -943,6 +979,7 @@ int getopt_long_extra(int argc, char* argv[], char* shortopts, struct option_ext
                         ret = -ENOMEM;
                     }
                 }
+                bdestroy(boptarg);
                 break;
         }
     }
@@ -956,4 +993,99 @@ int getopt_long_extra(int argc, char* argv[], char* shortopts, struct option_ext
         *optionmap = climap;
     }
     return ret;
+}
+
+char* arg_flag_name(int arg_flag)
+{
+    switch (arg_flag)
+    {
+        case ARG_FLAG_TIME:
+            return "time";
+            break;
+        case ARG_FLAG_DIR:
+            return "directory";
+            break;
+        case ARG_FLAG_FILE:
+            return "file";
+            break;
+        case ARG_FLAG_BYTES:
+            return "bytes";
+            break;
+    }
+    return "undef";
+}
+
+char* return_type_name(int return_flag)
+{
+    switch (return_flag)
+    {
+        case RETURN_TYPE_BOOL:
+            return "boolean";
+            break;
+        case RETURN_TYPE_INT:
+            return "int";
+            break;
+        case RETURN_TYPE_UINT64:
+            return "uint64_t";
+            break;
+#ifdef WITH_BSTRING
+        case RETURN_TYPE_BSTRING:
+            return "bstring";
+            break;
+#endif
+        case RETURN_TYPE_STRING:
+            return "string";
+            break;
+        case RETURN_TYPE_FLOAT:
+            return "float";
+            break;
+        case RETURN_TYPE_DOUBLE:
+            return "double";
+            break;
+        case RETURN_TYPE_LIST:
+            return "list";
+            break;
+    }
+    return "unknown";
+}
+
+void _print_option_cb(mpointer key, mpointer value, mpointer user_data)
+{
+    struct tagbstring bsep = bsStatic(", ");
+    if ((!key) || (!value)) return;
+
+    char* ret_key = (char*)key;
+    struct option_extra_return* ret_arg = (struct option_extra_return*)value;
+    int debuglev = *((int*)user_data);
+    struct bstrList* arg_flags = bstrListCreate();
+    struct bstrList* ret_flags = bstrListCreate();
+    for (int i = ARG_FLAG_MIN; i < ARG_FLAG_MAX; i++)
+    {
+        if (ret_arg->arg_flag & ARG_FLAG_MASK(i))
+        {
+            bstrListAddChar(arg_flags, arg_flag_name(i));
+        }
+    }
+    for (int i = RETURN_TYPE_MIN; i < RETURN_TYPE_MAX; i++)
+    {
+        if (ret_arg->return_flag & RETURN_TYPE_MASK(i))
+        {
+            bstrListAddChar(ret_flags, return_type_name(i));
+        }
+    }
+    bstring barg_flags = bjoin(arg_flags, &bsep);
+    bstring bret_flags = bjoin(ret_flags, &bsep);
+    if (ret_arg->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
+    {
+        DEBUG_PRINT(debuglev, Key '%s' Value '%s' (argflags: %s returnflags: %s), ret_key, bdata(ret_arg->value.bstrvalue), bdata(barg_flags), bdata(bret_flags));
+    }
+    bdestroy(barg_flags);
+    bdestroy(bret_flags);
+    bstrListDestroy(arg_flags);
+    bstrListDestroy(ret_flags);
+}
+
+void print_option_map(int debuglev, Map_t options)
+{
+    foreach_in_smap(options, _print_option_cb, &debuglev);
 }
