@@ -31,11 +31,13 @@
 #define TEST_TYPES_H
 
 #include "bstrlib.h"
+#include "getopt_extra.h"
 
 typedef struct {
     bstring                 name;
     bstring                 description;
     struct bstrList*        options;
+    bstring                 defvalue;
 } TestConfigParameter;
 
 typedef enum {
@@ -83,6 +85,7 @@ typedef struct {
 typedef TestConfig* TestConfig_t;
 
 typedef struct {
+    bstring name;
     void* ptr;
     int dimsizes[3];
     int offsets[3];
@@ -94,16 +97,51 @@ typedef struct {
 } RuntimeStreamConfig;
 
 typedef struct {
+    bstring str;
     int num_threads;
     int* cpulist;
     pthread_t *threads;
 } RuntimeWorkgroupConfig;
 
 typedef struct {
+    bstring name;
+    CliOptionsReturnType type;
+    union {
+        int intvalue;
+        uint64_t uint64value;
+        unsigned boolvalue;
+#ifdef WITH_BSTRING
+        bstring bstrvalue;
+#endif /* WITH_BSTRING */
+        char* strvalue;
+        float floatvalue;
+        double doublevalue;
+        int* intlist;
+#ifdef WITH_BSTRING
+        struct bstrList* bstrlist;
+#endif
+        char** stringlist;
+        float* floatlist;
+        double* doublelist;
+    } value;
+} RuntimeParameterConfig;
+
+typedef struct {
+    int help;
+    int verbosity;
     int iterations;
     double runtime;
     int num_wgroups;
     RuntimeWorkgroupConfig* wgroups;
+    int num_params;
+    RuntimeParameterConfig* params;
+    int num_streams;
+    RuntimeStreamConfig* streams;
+    bstring testname;
+    bstring pttfile;
+    bstring tmpfolder;
+    TestConfig_t tcfg;
+    struct bstrList* codelines;
 } RuntimeConfig;
 
 
