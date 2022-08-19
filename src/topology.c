@@ -875,3 +875,13 @@ int cpustr_to_cpulist(bstring cpustr, int* list, int length)
     }
     return -EINVAL;
 }
+
+int get_num_hw_threads()
+{
+    int ret = check_hwthreads();
+    if (ret != 0)
+    {
+        return ret;
+    }
+    return _num_hwthreads;
+}

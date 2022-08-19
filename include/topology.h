@@ -31,6 +31,8 @@
 #ifndef TOPOLOGY_H
 #define TOPOLOGY_H
 
+int check_hwthreads();
+int get_num_hw_threads();
 int cpustr_to_cpulist(bstring cpustr, int* list, int length);
 void destroy_hwthreads();
 
