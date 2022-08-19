@@ -7,6 +7,7 @@ int allocate_arrays(RuntimeStreamConfig *sdata);
 void release_arrays(RuntimeStreamConfig *sdata);
 
 int initialize_arrays(RuntimeStreamConfig *sdata);
+int allocate_streams(RuntimeConfig* runcfg);
 
 
 #endif

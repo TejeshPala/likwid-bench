@@ -86,7 +86,7 @@ int _allocate_arrays_1dim(RuntimeStreamConfig *sdata)
         datatype ** p_##datatype = malloc(msize1); \
         if (!p_##datatype) \
         { \
-            return ENOMEM; \
+            return -ENOMEM; \
         } \
         for (int i = 0; i < size1; i++) \
         { \
@@ -98,7 +98,7 @@ int _allocate_arrays_1dim(RuntimeStreamConfig *sdata)
                     if (p_##datatype[i]) free(p_##datatype[i]); \
                 } \
                 free(p_##datatype); \
-                return ENOMEM; \
+                return -ENOMEM; \
             } \
         } \
         sdata->ptr = (void*)p_##datatype; \
@@ -125,6 +125,55 @@ static int _allocate_arrays_2dim(RuntimeStreamConfig *sdata)
     return 0;
 }
 
+/*#define DEFINE_3DIM_TYPE_CASE_ALLOC(streamtype, datatype) \*/
+/*    case streamtype: \*/
+/*        msize1 = size1 * sizeof(datatype**); \*/
+/*        msize2 = size2 * sizeof(datatype*); \*/
+/*        msize3 = size3 * sizeof(datatype); \*/
+/*        datatype *** p_##datatype = malloc(msize1); \*/
+/*        if (!p_##datatype) \*/
+/*        { \*/
+/*            return -ENOMEM; \*/
+/*        } \*/
+/*        for (int i = 0; i < size1; i++) \*/
+/*        { \*/
+/*            p_##datatype[i] = malloc(msize2); \*/
+/*            if (!p_##datatype[i]) \*/
+/*            { \*/
+/*                for (int j = i-1; j>= 0; j--) \*/
+/*                { \*/
+/*                    if (p_##datatype[i]) free(p_##datatype[i]); \*/
+/*                } \*/
+/*                free(p_##datatype); \*/
+/*                return -ENOMEM; \*/
+/*            } \*/
+/*        } \*/
+/*        sdata->ptr = (void*)p_##datatype; \*/
+/*        break;*/
+
+
+/*static int _allocate_arrays_3dim(RuntimeStreamConfig *sdata)*/
+/*{*/
+/*    if (sdata->dims != 2)*/
+/*        return -EINVAL;*/
+/*    size_t size1 = sdata->dimsizes[0];*/
+/*    size_t size2 = sdata->dimsizes[1];*/
+/*    size_t size3 = sdata->dimsizes[2];*/
+/*    size_t msize1, msize2, msize3;*/
+/*    printf("_allocate_arrays_3dim s1 %lu s2 %lu s3 %lu\n", size1, size2, size3);*/
+/*    switch(sdata->type)*/
+/*    {*/
+/*        DEFINE_3DIM_TYPE_CASE_ALLOC(TEST_STREAM_TYPE_DOUBLE, double)*/
+/*        DEFINE_3DIM_TYPE_CASE_ALLOC(TEST_STREAM_TYPE_INT, int)*/
+/*        DEFINE_3DIM_TYPE_CASE_ALLOC(TEST_STREAM_TYPE_SINGLE, float)*/
+/*        default:*/
+/*            fprintf(stderr, "Unknown stream type\n");*/
+/*            break;*/
+/*    }*/
+/*    return 0;*/
+/*}*/
+
+
 int allocate_arrays(RuntimeStreamConfig *sdata)
 {
     if (sdata->dims == 1 || sdata->flags & (1<<TEST_STREAM_ALLOC_TYPE_1DIM))
@@ -136,6 +185,44 @@ int allocate_arrays(RuntimeStreamConfig *sdata)
         return _allocate_arrays_2dim(sdata);
     }
     return -EINVAL;
+}
+
+int allocate_streams(RuntimeConfig* runcfg)
+{
+    if (runcfg->tcfg->num_streams == 0)
+    {
+        return 0;
+    }
+    runcfg->streams = malloc(runcfg->tcfg->num_streams * sizeof(RuntimeStreamConfig));
+    if (!runcfg->streams)
+    {
+        return -ENOMEM;
+    }
+    memset(runcfg->streams, 0, runcfg->tcfg->num_streams * sizeof(RuntimeStreamConfig));
+    for (int i = 0; i < runcfg->tcfg->num_streams; i++)
+    {
+        TestConfigStream *istream = &runcfg->tcfg->streams[i];
+        RuntimeStreamConfig* ostream = &runcfg->streams[i];
+        if (istream && ostream)
+        {
+            ostream->name = bstrcpy(istream->name);
+            ostream->type = istream->type;
+            ostream->dims = 0;
+            for (int j = 0; j < istream->num_dims && j < istream->dims->qty; j++)
+            {
+                const char* t = bdata(istream->dims->entry[j]);
+                printf("dimsize %s\n",t);
+                ostream->dimsizes[j] = strtoull(t, NULL, 10);
+                ostream->dims++;
+            }
+        }
+    }
+    runcfg->num_streams = runcfg->tcfg->num_streams;
+    for (int i = 0; i < runcfg->num_streams; i++)
+    {
+        allocate_arrays(&runcfg->streams[i]);
+    }
+    return 0;
 }
 
 
