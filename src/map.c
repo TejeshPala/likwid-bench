@@ -360,12 +360,30 @@ destroy_map_func(u)
 destroy_map_func(b)
 #endif
 
+struct map_foreach_data {
+    mpointer user_data;
+    map_foreach_func user_func;
+    Map_t self;
+};
+
+void _internal_foreach_cb(mpointer key, mpointer value, mpointer user_data)
+{
+    struct map_foreach_data* data = (struct map_foreach_data*)user_data;
+    int* ival = (int*)value;
+    data->user_func(data->self->values[*ival].key, data->self->values[*ival].value, data->user_data);
+}
+
 #define foreach_map_func(name) \
 void foreach_in_##name##map(Map_t map, map_foreach_func func, mpointer user_data) \
 { \
     if (map && func) \
     { \
-        g_hash_table_foreach(map->ghash, func, user_data); \
+        struct map_foreach_data data = { \
+            .user_data = user_data, \
+            .user_func = func, \
+            .self = map, \
+        }; \
+        g_hash_table_foreach(map->ghash, _internal_foreach_cb, &data); \
     } \
 }
 
