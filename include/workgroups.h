@@ -33,7 +33,9 @@
 #include "test_types.h"
 #include "bstrlib.h"
 
-int create_workgroups(RuntimeConfig* cfg, struct bstrList* workgroups);
+//int create_workgroups(RuntimeConfig* cfg, struct bstrList* workgroups);
+int resolve_workgroups(int num_wgroups, RuntimeWorkgroupConfig* wgroups);
+void print_workgroup(RuntimeWorkgroupConfig* wgroup);
 
 
 #endif /* WORKGROUP_H */
