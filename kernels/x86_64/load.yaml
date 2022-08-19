@@ -13,6 +13,8 @@
       datatype: double
       dimsizes:
         - N
+      options:
+        - perthread
   - STR1:
       dimensions: 1
       datatype: double
