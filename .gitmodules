@@ -1,0 +1,9 @@
+[submodule "ext/bstrlib_helper"]
+	path = ext/bstrlib_helper
+	url = git@gitos.rrze.fau.de:ub55yzis/bstrlib_helper.git
+[submodule "ext/getopt_extra"]
+	path = ext/getopt_extra
+	url = git@gitos.rrze.fau.de:ub55yzis/getopt_extra.git
+[submodule "ext/cmap"]
+	path = ext/cmap
+	url = git@gitlab.rrze.fau.de:ub55yzis/c-map.git
