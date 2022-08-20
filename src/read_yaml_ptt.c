@@ -386,7 +386,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                         p->name = NULL;
                         p->options = bstrListCreate();
                         bstring pv;
-                        ret = read_keyvalue(params->entry[j], &p->name, &pv);
+                        ret = read_keyvalue(params->entry[l], &p->name, &pv);
                         if (ret == 0)
                         {
                             struct bstrList* pvars = NULL;
