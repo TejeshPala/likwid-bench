@@ -3,12 +3,13 @@
 
 #include "bstrlib.h"
 
-static struct option_extra baseopts[6] = {
+static struct option_extra baseopts[7] = {
     {"help", 'h', RETURN_TYPE_MASK(RETURN_TYPE_BOOL), 0, "Help and usage"},
     {"verbose", 'V', RETURN_TYPE_MASK(RETURN_TYPE_INT), required_argument, "Verbosity level (0 - 3)"},
     {"test", 't', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument, "Test case to run"},
     {"file", 'f', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument, "Test file run run", ARG_FLAG_MASK(ARG_FLAG_FILE)},
-    {"kfolder", 'd', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument, "Directory with benchmarks", ARG_FLAG_MASK(ARG_FLAG_DIR)},
+    {"kfolder", 'K', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument, "Directory with benchmarks", ARG_FLAG_MASK(ARG_FLAG_DIR)},
+    {"tmpfolder", 'd', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument, "Temporary directory for object files"},
     {0, 0, 0, 0}
 };
 
@@ -42,6 +43,8 @@ static struct parameter_option param_opts[] = {
     {bsStatic("double"), 0, RETURN_TYPE_MASK(RETURN_TYPE_DOUBLE)},
     {bsStatic("EOF"), 0, 0},
 };
+
+
 
 
 

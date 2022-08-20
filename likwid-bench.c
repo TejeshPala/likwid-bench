@@ -51,6 +51,7 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->testname = bfromcstr("");
     runcfg->pttfile = bfromcstr("");
     runcfg->tmpfolder = bfromcstr("");
+    runcfg->kernelfolder = bfromcstr("");
     *config = runcfg;
     return 0;
 }
@@ -65,6 +66,8 @@ void free_runtime_config(RuntimeConfig* runcfg)
         bdestroy(runcfg->testname);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy tmpfolder in RuntimeConfig);
         bdestroy(runcfg->tmpfolder);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy kernelfolder in RuntimeConfig);
+        bdestroy(runcfg->kernelfolder);
         if (runcfg->wgroups)
         {
             DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy workgroups in RuntimeConfig);
@@ -148,8 +151,9 @@ int main(int argc, char** argv)
 #ifdef LIKWIDBENCH_KERNEL_FOLDER
     bstring kernelfolder = bformat("%s/%s/", TOSTRING(LIKWIDBENCH_KERNEL_FOLDER), bdata(arch));
 #else
-    bstring kernelfolder = bformat("/tmp/likwid-bench-%d/%s/", getpid(), bdata(arch));
+    bstring kernelfolder = bformat("./");
 #endif
+    bstring tmpfolder = bformat("/tmp/likwid-bench-%d/%s/", getpid(), bdata(arch));
     bdestroy(arch);
     int (*ownaccess)(const char*, int) = access;
 
@@ -168,8 +172,10 @@ int main(int argc, char** argv)
     {
         goto main_out;
     }
-    bconcat(runcfg->tmpfolder, kernelfolder);
+    bconcat(runcfg->kernelfolder, kernelfolder);
     bdestroy(kernelfolder);
+    bconcat(runcfg->tmpfolder, tmpfolder);
+    bdestroy(tmpfolder);
 
     /*
      * Prepare short and long options for getopt
@@ -177,6 +183,7 @@ int main(int argc, char** argv)
     err = parse_baseopts(argc, argv, runcfg);
     if (err < 0)
     {
+        ERROR_PRINT(Error parsing base options)
         usage_print_header();
         usage_print_baseopts(1);
         usage_print_basetestopts();
@@ -193,26 +200,14 @@ int main(int argc, char** argv)
     {
         global_verbosity = runcfg->verbosity;
     }
+        
     if (blength(runcfg->testname) > 0)
     {
-        bdestroy(runcfg->pttfile);
-        runcfg->pttfile = bformat("%s/%s.yaml", bdata(runcfg->tmpfolder), bdata(runcfg->testname));
-        got_testcase = 1;
-    }
-    else if (blength(runcfg->pttfile) > 0)
-    {
-        struct tagbstring bdot = bsStatic(".");
-        bdestroy(runcfg->testname);
-        runcfg->testname = bformat("%s", basename(bdata(runcfg->pttfile)));
-        int dot = binstrr(runcfg->testname, blength(runcfg->testname)-1, &bdot);
-        if (dot != BSTR_ERR && dot >= 0)
-        {
-            btrunc(runcfg->testname, dot);
-        }
         got_testcase = 1;
     }
     else
     {
+        printf("Here '%s'\n", bdata(runcfg->testname));
         usage_print_header();
         usage_print_baseopts(1);
         usage_print_basetestopts();
@@ -222,7 +217,7 @@ int main(int argc, char** argv)
     err = read_yaml_ptt(bdata(runcfg->pttfile), &runcfg->tcfg);
     if (err < 0)
     {
-        fprintf(stderr, "Error reading %s\n", bdata(runcfg->pttfile));
+        ERROR_PRINT(Error reading %s, bdata(runcfg->pttfile));
         goto main_out;
     }
 

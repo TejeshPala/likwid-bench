@@ -87,6 +87,7 @@ void print_test_usage(TestConfig_t cfg)
 
 int parse_baseopts(int argc, char* argv[], RuntimeConfig* config)
 {
+    int err = 0;
     Map_t cliopts;
     struct option_extra* opts = NULL;
     struct option_extra_return* ret_arg = NULL;
@@ -115,9 +116,31 @@ int parse_baseopts(int argc, char* argv[], RuntimeConfig* config)
         {
             btrunc(config->pttfile, 0);
             bconcat(config->pttfile, ret_arg->value.bstrvalue);
+            if (blength(config->testname) == 0)
+            {
+                DEBUG_PRINT(DEBUGLEV_DETAIL, No testname given -> use file name without suffix);
+                struct tagbstring bdot = bsStatic(".");
+                char* f = bdata(config->pttfile);
+                bstring fname = bfromcstr(basename(f));
+                int dot = binstrr(fname, blength(fname)-1, &bdot);
+                if (dot != BSTR_ERR && dot > 0)
+                {
+                    btrunc(fname, dot);
+                    bconcat(config->testname, fname);
+                }
+                bdestroy(fname);
+            }
         }
     }
     if (get_smap_by_key(cliopts, "kfolder", (void**)&ret_arg) == 0)
+    {
+        if (ret_arg->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
+        {
+            btrunc(config->kernelfolder, 0);
+            bconcat(config->kernelfolder, ret_arg->value.bstrvalue);
+        }
+    }
+    if (get_smap_by_key(cliopts, "tmpfolder", (void**)&ret_arg) == 0)
     {
         if (ret_arg->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
         {
@@ -125,9 +148,20 @@ int parse_baseopts(int argc, char* argv[], RuntimeConfig* config)
             bconcat(config->tmpfolder, ret_arg->value.bstrvalue);
         }
     }
+    if (blength(config->pttfile) == 0 && blength(config->testname) > 0)
+    {
+        bdestroy(config->pttfile);
+        config->pttfile = bformat("%s/%s.yaml", bdata(config->kernelfolder), bdata(config->testname));
+        char* f = bdata(config->pttfile);
+        if (access(f, F_OK))
+        {
+            err = -errno;
+        }
+        DEBUG_PRINT(DEBUGLEV_DETAIL, No pttfile given -> use file name and kernel folder: %s, bdata(config->pttfile));
+    }
     destroy_smap(cliopts);
     free(opts);
-    return 0;
+    return err;
 }
 
 int parse_testopts(int argc, char* argv[], TestConfig* tcfg, RuntimeConfig* config)

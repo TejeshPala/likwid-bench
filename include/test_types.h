@@ -139,6 +139,7 @@ typedef struct {
     RuntimeStreamConfig* streams;
     bstring testname;
     bstring pttfile;
+    bstring kernelfolder;
     bstring tmpfolder;
     TestConfig_t tcfg;
     struct bstrList* codelines;
