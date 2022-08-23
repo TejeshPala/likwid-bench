@@ -34,10 +34,10 @@ TESTS = test_read_yaml_ptt \
 	test_results \
 	test_ptt2asm
 
-BSTRLIB_OBJ := ../src/bstrlib.c ../src/bstrlib_helper.c
-BSTRLIB_HEADER := ../include/bstrlib.h ../include/bstrlib_helper.h 
-MAP_OBJ := ../src/map.c ../src/ghash.c
-MAP_HEADER := ../include/map.h ../include/ghash.h
+BSTRLIB_OBJ := ../ext/bstrlib_helper/ext/bstrlib/bstrlib.c ../ext/bstrlib_helper/bstrlib_helper.c
+BSTRLIB_HEADER := ../ext/bstrlib_helper/ext/bstrlib/bstrlib.h ../ext/bstrlib_helper/bstrlib_helper.h 
+MAP_OBJ := ../ext/cmap/src/map.c ../ext/cmap/src/ghash.c
+MAP_HEADER := ../ext/cmap/include/map.h ../ext/cmap/include/ghash.h
 CALCULATOR_OBJ := ../src/calculator.c ../src/stack.c
 CALCULATOR_HEADER := ../include/calculator.h ../include/stack.h
 TOPOLOGY_OBJ := ../src/topology.c
@@ -47,7 +47,8 @@ READ_YAML_HEADER := ../include/read_yaml_ptt.h
 PTT2ASM_OBJ := ../src/ptt2asm.c
 PTT2ASM_HEADER := ../include/ptt2asm.h ../include/isa_armv7.h ../include/isa_armv8.h ../include/isa_ppc64.h ../include/isa_x86-64.h ../include/isa_x86.h
 PTT_KEYWORDS_HEADER := ../include/ptt_keyword_loop.h ../include/ptt_keyword_dummy.h
-
+GETOPT_OBJ := ../ext/getopt_extra/getopt_extra.c
+GETOPT_HEADER := ../ext/getopt_extra/getopt_extra.h
 
 all: $(TESTS)
 
@@ -58,8 +59,8 @@ test_results: test_results.c ../src/results.c $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $
 	$(CC) $(INCLUDES) -DWITH_BSTRING -DCALCULATOR_AS_LIB test_results.c ../src/results.c $(BSTRLIB_OBJ) $(MAP_OBJ) $(CALCULATOR_OBJ) -o $@ -lm
 
 
-test_getopt_extra: test_getopt_extra.c ../src/getopt_extra.c $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(MAP_OBJ) $(MAP_HEADER)
-	$(CC) $(INCLUDES) -DWITH_BSTRING test_getopt_extra.c ../src/getopt_extra.c $(BSTRLIB_OBJ) $(MAP_OBJ) -o $@
+test_getopt_extra: test_getopt_extra.c $(GETOPT_OBJ) $(GETOPT_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(MAP_OBJ) $(MAP_HEADER)
+	$(CC) $(INCLUDES) -DWITH_BSTRING test_getopt_extra.c $(GETOPT_OBJ) $(BSTRLIB_OBJ) $(MAP_OBJ) -o $@
 
 test_topology: test_topology.c $(TOPOLOGY_OBJ) $(TOPOLOGY_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
 	$(CC) $(INCLUDES) test_topology.c $(TOPOLOGY_OBJ) $(BSTRLIB_OBJ) -o $@

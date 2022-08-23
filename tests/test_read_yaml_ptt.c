@@ -3,10 +3,12 @@
 
 #include <bstrlib.h>
 #include <bstrlib_helper.h>
+#include <error.h>
 
 #include <read_yaml_ptt.h>
 #include <test_types.h>
 
+int global_verbosity = DEBUGLEV_DEVELOP;
 
 int main(int argc, char* argv[])
 {

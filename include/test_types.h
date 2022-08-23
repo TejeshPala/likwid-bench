@@ -97,10 +97,17 @@ typedef struct {
 } RuntimeStreamConfig;
 
 typedef struct {
+    Map_t values;
+    Map_t variables;
+} RuntimeWorkgroupResult;
+
+typedef struct {
     bstring str;
     int num_threads;
     int* cpulist;
+    RuntimeWorkgroupResult* results;
     pthread_t *threads;
+    RuntimeWorkgroupResult group_results;
 } RuntimeWorkgroupConfig;
 
 typedef struct {
@@ -143,6 +150,7 @@ typedef struct {
     bstring tmpfolder;
     TestConfig_t tcfg;
     struct bstrList* codelines;
+    RuntimeWorkgroupResult global_results;
 } RuntimeConfig;
 
 

@@ -34,6 +34,8 @@
 #define WITH_BSTRING
 #endif
 #include "map.h"
+#include "test_types.h"
+#include "bstrlib.h"
 
 typedef struct {
     int cpu;
@@ -58,4 +60,12 @@ int add_thread_const(int thread, bstring name, double constant);
 int get_formula(int thread, bstring name, double* value);
 void destroy_results();
 
+int init_result(RuntimeWorkgroupResult* result);
+int add_value(RuntimeWorkgroupResult* result, bstring name, double value);
+int add_variable(RuntimeWorkgroupResult* result, bstring name, bstring value);
+int get_value(RuntimeWorkgroupResult* result, bstring name, double* value);
+int replace_all(RuntimeWorkgroupResult* result, bstring formula, struct bstrList* exclude);
+void destroy_result(RuntimeWorkgroupResult* result);
+
+int fill_results(RuntimeConfig* runcfg);
 #endif /* RESULTS_H */

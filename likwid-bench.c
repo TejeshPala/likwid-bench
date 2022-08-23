@@ -18,6 +18,7 @@
 #include "workgroups.h"
 #include "ptt2asm.h"
 #include "allocator.h"
+#include "results.h"
 
 #ifndef global_verbosity
 int global_verbosity = DEBUGLEV_DEVELOP;
@@ -74,9 +75,20 @@ void free_runtime_config(RuntimeConfig* runcfg)
             for (int i = 0; i < runcfg->num_wgroups; i++)
             {
                 bdestroy(runcfg->wgroups[i].str);
+                if (runcfg->wgroups[i].results)
+                {
+                    for (int j = 0; j < runcfg->wgroups[i].num_threads; j++)
+                    {
+                        destroy_result(&runcfg->wgroups[i].results[j]);
+                    }
+                    destroy_result(&runcfg->wgroups[i].group_results);
+                    free(runcfg->wgroups[i].results);
+                    runcfg->wgroups[i].results = NULL;
+                }
                 if (runcfg->wgroups[i].threads)
                 {
                     free(runcfg->wgroups[i].threads);
+                    runcfg->wgroups[i].threads = NULL;
                 }
                 if (runcfg->wgroups[i].cpulist)
                 {
@@ -128,6 +140,12 @@ void free_runtime_config(RuntimeConfig* runcfg)
             free(runcfg->streams);
             runcfg->streams = NULL;
             runcfg->num_streams = 0;
+        }
+        if (runcfg->global_results.variables)
+        {
+            destroy_result(&runcfg->global_results);
+            //free(runcfg->global_results);
+/*            runcfg->global_results = NULL;*/
         }
         free(runcfg);
     }
@@ -207,7 +225,6 @@ int main(int argc, char** argv)
     }
     else
     {
-        printf("Here '%s'\n", bdata(runcfg->testname));
         usage_print_header();
         usage_print_baseopts(1);
         usage_print_basetestopts();
@@ -264,6 +281,18 @@ int main(int argc, char** argv)
      * Evaluate variables, constants, ... for remaining operations
      * There should be now all values available
      */
+    err = init_result(&runcfg->global_results);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error initializing global result storage);
+        goto main_out;
+    }
+    err = fill_results(runcfg);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error filling result storages);
+        goto main_out;
+    }
 
     /*
      * Generate assembly

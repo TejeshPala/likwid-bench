@@ -164,6 +164,15 @@ int parse_baseopts(int argc, char* argv[], RuntimeConfig* config)
     return err;
 }
 
+int bitoffset(uint64_t mask)
+{
+    for (int i = 0; i < 64; i++)
+    {
+        if (mask & (1ULL << i)) return i;
+    }
+    return -1;
+}
+
 int parse_testopts(int argc, char* argv[], TestConfig* tcfg, RuntimeConfig* config)
 {
     int err = 0;
@@ -289,21 +298,27 @@ int parse_testopts(int argc, char* argv[], TestConfig* tcfg, RuntimeConfig* conf
                 run->name = bstrcpy(p->name);
                 run->type = RETURN_TYPE_INVALID;
                 run->value.uint64value = 0;
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Trying to resolve type of runtime parameter %s, bdata(run->name)); 
                 for (int j = 0; j < p->options->qty; j++)
                 {
                     int k = 0;
-                    while (bstrcmp(&param_opts[k].name, &bEOF) == BSTR_ERR)
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Option %s, bdata(p->options->entry[j]));
+                    while (bstrcmp(&param_opts[k].name, &bEOF) != BSTR_OK)
                     {
-                        if (bstrnicmp(p->options->entry[j], &param_opts[k].name, blength(&param_opts[k].name)) == BSTR_OK)
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Compare %s with %s, bdata(p->options->entry[j]), bdata(&param_opts[k].name));
+                        if (bstricmp(p->options->entry[j], &param_opts[k].name) == BSTR_OK)
                         {
-                            for (int f = RETURN_TYPE_MIN; f < RETURN_TYPE_MAX - 1; f++)
-                            {
-                                if (param_opts[k].ret_flags & RETURN_TYPE_MASK(f))
-                                {
-                                    run->type = f;
-                                    break;
-                                }
-                            }
+                            run->type = bitoffset(param_opts[k].ret_flags);
+                            DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting type %s for parameter %s, return_type_name(run->type), bdata(run->name));
+/*                            for (int f = RETURN_TYPE_MIN; f < RETURN_TYPE_MAX - 1; f++)*/
+/*                            {*/
+/*                                if (param_opts[k].ret_flags & RETURN_TYPE_MASK(f))*/
+/*                                {*/
+/*                                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting type %s for parameter %s, return_type_name(f), bdata(run->name));*/
+/*                                    run->type = f;*/
+/*                                    break;*/
+/*                                }*/
+/*                            }*/
                         }
                         if (run->type != RETURN_TYPE_INVALID) break;
                         k++;

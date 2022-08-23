@@ -10,6 +10,7 @@
 
 #include "workgroups.h"
 #include "topology.h"
+#include "results.h"
 #include <pthread.h>
 
 
@@ -28,16 +29,72 @@ int resolve_workgroups(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
         wg->cpulist = malloc(hwthreads * sizeof(int));
         if (!wg->cpulist)
         {
+            for (int j = 0; j < i; j++)
+            {
+                for (int l = 0; l < wgroups[j].num_threads; l++)
+                {
+                    destroy_result(&wgroups[j].results[l]);
+                }
+                free(wgroups[j].cpulist);
+                wgroups[j].cpulist = NULL;
+                wgroups[j].num_threads = 0;
+                free(wgroups[j].results);
+                wgroups[j].results = NULL;
+            }
             return -ENOMEM;
         }
         
         int nthreads = cpustr_to_cpulist(wg->str, wg->cpulist, hwthreads);
         if (nthreads < 0)
         {
+            for (int j = 0; j < i; j++)
+            {
+                for (int l = 0; l < wgroups[j].num_threads; l++)
+                {
+                    destroy_result(&wgroups[j].results[l]);
+                }
+                free(wgroups[j].cpulist);
+                wgroups[j].cpulist = NULL;
+                wgroups[j].num_threads = 0;
+                free(wgroups[j].results);
+                wgroups[j].results = NULL;
+            }
             free(wg->cpulist);
             wg->cpulist = NULL;
             return nthreads;
         }
+        wg->results = malloc(nthreads * sizeof(RuntimeWorkgroupConfig));
+        if (!wg->results)
+        {
+            free(wg->cpulist);
+            wg->cpulist = NULL;
+            
+            return -ENOMEM;
+        }
+        for (int j = 0; j < wg->num_threads; j++)
+        {
+            int err = init_result(&wg->results[j]);
+            if (err < 0)
+            {
+                for (int k = 0; k < j; k++)
+                {
+                    destroy_result(&wg->results[k]);
+                }
+                for (int k = 0; k < i; k++)
+                {
+                    for (int l = 0; l < wgroups[k].num_threads; l++)
+                    {
+                        destroy_result(&wgroups[k].results[l]);
+                    }
+                    free(wgroups[k].cpulist);
+                    wgroups[k].cpulist = NULL;
+                    wgroups[k].num_threads = 0;
+                    free(wgroups[k].results);
+                    wgroups[k].results = NULL;
+                }
+            }
+        }
+        init_result(&wg->group_results);
         wg->num_threads = nthreads;
     }
     return 0;
