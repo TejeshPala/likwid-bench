@@ -15,4 +15,7 @@ INCLUDES =
 LIBDIRS  =
 LIBS     =
 
-
+ifeq ($(strip $(ADDRESS_SANITIZER)), true)
+CPPFLAGS += -fsanitize=address
+LIBS     += -lasan
+endif

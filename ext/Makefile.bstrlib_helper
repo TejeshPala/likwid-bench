@@ -1,0 +1,22 @@
+
+BSTRLIB_DIR := ext/bstrlib_helper/ext/bstrlib
+BSTRLIB_HELPER_DIR := ext/bstrlib_helper
+
+OBJ      += $(patsubst $(BSTRLIB_DIR)/%.c, $(BUILD_DIR)/%.o,$(wildcard $(BSTRLIB_DIR)/bstrlib.c))
+OBJ      += $(patsubst $(BSTRLIB_HELPER_DIR)/%.c, $(BUILD_DIR)/%.o,$(wildcard $(BSTRLIB_HELPER_DIR)/bstrlib_helper.c))
+
+INCLUDES += -I$(BSTRLIB_DIR) -I$(BSTRLIB_HELPER_DIR)
+
+$(BSTRLIB_HELPER_DIR)/bstrlib_helper.c: update_submodules
+
+$(BUILD_DIR)/bstrlib.o: $(BSTRLIB_DIR)/bstrlib.c 
+	@echo "===>  COMPILE  $@ (EXTERNAL)"
+	$(Q)make -s --no-print-directory -C $(BSTRLIB_DIR) bstrlib.o >/dev/null
+	$(Q)mv $(BSTRLIB_DIR)/bstrlib.o $(BUILD_DIR)/bstrlib.o
+	$(Q)rm -f $(BSTRLIB_DIR)/bstrlib.o
+
+$(BUILD_DIR)/bstrlib_helper.o: $(BSTRLIB_HELPER_DIR)/bstrlib_helper.c
+	@echo "===>  COMPILE  $@ (EXTERNAL)"
+	$(Q)make -s --no-print-directory -C $(BSTRLIB_HELPER_DIR) bstrlib_helper.o >/dev/null
+	$(Q)mv $(BSTRLIB_HELPER_DIR)/bstrlib_helper.o $(BUILD_DIR)/bstrlib_helper.o
+	$(Q)make -s --no-print-directory -C $(BSTRLIB_HELPER_DIR) clean

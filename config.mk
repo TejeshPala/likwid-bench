@@ -60,8 +60,8 @@ DATE    = 23.06.2019
 # LD_LIBRARY_PATH
 RPATHS = -Wl,-rpath=$(INSTALLED_LIBPREFIX)
 
-ASM_BASE = ./asm_base
-
-JSMN_PATH = ./jsmn
+LIKWIDBENCH_KERNEL_FOLDER = $(shell pwd)/kernels
 
 ADDRESS_SANITIZER = true
+
+BUILD_DIR  = ./$(strip $(COMPILER))

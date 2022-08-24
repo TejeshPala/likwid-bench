@@ -1,0 +1,14 @@
+
+GETOPT_DIR := ext/getopt_extra
+
+OBJ      += $(patsubst $(GETOPT_DIR)/%.c, $(BUILD_DIR)/%.o,$(wildcard $(GETOPT_DIR)/getopt_extra.c))
+
+INCLUDES += -I$(GETOPT_DIR)
+
+$(GETOPT_DIR)/getopt_extra.c: update_submodules
+
+$(BUILD_DIR)/getopt_extra.o: $(GETOPT_DIR)/getopt_extra.c
+	@echo "===>  COMPILE  $@ (EXTERNAL)"
+	$(Q)make  --no-print-directory -C $(GETOPT_DIR) getopt_extra.o INCLUDES="$(INCLUDES)" >/dev/null
+	$(Q)mv $(GETOPT_DIR)/getopt_extra.o $(BUILD_DIR)/getopt_extra.o
+	$(Q)make  --no-print-directory -C $(GETOPT_DIR) clean
