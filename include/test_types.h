@@ -134,6 +134,15 @@ typedef struct {
 } RuntimeParameterConfig;
 
 typedef struct {
+    bstring asmfile;
+    bstring objfile;
+    bstring flags;
+    bstring compiler;
+    void* dlhandle;
+    void* function;
+} RuntimeTestConfig;
+
+typedef struct {
     int help;
     int verbosity;
     int iterations;
@@ -151,6 +160,7 @@ typedef struct {
     TestConfig_t tcfg;
     struct bstrList* codelines;
     RuntimeWorkgroupResult global_results;
+    RuntimeTestConfig testconfig;
 } RuntimeConfig;
 
 
