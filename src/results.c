@@ -10,6 +10,7 @@
 #include "results.h"
 #include "calculator.h"
 #include "bstrlib.h"
+#include "bstrlib_helper.h"
 #include "error.h"
 
 
