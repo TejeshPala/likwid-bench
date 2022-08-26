@@ -440,12 +440,14 @@ int init_result(RuntimeWorkgroupResult* result)
     int err = 0;
     result->values = NULL;
     result->variables = NULL;
-    err = init_bmap(&result->values, free);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Creating values map);
+    err = init_bmap(&result->values, bmap_free);
     if (err != 0)
     {
         ERROR_PRINT(Creating values map failed);
         return err;
     }
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Creating variables map);
     err = init_bmap(&result->variables, bmap_free);
     if (err != 0)
     {
@@ -459,23 +461,23 @@ int init_result(RuntimeWorkgroupResult* result)
 int add_value(RuntimeWorkgroupResult* result, bstring name, double value)
 {
     int err = 0;
-    double* f = NULL;
+    bstring v = NULL;
     if ((!result) || (!result->values) || (!name))
     {
         return -EINVAL;
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Searching for value %s, bdata(name));
-    err = get_bmap_by_key(result->values, name, (void**)&f);
+    err = get_bmap_by_key(result->values, name, (void**)&v);
     if (err == -ENOENT)
     {
-        f = (double*)double_dup(value);
-        if (f)
+        v = bformat("%f", value);
+        if (v)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Adding value %s -> %f, bdata(name), *f);
-            err = add_bmap(result->values, name, (void*)f);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Adding value %s -> %s, bdata(name), bdata(v));
+            err = add_bmap(result->values, name, (void*)v);
             if (err < 0)
             {
-                ERROR_PRINT(Failed adding value %s = %f, bdata(name), *f);
+                ERROR_PRINT(Failed adding value %s = %s, bdata(name), bdata(v));
                 return err;
             }
         }
@@ -549,7 +551,7 @@ static void replace_all_cb(mpointer key, mpointer value, mpointer user_data)
 {
     int err = 0;
     bstring bkey = (bstring) key;
-    bstring bval;
+    bstring bval = (bstring)value;
     int* ival = (int*) value;
     MapValue* val = NULL;
     double* d = NULL;
@@ -567,17 +569,12 @@ static void replace_all_cb(mpointer key, mpointer value, mpointer user_data)
         }
     }
 
-    val = &(data->map->values[*ival]);
-    d = (double*)val->value;
-
-    bval = bformat("%f", *d);
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing '%s' with '%s' in '%s', bdata(bkey), bdata(bval), bdata(data->formula));
     err = bfindreplace(data->formula, bkey, bval, 0);
     if (err != BSTR_OK)
     {
         ERROR_PRINT(Failed to replace %s in '%s', bdata(bkey), bdata(data->formula));
     }
-    bdestroy(bval);
     if (data->exclude)
     {
         bstrListAdd(data->exclude, bkey);
@@ -602,6 +599,9 @@ int replace_all(RuntimeWorkgroupResult* result, bstring formula, struct bstrList
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing values);
     data.map = result->values;
     foreach_in_smap(result->values, replace_all_cb, &data);
+    btrunc(formula, 0);
+    bconcat(formula, data.formula);
+    bdestroy(data.formula);
     return 0;
 }
 
