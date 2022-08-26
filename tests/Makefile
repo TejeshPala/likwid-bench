@@ -35,11 +35,17 @@ TESTS = test_read_yaml_ptt \
 	test_ptt2asm
 
 BSTRLIB_OBJ := ../ext/bstrlib_helper/ext/bstrlib/bstrlib.c ../ext/bstrlib_helper/bstrlib_helper.c
-BSTRLIB_HEADER := ../ext/bstrlib_helper/ext/bstrlib/bstrlib.h ../ext/bstrlib_helper/bstrlib_helper.h 
+BSTRLIB_HEADER := ../ext/bstrlib_helper/ext/bstrlib/bstrlib.h ../ext/bstrlib_helper/bstrlib_helper.h
+INCLUDES += -I../ext/bstrlib_helper -I../ext/bstrlib_helper/ext/bstrlib
+
 MAP_OBJ := ../ext/cmap/src/map.c ../ext/cmap/src/ghash.c
 MAP_HEADER := ../ext/cmap/include/map.h ../ext/cmap/include/ghash.h
-CALCULATOR_OBJ := ../src/calculator.c ../src/stack.c
-CALCULATOR_HEADER := ../include/calculator.h ../include/stack.h
+INCLUDES += -I../ext/cmap/include
+
+CALCULATOR_OBJ := ../ext/calculator/calculator.c ../ext/calculator/stack.c
+CALCULATOR_HEADER := ../ext/calculator/calculator.h ../ext/calculator/stack.h
+INCLUDES += -I../ext/calculator
+
 TOPOLOGY_OBJ := ../src/topology.c
 TOPOLOGY_HEADER := ../include/topology.h
 READ_YAML_OBJ := ../src/read_yaml_ptt.c
@@ -49,6 +55,7 @@ PTT2ASM_HEADER := ../include/ptt2asm.h ../include/isa_armv7.h ../include/isa_arm
 PTT_KEYWORDS_HEADER := ../include/ptt_keyword_loop.h ../include/ptt_keyword_dummy.h
 GETOPT_OBJ := ../ext/getopt_extra/getopt_extra.c
 GETOPT_HEADER := ../ext/getopt_extra/getopt_extra.h
+INCLUDES += -I../ext/getopt_extra
 
 all: $(TESTS)
 
