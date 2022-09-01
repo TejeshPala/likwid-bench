@@ -12,7 +12,6 @@
 
 
 #include "test_types.h"
-#include "getopt_extra.h"
 #include "read_yaml_ptt.h"
 #include "cli_parser.h"
 #include "workgroups.h"
@@ -23,6 +22,8 @@
 #ifndef global_verbosity
 int global_verbosity = DEBUGLEV_DEVELOP;
 #endif
+
+static struct tagbstring app_title = bsStatic("likwid-bench");
 
 
 static bstring get_architecture()
@@ -48,7 +49,6 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->wgroups = NULL;
     runcfg->tcfg = NULL;
     runcfg->codelines = NULL;
-    runcfg->streams = NULL;
     runcfg->testname = bfromcstr("");
     runcfg->pttfile = bfromcstr("");
     runcfg->tmpfolder = bfromcstr("");
@@ -90,11 +90,33 @@ void free_runtime_config(RuntimeConfig* runcfg)
                     free(runcfg->wgroups[i].threads);
                     runcfg->wgroups[i].threads = NULL;
                 }
-                if (runcfg->wgroups[i].cpulist)
+                if (runcfg->wgroups[i].hwthreads)
                 {
-                    free(runcfg->wgroups[i].cpulist);
-                    runcfg->wgroups[i].cpulist = NULL;
+                    free(runcfg->wgroups[i].hwthreads);
+                    runcfg->wgroups[i].hwthreads = NULL;
                     runcfg->wgroups[i].num_threads = 0;
+                }
+                if (runcfg->wgroups[i].streams)
+                {
+                    for (int w = 0; w < runcfg->wgroups[i].num_streams; w++)
+                    {
+                        if (runcfg->wgroups[i].streams[w].ptr)
+                        {
+                            free(runcfg->wgroups[i].streams[w].ptr);
+                        }
+                        bdestroy(runcfg->wgroups[i].streams[w].name);
+                    }
+                    free(runcfg->wgroups[i].streams);
+                    runcfg->wgroups[i].streams = NULL;
+                    runcfg->wgroups[i].num_streams = 0;
+                }
+                if (runcfg->wgroups[i].params)
+                {
+                    for (int j = 0; j < runcfg->wgroups[i].num_params; j++)
+                    {
+                        bdestroy(runcfg->wgroups[i].params[j].name);
+                        bdestroy(runcfg->wgroups[i].params[j].value);
+                    }
                 }
             }
             free(runcfg->wgroups);
@@ -107,14 +129,7 @@ void free_runtime_config(RuntimeConfig* runcfg)
             for (int i = 0; i < runcfg->num_params; i++)
             {
                 bdestroy(runcfg->params[i].name);
-                if (runcfg->params[i].type == RETURN_TYPE_BSTRING)
-                {
-                    bdestroy(runcfg->params[i].value.bstrvalue);
-                }
-                else if (runcfg->params[i].type == RETURN_TYPE_STRING)
-                {
-                    free(runcfg->params[i].value.strvalue);
-                }
+                bdestroy(runcfg->params[i].value);
             }
             free(runcfg->params);
             runcfg->params = NULL;
@@ -131,16 +146,7 @@ void free_runtime_config(RuntimeConfig* runcfg)
             bstrListDestroy(runcfg->codelines);
             runcfg->codelines = NULL;
         }
-        if (runcfg->streams)
-        {
-            for (int i = 0; i < runcfg->num_streams; i++)
-            {
-                free(runcfg->streams[i].ptr);
-            }
-            free(runcfg->streams);
-            runcfg->streams = NULL;
-            runcfg->num_streams = 0;
-        }
+        
         if (runcfg->global_results.variables)
         {
             destroy_result(&runcfg->global_results);
@@ -155,14 +161,16 @@ int main(int argc, char** argv)
 {
     int c = 0, err = 0, print_help = 0;
     int option_index = -1;
-    //BenchmarkConfig *cfg = NULL;
     RuntimeConfig* runcfg = NULL;
     Map_t useropts = NULL;
+    struct bstrList* args = NULL;
     int got_testcase = 0;
-/*    bstring yamlfile = bfromcstr("");*/
-    //bstring bbaseopts = bfromcstr(baseopts_short);
-    //bstring bbasetestopts = bfromcstr(basetestopts_short);
-    
+    CliOptions baseopts = {
+        .num_options = 0,
+        .options = NULL,
+        .title = &app_title,
+    };
+    addConstCliOptions(&baseopts, &basecliopts);
 /*    bstring bccflags = bfromcstr("-fPIC -shared");*/
 
     bstring arch = get_architecture();
@@ -177,8 +185,7 @@ int main(int argc, char** argv)
 
     if (argc ==  1)
     {
-        usage_print_header();
-        usage_print_baseopts(1);
+        printCliOptions(&baseopts);
         goto main_out;
     }
 
@@ -191,133 +198,133 @@ int main(int argc, char** argv)
         goto main_out;
     }
     bconcat(runcfg->kernelfolder, kernelfolder);
-    bdestroy(kernelfolder);
     bconcat(runcfg->tmpfolder, tmpfolder);
-    bdestroy(tmpfolder);
 
     /*
-     * Prepare short and long options for getopt
+     * Get command line arguments
      */
-    err = parse_baseopts(argc, argv, runcfg);
+    args = bstrListCreate();
+    for (int i = 1; i < argc; i++)
+    {
+        bstrListAddChar(args, argv[i]);
+    }
+    
+    
+    parseCliOptions(args, &baseopts);
+    err = assignBaseCliOptions(&baseopts, runcfg);
+    
+    //err = parse_baseopts(argc, argv, runcfg);
     if (err < 0)
     {
         ERROR_PRINT(Error parsing base options)
-        usage_print_header();
-        usage_print_baseopts(1);
-        usage_print_basetestopts();
+        printCliOptions(&baseopts);
         goto main_out;
     }
     if (runcfg->help && (blength(runcfg->testname) + blength(runcfg->pttfile)) == 0)
     {
-        usage_print_header();
-        usage_print_baseopts(1);
-        usage_print_basetestopts();
+        printCliOptions(&baseopts);
         goto main_out;
     }
     if (runcfg->verbosity > 0)
     {
         global_verbosity = runcfg->verbosity;
     }
-        
-    if (blength(runcfg->testname) > 0)
-    {
-        got_testcase = 1;
-    }
-    else
-    {
-        usage_print_header();
-        usage_print_baseopts(1);
-        usage_print_basetestopts();
-        goto main_out;
-    }
 
-    err = read_yaml_ptt(bdata(runcfg->pttfile), &runcfg->tcfg);
-    if (err < 0)
-    {
-        ERROR_PRINT(Error reading %s, bdata(runcfg->pttfile));
-        goto main_out;
-    }
+/*    if (blength(runcfg->testname) > 0)*/
+/*    {*/
+/*        got_testcase = 1;*/
+/*    }*/
+/*    else*/
+/*    {*/
+/*        printCliOptions(&baseopts);*/
+/*        goto main_out;*/
+/*    }*/
 
-    if (runcfg->help && got_testcase)
-    {
-        usage_print_header();
-        usage_print_baseopts(0);
-        usage_print_basetestopts();
-        print_test_usage(runcfg->tcfg);
-        goto main_out;
-    }
-    err = parse_testopts(argc, argv, runcfg->tcfg, runcfg);
-    if (err < 0)
-    {
-        printf("Parsing of test CLI options failed\n");
-        goto main_out;
-    }
+/*    err = read_yaml_ptt(bdata(runcfg->pttfile), &runcfg->tcfg);*/
+/*    if (err < 0)*/
+/*    {*/
+/*        ERROR_PRINT(Error reading %s, bdata(runcfg->pttfile));*/
+/*        goto main_out;*/
+/*    }*/
+
+/*    if (runcfg->help && got_testcase)*/
+/*    {*/
+/*        printCliOptions(&baseopts);*/
+/*        print_test_usage(runcfg->tcfg);*/
+/*        goto main_out;*/
+/*    }*/
+/*    err = parse_testopts(argc, argv, runcfg->tcfg, runcfg);*/
+/*    if (err < 0)*/
+/*    {*/
+/*        printf("Parsing of test CLI options failed\n");*/
+/*        goto main_out;*/
+/*    }*/
 
     /*
      * Check if all required benchmark parameters are available
      */
-    int miss = check_required_params(runcfg->tcfg, runcfg);
-    if (miss > 0)
-    {
-        ERROR_PRINT(Required parameters missing);
-        goto main_out;
-    }
+/*    int miss = check_required_params(runcfg->tcfg, runcfg);*/
+/*    if (miss > 0)*/
+/*    {*/
+/*        ERROR_PRINT(Required parameters missing);*/
+/*        goto main_out;*/
+/*    }*/
 
     /*
      * Analyse workgroups
      */
-    err = resolve_workgroups(runcfg->num_wgroups, runcfg->wgroups);
-    if (err < 0)
-    {
-        ERROR_PRINT(Error resolving workgroups);
-        goto main_out;
-    }
-    for (int i = 0; i < runcfg->num_wgroups; i++)
-    {
-        print_workgroup(&runcfg->wgroups[i]);
-    }
+/*    err = resolve_workgroups(runcfg->num_wgroups, runcfg->wgroups);*/
+/*    if (err < 0)*/
+/*    {*/
+/*        ERROR_PRINT(Error resolving workgroups);*/
+/*        goto main_out;*/
+/*    }*/
+/*    for (int i = 0; i < runcfg->num_wgroups; i++)*/
+/*    {*/
+/*        print_workgroup(&runcfg->wgroups[i]);*/
+/*    }*/
 
     /*
      * Evaluate variables, constants, ... for remaining operations
      * There should be now all values available
      */
-    err = init_result(&runcfg->global_results);
-    if (err < 0)
-    {
-        ERROR_PRINT(Error initializing global result storage);
-        goto main_out;
-    }
-    err = fill_results(runcfg);
-    if (err < 0)
-    {
-        ERROR_PRINT(Error filling result storages);
-        goto main_out;
-    }
+/*    err = init_result(&runcfg->global_results);*/
+/*    if (err < 0)*/
+/*    {*/
+/*        ERROR_PRINT(Error initializing global result storage);*/
+/*        goto main_out;*/
+/*    }*/
+/*    err = fill_results(runcfg);*/
+/*    if (err < 0)*/
+/*    {*/
+/*        ERROR_PRINT(Error filling result storages);*/
+/*        goto main_out;*/
+/*    }*/
 
     /*
      * Generate assembly
      */
-    runcfg->codelines = bstrListCreate();
-    err = generate_code(runcfg->tcfg, runcfg->codelines);
-    if (err < 0)
-    {
-        ERROR_PRINT(Error generating code);
-        goto main_out;
-    }
-    for (int i = 0; i < runcfg->codelines->qty; i++)
-    {
-        DEBUG_PRINT(global_verbosity, "CODE: %s\n", bdata(runcfg->codelines->entry[i]));
-    }
+/*    runcfg->codelines = bstrListCreate();*/
+/*    err = generate_code(runcfg->tcfg, runcfg->codelines);*/
+/*    if (err < 0)*/
+/*    {*/
+/*        ERROR_PRINT(Error generating code);*/
+/*        goto main_out;*/
+/*    }*/
+/*    for (int i = 0; i < runcfg->codelines->qty; i++)*/
+/*    {*/
+/*        DEBUG_PRINT(global_verbosity, "CODE: %s\n", bdata(runcfg->codelines->entry[i]));*/
+/*    }*/
 
     /*
      * Allocate arrays
      */
-     err = allocate_streams(runcfg);
-     if (err < 0)
-     {
-        ERROR_PRINT(Error allocating streams);
-        goto main_out;
-     }
+/*     err = allocate_streams(runcfg);*/
+/*     if (err < 0)*/
+/*     {*/
+/*        ERROR_PRINT(Error allocating streams);*/
+/*        goto main_out;*/
+/*     }*/
 
     /*
      * Start threads
@@ -355,6 +362,19 @@ int main(int argc, char** argv)
 main_out:
     DEBUG_PRINT(DEBUGLEV_DEVELOP, MAIN_OUT);
     free_runtime_config(runcfg);
-
+    destroyCliOptions(&baseopts);
+    if (kernelfolder)
+    {
+        bdestroy(kernelfolder);
+    }
+    if (tmpfolder)
+    {
+        bdestroy(tmpfolder);
+    }
+    if (args)
+    {
+        bstrListDestroy(args);
+    }
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, MAIN_OUT DONE);
     return 0;
 }
