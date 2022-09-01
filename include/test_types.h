@@ -31,7 +31,7 @@
 #define TEST_TYPES_H
 
 #include "bstrlib.h"
-#include "getopt_extra.h"
+#include "map.h"
 
 typedef struct {
     bstring                 name;
@@ -102,35 +102,8 @@ typedef struct {
 } RuntimeWorkgroupResult;
 
 typedef struct {
-    bstring str;
-    int num_threads;
-    int* cpulist;
-    RuntimeWorkgroupResult* results;
-    pthread_t *threads;
-    RuntimeWorkgroupResult group_results;
-} RuntimeWorkgroupConfig;
-
-typedef struct {
     bstring name;
-    CliOptionsReturnType type;
-    union {
-        int intvalue;
-        uint64_t uint64value;
-        unsigned boolvalue;
-#ifdef WITH_BSTRING
-        bstring bstrvalue;
-#endif /* WITH_BSTRING */
-        char* strvalue;
-        float floatvalue;
-        double doublevalue;
-        int* intlist;
-#ifdef WITH_BSTRING
-        struct bstrList* bstrlist;
-#endif
-        char** stringlist;
-        float* floatlist;
-        double* doublelist;
-    } value;
+    bstring value;
 } RuntimeParameterConfig;
 
 typedef struct {
@@ -143,6 +116,19 @@ typedef struct {
 } RuntimeTestConfig;
 
 typedef struct {
+    bstring str;
+    int num_threads;
+    int* hwthreads;
+    RuntimeWorkgroupResult* results;
+    pthread_t *threads;
+    RuntimeWorkgroupResult group_results;
+    int num_streams;
+    RuntimeStreamConfig* streams;
+    int num_params;
+    RuntimeParameterConfig* params;
+} RuntimeWorkgroupConfig;
+
+typedef struct {
     int help;
     int verbosity;
     int iterations;
@@ -151,8 +137,6 @@ typedef struct {
     RuntimeWorkgroupConfig* wgroups;
     int num_params;
     RuntimeParameterConfig* params;
-    int num_streams;
-    RuntimeStreamConfig* streams;
     bstring testname;
     bstring pttfile;
     bstring kernelfolder;
