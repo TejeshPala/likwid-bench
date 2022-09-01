@@ -12,7 +12,7 @@ Q         ?= @
 #DO NOT EDIT BELOW
 include $(MAKE_DIR)/include_$(strip $(COMPILER)).mk
 INCLUDES  += -g -I$(INC_DIR) -I$(BUILD_DIR)
-LIBDIRS   += -L$(LIKWID_LIBDIR)
+LIBDIRS   += 
 LIBS      += -lm  -ldl
 LFLAGS    += -pthread
 DEFINES   += -DWITH_BSTRING -DCALCULATOR_AS_LIB -DLIKWIDBENCH_KERNEL_FOLDER=$(LIKWIDBENCH_KERNEL_FOLDER)
@@ -24,7 +24,6 @@ OBJ       = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o,$(wildcard $(SRC_DIR)/*.
 
 include ./ext/Makefile.bstrlib_helper
 include ./ext/Makefile.calculator
-include ./ext/Makefile.getopt_extra
 include ./ext/Makefile.cmap
 
 
@@ -66,7 +65,6 @@ endif
 
 clean:
 	@echo "===> CLEAN"
-	@make --no-print-directory -C $(GETOPT_DIR) clean
 	@make --no-print-directory -C $(BSTRLIB_HELPER_DIR) clean
 	@make --no-print-directory -C $(CALCULATOR_DIR) clean
 	@rm -rf $(BUILD_DIR)
