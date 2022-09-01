@@ -66,6 +66,7 @@ int add_variable(RuntimeWorkgroupResult* result, bstring name, bstring value);
 int get_value(RuntimeWorkgroupResult* result, bstring name, double* value);
 int replace_all(RuntimeWorkgroupResult* result, bstring formula, struct bstrList* exclude);
 void destroy_result(RuntimeWorkgroupResult* result);
+void print_result(RuntimeWorkgroupResult* result);
 
 int fill_results(RuntimeConfig* runcfg);
 #endif /* RESULTS_H */

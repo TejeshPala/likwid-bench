@@ -445,6 +445,8 @@ int init_result(RuntimeWorkgroupResult* result)
     if (err != 0)
     {
         ERROR_PRINT(Creating values map failed);
+        result->values = NULL;
+        result->variables = NULL;
         return err;
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Creating variables map);
@@ -454,8 +456,11 @@ int init_result(RuntimeWorkgroupResult* result)
         ERROR_PRINT(Creating variables map failed);
         destroy_bmap(result->values);
         result->values = NULL;
+        result->variables = NULL;
         return err;
     }
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Values %p Variables %p, result->values, result->variables);
+    return 0;
 }
 
 int add_value(RuntimeWorkgroupResult* result, bstring name, double value)
@@ -595,18 +600,34 @@ int replace_all(RuntimeWorkgroupResult* result, bstring formula, struct bstrList
         .map = result->variables,
     };
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing variables);
-    foreach_in_smap(result->variables, replace_all_cb, &data);
+    foreach_in_bmap(result->variables, replace_all_cb, &data);
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing values);
     data.map = result->values;
-    foreach_in_smap(result->values, replace_all_cb, &data);
+    foreach_in_bmap(result->values, replace_all_cb, &data);
     btrunc(formula, 0);
     bconcat(formula, data.formula);
     bdestroy(data.formula);
     return 0;
 }
 
+static void print_all_cb(mpointer key, mpointer value, mpointer user_data)
+{
+    bstring bkey = (bstring) key;
+    bstring bval = (bstring)value;
+    printf("\t%s : %s\n", bdata(bkey), bdata(bval));
+}
+
+void print_result(RuntimeWorkgroupResult* result)
+{
+    printf("Stored values:\n");
+    foreach_in_bmap(result->values, print_all_cb, NULL);
+    printf("Stored variables:\n");
+    foreach_in_bmap(result->variables, print_all_cb, NULL);
+}
+
 void destroy_result(RuntimeWorkgroupResult* result)
 {
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Values %p Variables %p, result->values, result->variables);
     if (result->values)
     {
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Free values map);
@@ -633,48 +654,8 @@ int fill_results(RuntimeConfig* runcfg)
     for (int i = 0; i < runcfg->num_params; i++)
     {
         RuntimeParameterConfig* p = &runcfg->params[i];
-        bstring x;
-
-        switch (p->type)
-        {
-            case RETURN_TYPE_INT:
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Add INT runtime parameter %s, bdata(p->name));
-                x = bformat("%d", p->value.intvalue);
-                add_variable(&runcfg->global_results, p->name, x);
-                bdestroy(x);
-                break;
-            case RETURN_TYPE_UINT64:
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Add UINT64 runtime parameter %s, bdata(p->name));
-                x = bformat("%ld", p->value.uint64value);
-                add_variable(&runcfg->global_results, p->name, x);
-                bdestroy(x);
-                break;
-            case RETURN_TYPE_FLOAT:
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Add FLOAT runtime parameter %s, bdata(p->name));
-                x = bformat("%f", p->value.floatvalue);
-                add_variable(&runcfg->global_results, p->name, x);
-                bdestroy(x);
-                break;
-            case RETURN_TYPE_DOUBLE:
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Add DOUBLE runtime parameter %s, bdata(p->name));
-                x = bformat("%f", p->value.doublevalue);
-                add_variable(&runcfg->global_results, p->name, x);
-                bdestroy(x);
-                break;
-            case RETURN_TYPE_BSTRING:
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Add BSTRING runtime parameter %s, bdata(p->name));
-                add_variable(&runcfg->global_results, p->name, p->value.bstrvalue);
-                break;
-            case RETURN_TYPE_STRING:
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Add STRING runtime parameter %s, bdata(p->name));
-                x = bfromcstr(p->value.strvalue);
-                add_variable(&runcfg->global_results, p->name, x);
-                bdestroy(x);
-                break;
-            default:
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Not adding runtime parameter %s, bdata(p->name));
-                break;
-        }
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Add runtime parameter %s, bdata(p->name));
+        add_variable(&runcfg->global_results, p->name, p->value);
     }
     bstring biter = bformat("%d", runcfg->iterations);
     add_variable(&runcfg->global_results, &biterations, biter);
@@ -708,7 +689,7 @@ int fill_results(RuntimeConfig* runcfg)
             add_variable(&wgroup->group_results, &bthreadid, x);
             bdestroy(x);
 
-            x = bformat("%d", wgroup->cpulist[j]);
+            x = bformat("%d", wgroup->hwthreads[j]);
             add_variable(&wgroup->group_results, &bthreadcpu, x);
             bdestroy(x);
         }
