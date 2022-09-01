@@ -189,38 +189,43 @@ int allocate_arrays(RuntimeStreamConfig *sdata)
 
 int allocate_streams(RuntimeConfig* runcfg)
 {
-    if (runcfg->tcfg->num_streams == 0)
+    if (runcfg->tcfg->num_streams == 0 || runcfg->num_wgroups == 0)
     {
         return 0;
     }
-    runcfg->streams = malloc(runcfg->tcfg->num_streams * sizeof(RuntimeStreamConfig));
-    if (!runcfg->streams)
+    for (int w = 0; w < runcfg->num_wgroups; w++)
     {
-        return -ENOMEM;
-    }
-    memset(runcfg->streams, 0, runcfg->tcfg->num_streams * sizeof(RuntimeStreamConfig));
-    for (int i = 0; i < runcfg->tcfg->num_streams; i++)
-    {
-        TestConfigStream *istream = &runcfg->tcfg->streams[i];
-        RuntimeStreamConfig* ostream = &runcfg->streams[i];
-        if (istream && ostream)
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Allocating %d streams, runcfg->tcfg->num_streams);
+        wg->streams = malloc(runcfg->tcfg->num_streams * sizeof(RuntimeStreamConfig));
+        if (!wg->streams)
         {
-            ostream->name = bstrcpy(istream->name);
-            ostream->type = istream->type;
-            ostream->dims = 0;
-            for (int j = 0; j < istream->num_dims && j < istream->dims->qty; j++)
+            return -ENOMEM;
+        }
+        memset(wg->streams, 0, runcfg->tcfg->num_streams * sizeof(RuntimeStreamConfig));
+        for (int i = 0; i < runcfg->tcfg->num_streams; i++)
+        {
+            TestConfigStream *istream = &runcfg->tcfg->streams[i];
+            RuntimeStreamConfig* ostream = &wg->streams[i];
+            if (istream && ostream)
             {
-                const char* t = bdata(istream->dims->entry[j]);
-                printf("dimsize %s\n",t);
-                ostream->dimsizes[j] = strtoull(t, NULL, 10);
-                ostream->dims++;
+                ostream->name = bstrcpy(istream->name);
+                ostream->type = istream->type;
+                ostream->dims = 0;
+                for (int j = 0; j < istream->num_dims && j < istream->dims->qty; j++)
+                {
+                    const char* t = bdata(istream->dims->entry[j]);
+                    printf("dimsize %s\n",t);
+                    ostream->dimsizes[j] = strtoull(t, NULL, 10);
+                    ostream->dims++;
+                }
             }
         }
-    }
-    runcfg->num_streams = runcfg->tcfg->num_streams;
-    for (int i = 0; i < runcfg->num_streams; i++)
-    {
-        allocate_arrays(&runcfg->streams[i]);
+        wg->num_streams = runcfg->tcfg->num_streams;
+        for (int i = 0; i < wg->num_streams; i++)
+        {
+            allocate_arrays(&wg->streams[i]);
+        }
     }
     return 0;
 }
