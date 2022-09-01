@@ -3,412 +3,428 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
-
-#include "error.h"
-#include "test_types.h"
-#include "getopt_extra.h"
 #include "cli_parser.h"
+#include "bstrlib.h"
+#include "bstrlib_helper.h"
+#include "test_types.h"
 
-
-
-void usage_print_baseopts(int message)
+static int copy_cli(int argc, char** argv, char*** copy)
 {
-/*    printf(" -h/--help          : Print usage\n");*/
-/*    printf(" -t/--test <str>    : Name of testcase\n");*/
-/*    printf(" -f/--file <str>    : Filename for testcase\n");*/
-/*    printf(" -d/--kfolder <str> : Benchmark folder\n");*/
-    print_options(baseopts);
-    if (message)
+    char** c = malloc(argc * sizeof(char*));
+    for (int i = 0; i < argc; i++)
     {
-        printf("\n");
-        printf("With the testcase name or the filename, the options might expand if the benchmark requires more input\n");
-        printf("\n");
+        int len = strlen(argv[i]);
+        c[i] = malloc((len+2) * sizeof(char));
+        int ret = snprintf(c[i], len+1, "%s", argv[i]);
+        c[i][ret] = '\0';
     }
+    *copy = c;
+    return argc;
 }
 
-void usage_print_basetestopts()
+static void free_cli(int argc, char** argv)
 {
-/*    printf(" -w/--workgroup <str>  : A workgroup definition like S0:2 (multiple options allowed)\n");*/
-/*    printf(" -i/--iterations <str> : Number of iterations for execution\n");*/
-/*    printf(" -r/--runtime <time>   : Runtime of benchmark (default 1s, automatically determines iterations)\n");*/
-    print_options(basetestopts);
-    printf("\n");
-    printf("likwid-bench automatically detects the number of iterations (if not given) for the given or default\n");
-    printf("runtime.\n");
-    printf("\n");
-}
-
-
-void print_usage()
-{
-    printf("likwid-bench: Micro-benchmarking suite\n\n");
-    printf("likwid-bench -t <test> ... (test-specific options)\n");
-    printf("Test-specific options are available when calling\n");
-    printf("likwid-bench -t <test> -h\n");
-}
-
-void usage_print_header()
-{
-    printf("###########################################\n");
-    printf("# likwid-bench - Micro-benchmarking suite #\n");
-    printf("###########################################\n\n");
-}
-
-
-void print_test_usage(TestConfig_t cfg)
-{
-    struct tagbstring bdelim = bsStatic(", ");
-    //printf("Parameters for testcase %s : \n", bdata(cfg->name));
-    //printf("Description: %s\n\n", bdata(cfg->description));
-    if (cfg->num_params > 0)
+    for (int i = 0; i < argc; i++)
     {
-        for (int i = 0; i < cfg->num_params; i++)
+        free(argv[i]);
+    }
+    free(argv);
+}
+
+/*static struct option baseopts[7] = {*/
+/*    {"help", no_argument, 0, 'h'},*/
+/*    {"verbose", required_argument, 0, 'V'},*/
+/*    {"test", required_argument, 0, 't'},*/
+/*    {"file", required_argument, 0, 'f'},*/
+/*    {"kfolder", required_argument, 0, 'K'},*/
+/*    {"tmpfolder", required_argument, 0, 'D'},*/
+/*    {0, 0, 0, 0}*/
+/*};*/
+
+/*static struct option basetestopts[3] = {*/
+/*    {"iterations", required_argument, 0, 'i'},*/
+/*    {"runtime", required_argument, 0, 'r'},*/
+/*    {0, 0, 0, 0}*/
+/*};*/
+
+/*static struct option wgroupopts[2] = {*/
+/*    {"workgroup", required_argument, 0, 'w'},*/
+/*    {0, 0, 0, 0}*/
+/*}*/
+
+
+
+
+int addCliOption(CliOptions* options, CliOption* new)
+{
+    int symbol_free = 1;
+    int name_free = 1;
+    if ((!options) || (!new))
+    {
+        return -EINVAL;
+    }
+    for (int i = 0; i < options->num_options; i++)
+    {
+        CliOption* x = &options->options[i];
+        if (bstrcmp(x->name, new->name) == BSTR_OK)
         {
-            if (blength(cfg->params[i].name) == 1)
-            {
-                printf(" -%s <value> : %s (Options: ", bdata(cfg->params[i].name), bdata(cfg->params[i].description));
-            }
-            else
-            {
-                printf(" --%s <value> : %s (Options: ", bdata(cfg->params[i].name), bdata(cfg->params[i].description));
-            }
-            bstring opts = bjoin(cfg->params[i].options, &bdelim);
-            printf("%s)\n", bdata(opts));
-            bdestroy(opts);
+            name_free = 0;
         }
+        if (bstrcmp(x->symbol, new->symbol) == BSTR_OK)
+        {
+            symbol_free = 0;
+        }
+    }
+    if ((!name_free) && (!symbol_free))
+    {
+        printf("Name '%s' and symbol '%s' already taken\n", bdata(new->name), bdata(new->symbol));
+        return -EINVAL;
+    }
+    CliOption* tmp = realloc(options->options, (options->num_options+1) * sizeof(CliOption));
+    if (!tmp)
+    {
+        return -ENOMEM;
+    }
+    options->options = tmp;
+    CliOption* x = &options->options[options->num_options];
+    x->name = bstrcpy(new->name);
+    if (symbol_free)
+    {
+        x->symbol = bstrcpy(new->symbol);
     }
     else
     {
-        printf("\nTestcase specifies no further options\n");
+        x->symbol = bfromcstr("****");
     }
-    printf("\n");
+    x->has_arg = new->has_arg;
+    x->description = bstrcpy(new->description);
+    x->value = bfromcstr("");
+    x->values = bstrListCreate();
+    options->num_options++;
+    return 0;
 }
 
-int parse_baseopts(int argc, char* argv[], RuntimeConfig* config)
+void destroyCliOptions(CliOptions* options)
 {
-    int err = 0;
-    Map_t cliopts;
-    struct option_extra* opts = NULL;
-    struct option_extra_return* ret_arg = NULL;
-    add_option_list((struct option_extra*)baseopts, &opts);
-    int option_index = -1;
-    int num_args = getopt_long_extra(argc, argv, NULL, opts, &cliopts);
-    if (num_args < 0)
+    for (int i = 0; i < options->num_options; i++)
     {
-        return num_args;
+        CliOption* x = &options->options[i];
+        bdestroy(x->name);
+        bdestroy(x->symbol);
+        bdestroy(x->description);
+        bdestroy(x->value);
+        bstrListDestroy(x->values);
     }
-    if (get_smap_by_key(cliopts, "help", (void**)&ret_arg) == 0)
+    memset(options->options, 0, options->num_options * sizeof(CliOption));
+    free(options->options);
+    options->options = NULL;
+    options->num_options = 0;
+    if (options->title)
     {
-        config->help = 1;
+        bdestroy(options->title);
     }
-    if (get_smap_by_key(cliopts, "test", (void**)&ret_arg) == 0)
+    if (options->prolog)
     {
-        if (ret_arg->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
-        {
-            btrunc(config->testname, 0);
-            bconcat(config->testname, ret_arg->value.bstrvalue);
-        }
+        bdestroy(options->prolog);
     }
-    if (get_smap_by_key(cliopts, "file", (void**)&ret_arg) == 0)
+    if (options->epilog)
     {
-        if (ret_arg->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
-        {
-            btrunc(config->pttfile, 0);
-            bconcat(config->pttfile, ret_arg->value.bstrvalue);
-            if (blength(config->testname) == 0)
-            {
-                DEBUG_PRINT(DEBUGLEV_DETAIL, No testname given -> use file name without suffix);
-                struct tagbstring bdot = bsStatic(".");
-                char* f = bdata(config->pttfile);
-                bstring fname = bfromcstr(basename(f));
-                int dot = binstrr(fname, blength(fname)-1, &bdot);
-                if (dot != BSTR_ERR && dot > 0)
-                {
-                    btrunc(fname, dot);
-                    bconcat(config->testname, fname);
-                }
-                bdestroy(fname);
-            }
-        }
+        bdestroy(options->prolog);
     }
-    if (get_smap_by_key(cliopts, "kfolder", (void**)&ret_arg) == 0)
-    {
-        if (ret_arg->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
-        {
-            btrunc(config->kernelfolder, 0);
-            bconcat(config->kernelfolder, ret_arg->value.bstrvalue);
-        }
-    }
-    if (get_smap_by_key(cliopts, "tmpfolder", (void**)&ret_arg) == 0)
-    {
-        if (ret_arg->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_BSTRING))
-        {
-            btrunc(config->tmpfolder, 0);
-            bconcat(config->tmpfolder, ret_arg->value.bstrvalue);
-        }
-    }
-    if (blength(config->pttfile) == 0 && blength(config->testname) > 0)
-    {
-        bdestroy(config->pttfile);
-        config->pttfile = bformat("%s/%s.yaml", bdata(config->kernelfolder), bdata(config->testname));
-        char* f = bdata(config->pttfile);
-        if (access(f, F_OK))
-        {
-            err = -errno;
-        }
-        DEBUG_PRINT(DEBUGLEV_DETAIL, No pttfile given -> use file name and kernel folder: %s, bdata(config->pttfile));
-    }
-    destroy_smap(cliopts);
-    free(opts);
-    return err;
 }
 
-int bitoffset(uint64_t mask)
+void printCliOptions(CliOptions* options)
 {
-    for (int i = 0; i < 64; i++)
+    if (!options)
     {
-        if (mask & (1ULL << i)) return i;
+        return;
     }
-    return -1;
+    if (options->title)
+    {
+        printf("---------------------------------------\n");
+        printf("%s\n", bdata(options->title));
+        printf("---------------------------------------\n");
+    }
+    if (options->prolog)
+    {
+        printf("%s\n", bdata(options->prolog));
+        printf("----\n");
+    }
+    printf("Options:\n");
+    for (int i = 0; i < options->num_options; i++)
+    {
+        CliOption *x = &options->options[i];
+        printf("\t%s/%-20s : %s", bdata(x->symbol), bdata(x->name), bdata(x->description));
+        if (blength(x->value) > 0)
+        {
+            printf(" = '%s'", bdata(x->value));
+        }
+        if (x->values->qty > 0)
+        {
+            struct tagbstring bspace = bsStatic("|");
+            bstring list = bjoin(x->values, &bspace);
+            printf(" = '%s'", bdata(list));
+            bdestroy(list);
+        }
+        printf("\n");
+    }
+    if (options->epilog)
+    {
+        printf("----\n");
+        printf("%s\n", bdata(options->epilog));
+    }
 }
 
-int parse_testopts(int argc, char* argv[], TestConfig* tcfg, RuntimeConfig* config)
+int addConstCliOptions(CliOptions* options, ConstCliOptions *constopts)
 {
-    int err = 0;
-    Map_t cliopts;
-    struct option_extra* opts = NULL;
-    struct option_extra_return* ret_arg = NULL;
-
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Adding base CLI options);
-    add_option_list((struct option_extra*)baseopts, &opts);
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Adding test-related CLI options);
-    add_option_list((struct option_extra*)basetestopts, &opts);
-
-    struct tagbstring bbytes = bsStatic("bytes");
-    struct tagbstring btime = bsStatic("time");
-    struct tagbstring bEOF = bsStatic("EOF");
-    for (int i = 0; i < tcfg->num_params; i++)
+    if ((!options) || (!constopts))
     {
-        TestConfigParameter *p = &tcfg->params[i];
-        int rflags = 0x0;
-        int aflags = 0x0;
-        for (int j = 0; j < p->options->qty; j++)
+        return -EINVAL;
+    }
+    int newlen = options->num_options + constopts->num_options;
+    CliOption* tmp = realloc(options->options, (newlen) * sizeof(CliOption));
+    if (!tmp)
+    {
+        return -ENOMEM;
+    }
+    options->options = tmp;
+
+    for (int i = 0; i < constopts->num_options; i++)
+    {
+        CliOption* x = &options->options[options->num_options + i];
+        x->name = bformat("--%s", constopts->options[i].name);
+        x->symbol = bformat("-%c", constopts->options[i].symbol);
+        x->has_arg = constopts->options[i].has_arg;
+        x->description = bfromcstr(constopts->options[i].description);
+        x->value = bfromcstr("");
+        x->values = bstrListCreate();
+    }
+    options->num_options += constopts->num_options;
+    return 0;
+}
+
+static void set_required_argument(CliOption* x, bstring arg)
+{
+    if (blength(x->value) > 0)
+    {
+        btrunc(x->value, 0);
+    }
+    printf("Set argument for %s/%s: %s\n", bdata(x->symbol), bdata(x->name), bdata(arg));
+    bconcat(x->value, arg);
+}
+
+static void add_multi_argument(bstring combine, bstring arg)
+{
+    if (blength(combine) > 0)
+    {
+        bconchar(combine, ' ');
+    }
+    printf("Add argument for multi_argument %s\n", bdata(arg));
+    bconcat(combine, arg);
+}
+
+int parseCliOptions(struct bstrList* argv, CliOptions* options)
+{
+    struct tagbstring btrue = bsStatic("1");
+    bstring combine = bfromcstr("");
+    CliOption* combine_opt = NULL;
+    for (int i = 0; i < argv->qty; i++)
+    {
+        int processed = 0;
+        for (int j = 0; j < options->num_options; j++)
         {
-            int k = 0;
-            while (bstrcmp(&param_opts[k].name, &bEOF) != BSTR_OK)
+            CliOption* x = &options->options[j];
+            if (bstrcmp(argv->entry[i], x->name) == BSTR_OK || bstrcmp(argv->entry[i], x->symbol) == BSTR_OK)
             {
-                if (bstrnicmp(p->options->entry[j], &param_opts[k].name, blength(&param_opts[k].name)) == BSTR_OK)
+                if (x->has_arg == required_argument && i < (argv->qty-1))
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Option %s adding argflags 0x%x and retflags 0x%x, bdata(&param_opts[k].name), param_opts[k].arg_flags, param_opts[k].ret_flags);
-                    aflags |= param_opts[k].arg_flags;
-                    rflags |= param_opts[k].ret_flags;
-                    break;
+                    set_required_argument(x, argv->entry[i+1]);
+                    i++;
                 }
-                k++;
-            }
-        }
-        if (!rflags)
-        {
-            rflags = RETURN_TYPE_MASK(RETURN_TYPE_BSTRING);
-        }
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Adding CLI option %s with arg flags 0x%x and return flags 0x%x, bdata(p->name), aflags, rflags);
-        add_option_params(bdata(p->name), bchar(p->name, 0), rflags, required_argument, &opts, aflags);
-    }
-
-    int num_args = getopt_long_extra(argc, argv, NULL, opts, &cliopts);
-    if (get_smap_by_key(cliopts, "iters", (void**)&ret_arg) == 0)
-    {
-        if (ret_arg->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_INT))
-        {
-            config->iterations = ret_arg->value.intvalue;
-        }
-        else if (ret_arg->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_UINT64))
-        {
-            config->iterations = ret_arg->value.uint64value;
-        }
-    }
-    if (get_smap_by_key(cliopts, "runtime", (void**)&ret_arg) == 0)
-    {
-        if (ret_arg->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_INT))
-        {
-            config->runtime = (double)ret_arg->value.intvalue;
-        }
-        else if (ret_arg->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_UINT64))
-        {
-            config->runtime = (double)ret_arg->value.uint64value;
-        }
-        else if (ret_arg->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_FLOAT))
-        {
-            config->runtime = (double)ret_arg->value.floatvalue;
-        }
-        else if (ret_arg->return_flag & RETURN_TYPE_MASK(RETURN_TYPE_DOUBLE))
-        {
-            config->runtime = ret_arg->value.doublevalue;
-        }
-    }
-    if (get_smap_by_key(cliopts, "workgroup", (void**)&ret_arg) == 0)
-    {
-        struct bstrList* wlist = ret_arg->value.bstrlist;
-        if (wlist && wlist->qty > 0)
-        {
-            config->wgroups = malloc(wlist->qty * sizeof(RuntimeWorkgroupConfig));
-            if (config->wgroups)
-            {
-                memset(config->wgroups, 0, wlist->qty * sizeof(RuntimeWorkgroupConfig));
-                for (int i = 0; i < wlist->qty; i++)
+                else if (x->has_arg == sticky_with_argument && i < (argv->qty-1))
                 {
-                    RuntimeWorkgroupConfig* wg = &config->wgroups[i];
-                    wg->str = bstrcpy(wlist->entry[i]);
-                    wg->cpulist = NULL;
-                    wg->threads = NULL;
-                }
-                config->num_wgroups = wlist->qty;
-            }
-            else
-            {
-                ERROR_PRINT(Failed to allocate space for workgroups\n);
-                err = -ENOMEM;
-            }
-        }
-    }
-    int run_params = 0;
-    for (int i = 0; i < tcfg->num_params; i++)
-    {
-        TestConfigParameter *p = &tcfg->params[i];
-        if (get_smap_by_key(cliopts, bdata(p->name), (void**)&ret_arg) == 0)
-        {
-            run_params++;
-        }
-    }
-    config->params = malloc(run_params + sizeof(RuntimeParameterConfig));
-    if (!config->params)
-    {
-        err = -ENOMEM;
-    }
-    else
-    {
-        run_params = 0;
-        for (int i = 0; i < tcfg->num_params; i++)
-        {
-            TestConfigParameter *p = &tcfg->params[i];
-            if (get_smap_by_key(cliopts, bdata(p->name), (void**)&ret_arg) == 0)
-            {
-                RuntimeParameterConfig* run = &config->params[run_params];
-                run->name = bstrcpy(p->name);
-                run->type = RETURN_TYPE_INVALID;
-                run->value.uint64value = 0;
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Trying to resolve type of runtime parameter %s, bdata(run->name)); 
-                for (int j = 0; j < p->options->qty; j++)
-                {
-                    int k = 0;
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Option %s, bdata(p->options->entry[j]));
-                    while (bstrcmp(&param_opts[k].name, &bEOF) != BSTR_OK)
+                    if (combine_opt && blength(combine) > 0)
                     {
-                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Compare %s with %s, bdata(p->options->entry[j]), bdata(&param_opts[k].name));
-                        if (bstricmp(p->options->entry[j], &param_opts[k].name) == BSTR_OK)
-                        {
-                            run->type = bitoffset(param_opts[k].ret_flags);
-                            DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting type %s for parameter %s, return_type_name(run->type), bdata(run->name));
-/*                            for (int f = RETURN_TYPE_MIN; f < RETURN_TYPE_MAX - 1; f++)*/
-/*                            {*/
-/*                                if (param_opts[k].ret_flags & RETURN_TYPE_MASK(f))*/
-/*                                {*/
-/*                                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting type %s for parameter %s, return_type_name(f), bdata(run->name));*/
-/*                                    run->type = f;*/
-/*                                    break;*/
-/*                                }*/
-/*                            }*/
-                        }
-                        if (run->type != RETURN_TYPE_INVALID) break;
-                        k++;
+                        add_multi_argument(combine, argv->entry[i]);
+                        add_multi_argument(combine, argv->entry[i+1]);
+                    }
+                    else
+                    {
+                        set_required_argument(x, argv->entry[i+1]);
+                    }
+                    i++;
+                }
+                else if (x->has_arg == no_argument)
+                {
+                    set_required_argument(x, &btrue);
+                }
+                else if (x->has_arg == sticky_no_argument)
+                {
+                    if (combine_opt && blength(combine) > 0)
+                    {
+                        add_multi_argument(combine, argv->entry[i]);
+                    }
+                    else
+                    {
+                        set_required_argument(x, &btrue);
                     }
                 }
-                switch (run->type)
+                else if (x->has_arg == multi_argument && i < (argv->qty-1))
                 {
-                    case RETURN_TYPE_BOOL:
-                        run->value.boolvalue = ret_arg->value.boolvalue;
-                        break;
-                    case RETURN_TYPE_BSTRING:
-                        run->value.bstrvalue = bstrcpy(ret_arg->value.bstrvalue);
-                        break;
-                    case RETURN_TYPE_INT:
-                        run->value.intvalue = ret_arg->value.intvalue;
-                        break;
-                    case RETURN_TYPE_UINT64:
-                        run->value.uint64value = ret_arg->value.uint64value;
-                        break;
-                    case RETURN_TYPE_FLOAT:
-                        run->value.floatvalue = ret_arg->value.floatvalue;
-                        break;
-                    case RETURN_TYPE_DOUBLE:
-                        run->value.doublevalue = ret_arg->value.doublevalue;
-                        break;
-                    case RETURN_TYPE_STRING:
-                        run->value.strvalue = malloc((strlen(ret_arg->value.strvalue)+1) * sizeof(char));
-                        if (run->value.strvalue)
-                        {
-                            run->value.strvalue[0] = '\0';
-                            int ret = snprintf(run->value.strvalue, strlen(ret_arg->value.strvalue), "%s", ret_arg->value.strvalue);
-                            if (ret >= 0)
-                            {
-                                run->value.strvalue[ret] = '\0';
-                            }
-                        }
+                    if (blength(combine) > 0)
+                    {
+                        bstrListAdd(x->values, combine);
+                        btrunc(combine, 0);
+                        combine_opt = NULL;
+                    }
+                    add_multi_argument(combine, argv->entry[i]);
+                    combine_opt = x;
                 }
-                run_params++;
+                else if (combine_opt && combine_opt->has_arg == multi_argument && i < (argv->qty-1))
+                {
+                    add_multi_argument(combine, argv->entry[i]);
+                }
+                processed = 1;
+                break;
             }
         }
-        config->num_params = run_params;
+        if (!processed && combine_opt)
+        {
+            add_multi_argument(combine, argv->entry[i]);
+        }
     }
-
-    free(opts);
-    destroy_smap(cliopts);
-    return err;
-}
-
-int check_required_params(TestConfig* tcfg, RuntimeConfig* config)
-{
-    int required_missing = 0;
-    struct tagbstring brequired = bsStatic("required");
-    //struct tagbstring boptional = bsStatic("optional");
-    for (int i = 0; i < tcfg->num_params; i++)
+    if (blength(combine) > 0 && combine_opt)
     {
-        int is_required = 0;
-        int is_set = 0;
-        TestConfigParameter *p = &tcfg->params[i];
-        for (int j = 0; j < p->options->qty; j++)
+        bstrListAdd(combine_opt->values, combine);
+    }
+    bdestroy(combine);
+    return 0;
+}
+
+void cliOptionsTitle(CliOptions* options, bstring title)
+{
+    if (options)
+    {
+        if (!options->title)
         {
-            if (bstrnicmp(p->options->entry[j], &brequired, blength(&brequired)) == BSTR_OK)
-            {
-                is_required = 1;
-                break;
-            }
+            options->title = bstrcpy(title);
         }
-        for (int j = 0; j < config->num_params; j++)
+        else
         {
-            if (bstrncmp(p->name, config->params[i].name, blength(p->name)) == BSTR_OK)
-            {
-                is_set = 1;
-                break;
-            }
-        }
-        if (is_set)
-        {
-            if (is_required)
-            {
-                printf("Got required test param '%s'\n", bdata(p->name));
-            }
-            else
-            {
-                printf("Got test param '%s'\n", bdata(p->name));
-            }
-        }
-        else if (is_required)
-        {
-            fprintf(stderr, "Missing required parameter '%s'\n", bdata(p->name));
-            required_missing++;
+            btrunc(options->title, 0);
+            bconcat(options->title, title);
         }
     }
-    return required_missing;
 }
+
+void cliOptionsProlog(CliOptions* options, bstring prolog)
+{
+    if (options)
+    {
+        if (!options->prolog)
+        {
+            options->prolog = bstrcpy(prolog);
+        }
+        else
+        {
+            btrunc(options->prolog, 0);
+            bconcat(options->prolog, prolog);
+        }
+    }
+}
+
+void cliOptionsEpilog(CliOptions* options, bstring epilog)
+{
+    if (options)
+    {
+        if (!options->epilog)
+        {
+            options->epilog = bstrcpy(epilog);
+        }
+        else
+        {
+            btrunc(options->epilog, 0);
+            bconcat(options->epilog, epilog);
+        }
+    }
+}
+
+int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
+{
+    if ((!options) || (!runcfg))
+    {
+        return -EINVAL;
+    }
+    struct tagbstring bhelp = bsStatic("--help");
+    struct tagbstring bverbose = bsStatic("--verbose");
+    struct tagbstring btrue = bsStatic("1");
+    for (int i = 0; i < options->num_options; i++)
+    {
+        CliOption* opt = &options->options[i];
+        if (bstrcmp(opt->name, &bhelp) == BSTR_OK && bstrcmp(opt->value, &btrue) == BSTR_OK)
+        {
+            runcfg->help = 1;
+        }
+        if (bstrcmp(opt->name, &bverbose) == BSTR_OK && blength(opt->value) > 0)
+        {
+            const char* cval = bdata(opt->value);
+            runcfg->verbosity = atoi(cval);
+        }
+    }
+    return 0;
+}
+
+
+/*int main(int argc, char* argv[])*/
+/*{*/
+/*    struct tagbstring bspace = bsStatic(" ");*/
+/*    struct tagbstring bworkgroup = bsStatic("--workgroup");*/
+/*    struct bstrList* args = bstrListCreate();*/
+/*    for (int i = 1; i < argc; i++)*/
+/*    {*/
+/*        bstrListAddChar(args, argv[i]);*/
+/*    }*/
+
+/*    CliOptions options = {*/
+/*        .num_options = 0,*/
+/*        .options = NULL,*/
+/*        .title = bfromcstr("likwid-bench"),*/
+/*    };*/
+/*    */
+/*    addConstCliOptions(&options, &basecliopts);*/
+/*    parseCliOptions(args, &options);*/
+/*    printCliOptions(&options);*/
+/*    printf("-----------------------------\n");*/
+/*    for (int i = 0; i < options.num_options; i++)*/
+/*    {*/
+/*        CliOption* opt = &options.options[i];*/
+/*        printf("Option %s\n", bdata(opt->name));*/
+/*        if (bstrcmp(opt->name, &bworkgroup) == BSTR_OK)*/
+/*        {*/
+/*            for (int j = 0; j < opt->values->qty; j++)*/
+/*            {*/
+/*                printf("Workgroup: %s\n", bdata(opt->values->entry[j]));*/
+/*                printf("-----------------------------\n");*/
+/*                CliOptions wgroup_options = {*/
+/*                    .num_options = 0,*/
+/*                    .options = NULL,*/
+/*                };*/
+/*                struct bstrList* wargs = bsplit(opt->values->entry[j], ' ');*/
+/*                addConstCliOptions(&wgroup_options, &wgroupopts);*/
+/*                parseCliOptions(wargs, &wgroup_options);*/
+/*                printCliOptions(&wgroup_options);*/
+/*                destroyCliOptions(&wgroup_options);*/
+/*                bstrListDestroy(wargs);*/
+/*            }*/
+/*        }*/
+/*    }*/
+/*    */
+/*    */
+
+
+/*    bstrListDestroy(args);*/
+/*    destroyCliOptions(&options);*/
+/*    return 0;*/
+/*}*/

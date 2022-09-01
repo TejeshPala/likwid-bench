@@ -2,62 +2,83 @@
 #define CLI_PARSER_H
 
 #include "bstrlib.h"
+#include "test_types.h"
 
-static struct option_extra baseopts[7] = {
-    {"help", 'h', RETURN_TYPE_MASK(RETURN_TYPE_BOOL), 0, "Help and usage"},
-    {"verbose", 'V', RETURN_TYPE_MASK(RETURN_TYPE_INT), required_argument, "Verbosity level (0 - 3)"},
-    {"test", 't', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument, "Test case to run"},
-    {"file", 'f', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument, "Test file run run", ARG_FLAG_MASK(ARG_FLAG_FILE)},
-    {"kfolder", 'K', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument, "Directory with benchmarks", ARG_FLAG_MASK(ARG_FLAG_DIR)},
-    {"tmpfolder", 'd', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING), required_argument, "Temporary directory for object files"},
-    {0, 0, 0, 0}
+typedef enum {
+    no_argument = 0,
+    required_argument,
+    multi_argument,
+    sticky_with_argument,
+    sticky_no_argument,
+} CliOptionArgSpecifier;
+
+typedef struct {
+    char*       name;
+    char        symbol;
+    int         has_arg;
+    char*       description;
+} ConstCliOption;
+
+typedef struct {
+    int num_options;
+    ConstCliOption *options;
+} ConstCliOptions;
+
+typedef struct {
+    bstring name;
+    bstring symbol;
+    int has_arg;
+    bstring description;
+    bstring value;
+    struct bstrList *values;
+} CliOption;
+
+
+typedef struct cli_options {
+    int num_options;
+    CliOption *options;
+    bstring title;
+    bstring prolog;
+    bstring epilog;
+} CliOptions;
+
+
+int addConstCliOptions(CliOptions* options, ConstCliOptions *constopts);
+int addCliOption(CliOptions* options, CliOption* new);
+int parseCliOptions(struct bstrList* argv, CliOptions* options);
+
+void cliOptionsTitle(CliOptions* options, bstring title);
+void cliOptionsProlog(CliOptions* options, bstring prolog);
+void cliOptionsEpilog(CliOptions* options, bstring epilog);
+void printCliOptions(CliOptions* options);
+
+void destroyCliOptions(CliOptions* options);
+
+static ConstCliOption _basecliopts[] = {
+    {"help", 'h', no_argument, "Help text and usage"},
+    {"verbose", 'V', required_argument, "Verbosity level (0 - 3)"},
+    {"test", 't', required_argument, "Test name"},
+    {"file", 'f', required_argument, "Test file"},
+    {"kfolder", 'K', required_argument, "Folder with test files to search for test name"},
+    {"tmpfolder", 'D', required_argument, "Temporary folder for the object files"},
+    {"workgroup", 'w', multi_argument, "Workgroup definition"},
 };
 
-static struct option_extra basetestopts[4] = {
-    {"iters", 'i', RETURN_TYPE_MASK(RETURN_TYPE_UINT64), required_argument, "Number of test case executions"},
-    {"workgroup", 'w', RETURN_TYPE_MASK(RETURN_TYPE_BSTRING)|RETURN_TYPE_MASK(RETURN_TYPE_LIST), required_argument, "Workgroup definition (Threads + Streams)"},
-    {"runtime", 'r', RETURN_TYPE_MASK(RETURN_TYPE_DOUBLE), required_argument, "Minimal runtime of a test case (use instead of -i/--iters)", ARG_FLAG_MASK(ARG_FLAG_TIME)},
-    {0, 0, 0, 0}
+static ConstCliOptions basecliopts = {
+    .num_options = 7,
+    .options = _basecliopts,
 };
 
-struct parameter_option {
-    struct tagbstring name;
-    int arg_flags;
-    int ret_flags;
+static ConstCliOption _wgroupopts[] = {
+    {"workgroup", 'w', required_argument, "Workgroup definition"},
 };
 
-static struct parameter_option param_opts[] = {
-    {bsStatic("bytes"), ARG_FLAG_MASK(ARG_FLAG_BYTES), RETURN_TYPE_MASK(RETURN_TYPE_UINT64)},
-    {bsStatic("time"), ARG_FLAG_MASK(ARG_FLAG_TIME), RETURN_TYPE_MASK(RETURN_TYPE_DOUBLE)},
-    {bsStatic("file"), ARG_FLAG_MASK(ARG_FLAG_FILE), RETURN_TYPE_MASK(RETURN_TYPE_BSTRING)},
-    {bsStatic("dir"), ARG_FLAG_MASK(ARG_FLAG_DIR), RETURN_TYPE_MASK(RETURN_TYPE_BSTRING)},
-    {bsStatic("boolean"), 0, RETURN_TYPE_MASK(RETURN_TYPE_BOOL)},
-    {bsStatic("integer"), 0, RETURN_TYPE_MASK(RETURN_TYPE_INT)},
-    {bsStatic("uint64"), 0, RETURN_TYPE_MASK(RETURN_TYPE_UINT64)},
-#ifdef WITH_BSTRING
-    {bsStatic("string"), 0, RETURN_TYPE_MASK(RETURN_TYPE_BSTRING)},
-#else
-    {bsStatic("string"), 0, RETURN_TYPE_MASK(RETURN_TYPE_STRING)},
+static ConstCliOptions wgroupopts = {
+    .num_options = 1,
+    .options = _wgroupopts,
+};
+
+int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg);
+
+
 #endif
-    {bsStatic("float"), 0, RETURN_TYPE_MASK(RETURN_TYPE_FLOAT)},
-    {bsStatic("double"), 0, RETURN_TYPE_MASK(RETURN_TYPE_DOUBLE)},
-    {bsStatic("EOF"), 0, 0},
-};
-
-
-
-
-
-void usage_print_header();
-void print_usage();
-
-void usage_print_basetestopts();
-void usage_print_baseopts(int message);
-
-void print_test_usage(TestConfig_t cfg);
-
-int parse_baseopts(int argc, char* argv[], RuntimeConfig* config);
-int parse_testopts(int argc, char* argv[], TestConfig* tcfg, RuntimeConfig* config);
-int check_required_params(TestConfig* tcfg, RuntimeConfig* config);
-
-#endif /* CLI_PARSER */
