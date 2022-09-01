@@ -128,8 +128,9 @@ static int dump_assembly(RuntimeConfig *runcfg, bstring outfile)
 {
     int ret = 0;
     char buf[1024];
+    int (*ownaccess)(const char*, int) = access;
 
-    if (access(runcfg->testconfig.asmfile, R_OK))
+    if (ownaccess(bdata(runcfg->testconfig.asmfile), R_OK))
     {
         ERROR_PRINT(Assembly file %s does not exist, bdata(runcfg->testconfig.asmfile));
         return -errno;
