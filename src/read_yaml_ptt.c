@@ -384,6 +384,8 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                     {
                         TestConfigParameter *p = &conf->params[l];
                         p->name = NULL;
+                        p->description = NULL;
+                        p->defvalue = NULL;
                         p->options = bstrListCreate();
                         bstring pv;
                         ret = read_keyvalue(params->entry[l], &p->name, &pv);
@@ -535,6 +537,7 @@ void close_yaml_ptt(TestConfig_t config)
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying description in TestConfig);
         bdestroy(config->description);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying language in TestConfig);
+        bdestroy(config->language);
         if (config->code)
         {
             DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying code in TestConfig);
