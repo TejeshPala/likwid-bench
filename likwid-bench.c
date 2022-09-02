@@ -170,6 +170,10 @@ int main(int argc, char** argv)
         .options = NULL,
         .title = &app_title,
     };
+    CliOptions testopts = {
+        .num_options = 0,
+        .options = NULL,
+    };
     addConstCliOptions(&baseopts, &basecliopts);
 /*    bstring bccflags = bfromcstr("-fPIC -shared");*/
 
@@ -227,32 +231,41 @@ int main(int argc, char** argv)
     }
     if (runcfg->verbosity > 0)
     {
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting verbosity to %d, runcfg->verbosity);
         global_verbosity = runcfg->verbosity;
     }
 
-/*    if (blength(runcfg->testname) > 0)*/
-/*    {*/
-/*        got_testcase = 1;*/
-/*    }*/
-/*    else*/
-/*    {*/
-/*        printCliOptions(&baseopts);*/
-/*        goto main_out;*/
-/*    }*/
+    if (blength(runcfg->testname) > 0)
+    {
+        got_testcase = 1;
+    }
+    else
+    {
+        printCliOptions(&baseopts);
+        goto main_out;
+    }
 
-/*    err = read_yaml_ptt(bdata(runcfg->pttfile), &runcfg->tcfg);*/
-/*    if (err < 0)*/
-/*    {*/
-/*        ERROR_PRINT(Error reading %s, bdata(runcfg->pttfile));*/
-/*        goto main_out;*/
-/*    }*/
+    err = read_yaml_ptt(bdata(runcfg->pttfile), &runcfg->tcfg);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error reading %s, bdata(runcfg->pttfile));
+        goto main_out;
+    }
 
-/*    if (runcfg->help && got_testcase)*/
-/*    {*/
-/*        printCliOptions(&baseopts);*/
-/*        print_test_usage(runcfg->tcfg);*/
-/*        goto main_out;*/
-/*    }*/
+    bstring title = bformat("Commandline options for kernel %s", bdata(runcfg->testname));
+    cliOptionsTitle(&testopts, title);
+    bdestroy(title);
+
+    generateTestCliOptions(&testopts, runcfg);
+    printCliOptions(&testopts);
+
+    if (runcfg->help && got_testcase)
+    {
+        printCliOptions(&baseopts);
+        printCliOptions(&testopts);
+        goto main_out;
+    }
+    
 /*    err = parse_testopts(argc, argv, runcfg->tcfg, runcfg);*/
 /*    if (err < 0)*/
 /*    {*/
@@ -363,6 +376,7 @@ main_out:
     DEBUG_PRINT(DEBUGLEV_DEVELOP, MAIN_OUT);
     free_runtime_config(runcfg);
     destroyCliOptions(&baseopts);
+    destroyCliOptions(&testopts);
     if (kernelfolder)
     {
         bdestroy(kernelfolder);

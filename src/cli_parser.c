@@ -9,6 +9,7 @@
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
 #include "test_types.h"
+#include "error.h"
 
 static int copy_cli(int argc, char** argv, char*** copy)
 {
@@ -61,13 +62,18 @@ int addCliOption(CliOptions* options, CliOption* new)
 {
     int symbol_free = 1;
     int name_free = 1;
+    int symbol_candidate_lower = 1;
+    int symbol_candidate_upper = 1;
     if ((!options) || (!new))
     {
         return -EINVAL;
     }
+    int first_lower = (bchar(new->name, 0) > 'a' && bchar(new->name, 0) < 'z');
     for (int i = 0; i < options->num_options; i++)
     {
         CliOption* x = &options->options[i];
+        bstring candidate = bformat("-%c", bchar(new->name, 0));
+        btolower(candidate);
         if (bstrcmp(x->name, new->name) == BSTR_OK)
         {
             name_free = 0;
@@ -76,10 +82,20 @@ int addCliOption(CliOptions* options, CliOption* new)
         {
             symbol_free = 0;
         }
+        if (bstrcmp(x->symbol, candidate) == BSTR_OK)
+        {
+            symbol_candidate_lower = 0;
+        }
+        btoupper(candidate);
+        if (bstrcmp(x->symbol, candidate) == BSTR_OK)
+        {
+            symbol_candidate_upper = 0;
+        }
+        bdestroy(candidate);
     }
     if ((!name_free) && (!symbol_free))
     {
-        printf("Name '%s' and symbol '%s' already taken\n", bdata(new->name), bdata(new->symbol));
+        ERROR_PRINT(Name '%s' and symbol '%s' already taken, bdata(new->name), bdata(new->symbol));
         return -EINVAL;
     }
     CliOption* tmp = realloc(options->options, (options->num_options+1) * sizeof(CliOption));
@@ -96,11 +112,40 @@ int addCliOption(CliOptions* options, CliOption* new)
     }
     else
     {
-        x->symbol = bfromcstr("****");
+        if (first_lower && symbol_candidate_lower)
+        {
+            x->symbol = bformat("-%c", bchar(new->name, 0));
+        }
+        else if ((!first_lower) && symbol_candidate_upper)
+        {
+            x->symbol = bformat("-%c", bchar(new->name, 0));
+        }
+        else if (symbol_candidate_lower)
+        {
+            x->symbol = bformat("-%c", bchar(new->name, 0));
+            btolower(x->symbol);
+        }
+        else if (symbol_candidate_upper)
+        {
+            x->symbol = bformat("-%c", bchar(new->name, 0));
+            btoupper(x->symbol);
+        }
+        else
+        {
+            x->symbol = bfromcstr("****");
+        }
     }
     x->has_arg = new->has_arg;
-    x->description = bstrcpy(new->description);
+    x->description = bfromcstr("");
+    if (new->description && blength(new->description) > 0)
+    {
+        bconcat(x->description, new->description);
+    }
     x->value = bfromcstr("");
+    if (new->value && blength(new->value) > 0)
+    {
+        bconcat(x->value, new->value);
+    }
     x->values = bstrListCreate();
     options->num_options++;
     return 0;
@@ -359,7 +404,21 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     }
     struct tagbstring bhelp = bsStatic("--help");
     struct tagbstring bverbose = bsStatic("--verbose");
+    struct tagbstring btest = bsStatic("--test");
+    struct tagbstring bfile = bsStatic("--file");
+    struct tagbstring bkfolder = bsStatic("--kfolder");
+    struct tagbstring btmpfolder = bsStatic("--tmpfolder");
     struct tagbstring btrue = bsStatic("1");
+    for (int i = 0; i < options->num_options; i++)
+    {
+        CliOption* opt = &options->options[i];
+        if (bstrcmp(opt->name, &bkfolder) == BSTR_OK && blength(opt->value) > 0)
+        {
+            btrunc(runcfg->kernelfolder, 0);
+            bconcat(runcfg->kernelfolder, opt->value);
+            break;
+        }
+    }
     for (int i = 0; i < options->num_options; i++)
     {
         CliOption* opt = &options->options[i];
@@ -372,10 +431,85 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
             const char* cval = bdata(opt->value);
             runcfg->verbosity = atoi(cval);
         }
+        if (bstrcmp(opt->name, &btest) == BSTR_OK && blength(opt->value) > 0)
+        {
+            bstring path = bformat("%s/%s.yaml", bdata(runcfg->kernelfolder), bdata(opt->value));
+            const char* cpath = bdata(path);
+            if (access(cpath, R_OK))
+            {
+                ERROR_PRINT(Test %s does not exist in folder %s, bdata(opt->value), bdata(runcfg->kernelfolder));
+            }
+            else
+            {
+                DEBUG_PRINT(DEBUGLEV_DETAIL, Using kernel file %s, bdata(path));
+                btrunc(runcfg->testname, 0);
+                bconcat(runcfg->testname, opt->value);
+                btrunc(runcfg->pttfile, 0);
+                bconcat(runcfg->pttfile, path);
+            }
+            bdestroy(path);
+        }
+        if (bstrcmp(opt->name, &bfile) == BSTR_OK && blength(opt->value) > 0)
+        {
+            btrunc(runcfg->pttfile, 0);
+            bconcat(runcfg->pttfile, opt->value);
+        }
+        if (bstrcmp(opt->name, &btmpfolder) == BSTR_OK && blength(opt->value) > 0)
+        {
+            const char* cval = bdata(opt->value);
+            if (access(cval, W_OK|X_OK))
+            {
+                ERROR_PRINT(Folder for temporary files not accessible or writable);
+            }
+            else
+            {
+                btrunc(runcfg->tmpfolder, 0);
+                bconcat(runcfg->tmpfolder, opt->value);
+            }
+        }
     }
     return 0;
 }
 
+int generateTestCliOptions(CliOptions* options, RuntimeConfig* runcfg)
+{
+    int err = 0;
+    if ((!options) || (!runcfg) || (!runcfg->tcfg))
+    {
+        return -EINVAL;
+    }
+    err = addConstCliOptions(options, &wgroupopts);
+    if (err < 0)
+    {
+        return err;
+    }
+    for (int i = 0; i < runcfg->tcfg->num_params; i++)
+    {
+        TestConfigParameter* p = &runcfg->tcfg->params[i];
+        CliOption opt = {
+            .name = bformat("--%s", bdata(p->name)),
+            .symbol = bformat("-%c", bchar(p->name, 0)),
+            .has_arg = required_argument,
+            .description = bstrcpy(p->description),
+            .value = NULL,
+            .values = NULL,
+        };
+        if (p->defvalue && blength(p->defvalue) > 0)
+        {
+            opt.value = bstrcpy(p->defvalue);
+        }
+        err = addCliOption(options, &opt);
+        bdestroy(opt.name);
+        bdestroy(opt.symbol);
+        bdestroy(opt.description);
+        if (opt.value) bdestroy(opt.value);
+        if (err < 0)
+        {
+            return err;
+        }
+    }
+    return 0;
+}
 
 /*int main(int argc, char* argv[])*/
 /*{*/

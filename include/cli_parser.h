@@ -79,6 +79,6 @@ static ConstCliOptions wgroupopts = {
 };
 
 int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg);
-
+int generateTestCliOptions(CliOptions* options, RuntimeConfig* runcfg);
 
 #endif
