@@ -9,7 +9,7 @@
 [submodule "ext/cmap"]
 	path = ext/cmap
 	branch = master
-	url = git@gitlab.rrze.fau.de:ub55yzis/c-map.git
+	url = git@gitos.rrze.fau.de:ub55yzis/c-map.git
 [submodule "ext/calculator"]
 	path = ext/calculator
 	url = git@github.com:TomTheBear/calculator.git
