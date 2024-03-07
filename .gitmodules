@@ -1,16 +1,16 @@
 [submodule "ext/bstrlib_helper"]
 	path = ext/bstrlib_helper
 	branch = master
-	url = git@gitos.rrze.fau.de:ub55yzis/bstrlib_helper.git
+	url = https://gitos.rrze.fau.de/ub55yzis/bstrlib_helper.git
 [submodule "ext/getopt_extra"]
 	path = ext/getopt_extra
 	branch = master
-	url = git@gitos.rrze.fau.de:ub55yzis/getopt_extra.git
+	url = https://gitos.rrze.fau.de/ub55yzis/getopt_extra.git
 [submodule "ext/cmap"]
 	path = ext/cmap
 	branch = master
-	url = git@gitos.rrze.fau.de:ub55yzis/c-map.git
+	url = https://gitos.rrze.fau.de/ub55yzis/c-map.git
 [submodule "ext/calculator"]
 	path = ext/calculator
-	url = git@github.com:TomTheBear/calculator.git
+	url = https://github.com/TomTheBear/calculator.git
 	branch = use_as_lib
