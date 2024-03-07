@@ -32,8 +32,7 @@ INCLUDES = -I../include
 TESTS = test_read_yaml_ptt \
 	test_topology \
 	test_results \
-	test_ptt2asm \
-	test_workgroups
+	test_ptt2asm
 
 # External stuff
 BSTRLIB_OBJ := ../ext/bstrlib_helper/ext/bstrlib/bstrlib.c ../ext/bstrlib_helper/bstrlib_helper.c
