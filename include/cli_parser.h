@@ -70,7 +70,7 @@ static ConstCliOptions basecliopts = {
 };
 
 static ConstCliOption _wgroupopts[] = {
-    {"workgroup", 'w', required_argument, "Workgroup definition"},
+    {"workgroup", 'w', multi_argument, "Workgroup definition"},
 };
 
 static ConstCliOptions wgroupopts = {
@@ -80,5 +80,6 @@ static ConstCliOptions wgroupopts = {
 
 int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg);
 int generateTestCliOptions(CliOptions* options, RuntimeConfig* runcfg);
+int assignTestCliOptions(CliOptions* options, RuntimeConfig* runcfg);
 
 #endif

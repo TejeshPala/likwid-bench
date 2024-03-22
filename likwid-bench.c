@@ -49,6 +49,7 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->wgroups = NULL;
     runcfg->tcfg = NULL;
     runcfg->codelines = NULL;
+    runcfg->params = NULL;
     runcfg->testname = bfromcstr("");
     runcfg->pttfile = bfromcstr("");
     runcfg->tmpfolder = bfromcstr("");
@@ -129,7 +130,8 @@ void free_runtime_config(RuntimeConfig* runcfg)
             for (int i = 0; i < runcfg->num_params; i++)
             {
                 bdestroy(runcfg->params[i].name);
-                bdestroy(runcfg->params[i].value);
+                if (runcfg->params[i].value) bdestroy(runcfg->params[i].value);
+                else if (runcfg->params[i].values) bstrListDestroy(runcfg->params[i].values);
             }
             free(runcfg->params);
             runcfg->params = NULL;
@@ -146,7 +148,7 @@ void free_runtime_config(RuntimeConfig* runcfg)
             bstrListDestroy(runcfg->codelines);
             runcfg->codelines = NULL;
         }
-        
+
         if (runcfg->global_results.variables)
         {
             destroy_result(&runcfg->global_results);
@@ -212,11 +214,10 @@ int main(int argc, char** argv)
     {
         bstrListAddChar(args, argv[i]);
     }
-    
-    
+
     parseCliOptions(args, &baseopts);
     err = assignBaseCliOptions(&baseopts, runcfg);
-    
+
     //err = parse_baseopts(argc, argv, runcfg);
     if (err < 0)
     {
@@ -252,12 +253,11 @@ int main(int argc, char** argv)
         goto main_out;
     }
 
-    bstring title = bformat("Commandline options for kernel %s", bdata(runcfg->testname));
+    bstring title = bformat("Commandline options for kernel '%s'", bdata(runcfg->testname));
     cliOptionsTitle(&testopts, title);
     bdestroy(title);
 
     generateTestCliOptions(&testopts, runcfg);
-    printCliOptions(&testopts);
 
     if (runcfg->help && got_testcase)
     {
@@ -265,23 +265,26 @@ int main(int argc, char** argv)
         printCliOptions(&testopts);
         goto main_out;
     }
-    
-/*    err = parse_testopts(argc, argv, runcfg->tcfg, runcfg);*/
-/*    if (err < 0)*/
-/*    {*/
-/*        printf("Parsing of test CLI options failed\n");*/
-/*        goto main_out;*/
-/*    }*/
+
+    parseCliOptions(args, &testopts);
+    printCliOptions(&testopts);
 
     /*
-     * Check if all required benchmark parameters are available
+     * Assign & check if all required benchmark parameters are available
      */
-/*    int miss = check_required_params(runcfg->tcfg, runcfg);*/
-/*    if (miss > 0)*/
-/*    {*/
-/*        ERROR_PRINT(Required parameters missing);*/
-/*        goto main_out;*/
-/*    }*/
+    err = assignTestCliOptions(&testopts, runcfg);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error assigning runtime CLI test options);
+        goto main_out;
+    }
+    else if (err > 0)
+    {
+        ERROR_PRINT(Error not all required test parameters set);
+        goto main_out;
+    }
+
+
 
     /*
      * Analyse workgroups

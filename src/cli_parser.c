@@ -324,7 +324,7 @@ int parseCliOptions(struct bstrList* argv, CliOptions* options)
                         btrunc(combine, 0);
                         combine_opt = NULL;
                     }
-                    add_multi_argument(combine, argv->entry[i]);
+                    //add_multi_argument(combine, argv->entry[i]);
                     combine_opt = x;
                 }
                 else if (combine_opt && combine_opt->has_arg == multi_argument && i < (argv->qty-1))
@@ -509,6 +509,65 @@ int generateTestCliOptions(CliOptions* options, RuntimeConfig* runcfg)
         }
     }
     return 0;
+}
+
+static int add_runtime_parameter(RuntimeConfig* runcfg, TestConfigParameter* param, CliOption* opt)
+{
+    RuntimeParameterConfig* tmp = realloc(runcfg->params, (runcfg->num_params+1) * sizeof(RuntimeParameterConfig));
+    if (!tmp)
+    {
+        return -ENOMEM;
+    }
+    runcfg->params = tmp;
+    DEBUG_PRINT(DEBUGLEV_DETAIL, Adding runtime parameter %s, bdata(param->name));
+    runcfg->params[runcfg->num_params].name = bstrcpy(param->name);
+    runcfg->params[runcfg->num_params].value = NULL;
+    runcfg->params[runcfg->num_params].values= NULL;
+    if (opt->has_arg != multi_argument)
+    {
+        runcfg->params[runcfg->num_params].value = bstrcpy(opt->value);
+    }
+    else
+    {
+        runcfg->params[runcfg->num_params].values = bstrListCopy(opt->values);
+    }
+    runcfg->num_params++;
+    return 0;
+}
+
+int assignTestCliOptions(CliOptions* options, RuntimeConfig* runcfg)
+{
+    int miss = 0;
+    if ((!options) || (!runcfg))
+    {
+        return -EINVAL;
+    }
+    for (int i = 0; i < runcfg->tcfg->num_params; i++)
+    {
+        int found = 0;
+        TestConfigParameter* param = &runcfg->tcfg->params[i];
+        bstring paramname = bfromcstr("--");
+        bconcat(paramname, param->name);
+        DEBUG_PRINT(DEBUGLEV_DETAIL, Searching for parameter %s, bdata(paramname));
+        for (int j = 0; j < options->num_options; j++)
+        {
+            CliOption* opt = &options->options[j];
+            DEBUG_PRINT(DEBUGLEV_DETAIL, Comparing with CLI option %s, bdata(opt->name));
+            if (bstrncmp(paramname, opt->name, blength(paramname)) == BSTR_OK)
+            {
+                int err = add_runtime_parameter(runcfg, param, opt);
+                if (err != 0)
+                {
+                    ERROR_PRINT(Cannot add runtime parameter %s, bdata(opt->name));
+                    continue;
+                }
+                found = 1;
+            }
+        }
+        bdestroy(paramname);
+        if (!found) miss++;
+    }
+    return miss;
 }
 
 /*int main(int argc, char* argv[])*/

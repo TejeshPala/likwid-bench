@@ -104,6 +104,7 @@ typedef struct {
 typedef struct {
     bstring name;
     bstring value;
+    struct bstrList* values;
 } RuntimeParameterConfig;
 
 typedef struct {
