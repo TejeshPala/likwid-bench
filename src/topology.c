@@ -66,7 +66,7 @@ static int hwthread_online(int os_id)
 {
     int online = 0;
     FILE* fp = NULL;
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file /sys/devices/system/cpu/online);
+    //DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file /sys/devices/system/cpu/online);
     if (NULL != (fp = fopen ("/sys/devices/system/cpu/online", "r")))
     {
         bstring src = bread ((bNread) fread, fp);
@@ -96,7 +96,7 @@ static int hwthread_smt_id(int os_id)
     int smt_id = -1;
     FILE* fp = NULL;
     bstring listfile = bformat("/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", os_id);
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file %s, bdata(listfile));
+    //DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file %s, bdata(listfile));
     if (NULL != (fp = fopen (bdata(listfile), "r")))
     {
         bstring src = bread ((bNread) fread, fp);
@@ -125,7 +125,7 @@ int check_hwthreads_numa_count(int* numNumaNodes, int* maxNumaNodeId)
     int maxId = 0;
     DIR *dp = NULL;
     struct dirent *ep = NULL;
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Scanning directory /sys/devices/system/node);
+    //DEBUG_PRINT(DEBUGLEV_DEVELOP, Scanning directory /sys/devices/system/node);
     dp = opendir("/sys/devices/system/node");
     if (dp != NULL)
     {
@@ -144,7 +144,7 @@ int check_hwthreads_numa_count(int* numNumaNodes, int* maxNumaNodeId)
         }
         closedir(dp);
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Available NUMA domains %d Max ID %d, count, maxId);
+    //DEBUG_PRINT(DEBUGLEV_DEVELOP, Available NUMA domains %d Max ID %d, count, maxId);
     *numNumaNodes = count;
     *maxNumaNodeId = maxId;
     return 0;
@@ -156,7 +156,7 @@ int check_hwthreads_count(int* numHWThreads, int *maxHWThreadId)
     struct dirent *ep = NULL;
     int avail_hwthreads = 0;
     int max_os_id = 0;
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Scanning directory /sys/devices/system/cpu);
+    ////DEBUG_PRINT(DEBUGLEV_DEVELOP, Scanning directory /sys/devices/system/cpu);
     dp = opendir("/sys/devices/system/cpu");
     if (dp != NULL)
     {
@@ -175,7 +175,7 @@ int check_hwthreads_count(int* numHWThreads, int *maxHWThreadId)
         }
         closedir(dp);
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Available threads %d Max ID %d, avail_hwthreads, max_os_id);
+    //DEBUG_PRINT(DEBUGLEV_DEVELOP, Available threads %d Max ID %d, avail_hwthreads, max_os_id);
     *numHWThreads = avail_hwthreads;
     *maxHWThreadId = max_os_id;
     return 0;
@@ -184,9 +184,9 @@ int check_hwthreads_count(int* numHWThreads, int *maxHWThreadId)
 
 static void print_hwthread_data(LikwidBenchHwthread* cur)
 {
-    DEBUG_PRINT(DEBUGLEV_DETAIL, OSIDX %d SMT %d CORE %d DIE %d SOCKET %d NUMA %d %s,
-                cur->os_id, cur->smt_id, cur->core_id, cur->die_id, cur->socket_id, cur->numa_id,
-                (cur->usable == 0 ? "NOTUSABLE" : ""));
+    //DEBUG_PRINT(DEBUGLEV_DETAIL, OSIDX %d SMT %d CORE %d DIE %d SOCKET %d NUMA %d %s,
+    //            cur->os_id, cur->smt_id, cur->core_id, cur->die_id, cur->socket_id, cur->numa_id,
+    //            (cur->usable == 0 ? "NOTUSABLE" : ""));
 }
 
 static int read_hwthread_data(int os_id, int maxNumaNodeId, int* smt_id, int* core_id, int* die_id, int* socket_id, int* numa_id)
@@ -205,7 +205,7 @@ static int read_hwthread_data(int os_id, int maxNumaNodeId, int* smt_id, int* co
         bstring tmpfile = bstrcpy(cpufolder);
         int tmplen = blength(tmpfile);
         bcatcstr(tmpfile, "/topology/physical_package_id");
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file %s, bdata(tmpfile));
+        //DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file %s, bdata(tmpfile));
         ret = file_to_int(tmpfile, &tmpid);
         if (ret == 0)
         {
@@ -213,7 +213,7 @@ static int read_hwthread_data(int os_id, int maxNumaNodeId, int* smt_id, int* co
         }
         btrunc(tmpfile, tmplen);
         bcatcstr(tmpfile, "/topology/core_id");
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file %s, bdata(tmpfile));
+        //DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file %s, bdata(tmpfile));
         ret = file_to_int(tmpfile, &tmpid);
         if (ret == 0)
         {
@@ -221,7 +221,7 @@ static int read_hwthread_data(int os_id, int maxNumaNodeId, int* smt_id, int* co
         }
         btrunc(tmpfile, tmplen);
         bcatcstr(tmpfile, "/topology/die_id");
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file %s, bdata(tmpfile));
+        //DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file %s, bdata(tmpfile));
         ret = file_to_int(tmpfile, &tmpid);
         if (ret == 0)
         {
@@ -232,7 +232,7 @@ static int read_hwthread_data(int os_id, int maxNumaNodeId, int* smt_id, int* co
         {
             bstring nodefolder = bformat("/sys/devices/system/cpu/cpu%d/node%d", os_id, j);
             tmpstr = bdata(nodefolder);
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Check folder %s, tmpstr);
+            //DEBUG_PRINT(DEBUGLEV_DEVELOP, Check folder %s, tmpstr);
             if (!access(tmpstr, R_OK|X_OK))
             {
                 numa = j;
@@ -282,7 +282,7 @@ int check_hwthreads()
         {
             numThreads = max_os_id + 1;
         }
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Allocating space for %d threads, numThreads);
+        //DEBUG_PRINT(DEBUGLEV_DEVELOP, Allocating space for %d threads, numThreads);
         int tmpCount = 0;
         int tmpCountActive = 0;
         LikwidBenchHwthread* tmpList = malloc(numThreads * sizeof(LikwidBenchHwthread));
@@ -304,7 +304,7 @@ int check_hwthreads()
             }
             tmpCount++;
         }
-        DEBUG_PRINT(DEBUGLEV_DETAIL, List filled with %d HW threads %d active, tmpCount, tmpCountActive);
+        //DEBUG_PRINT(DEBUGLEV_DETAIL, List filled with %d HW threads %d active, tmpCount, tmpCountActive);
         int maxCoreId = 0;
         int maxSocketId = 0;
         int maxDieId = 0;
@@ -344,7 +344,7 @@ int check_hwthreads()
                                 memcpy(&_hwthreads[idx], test, sizeof(LikwidBenchHwthread));
                                 _num_hwthreads++;
                                 if (test->usable == 1) _active_hwthreads++;
-                                DEBUG_PRINT(DEBUGLEV_DETAIL, Move %d to %d, test->os_id, idx);
+                                //DEBUG_PRINT(DEBUGLEV_DETAIL, Move %d to %d, test->os_id, idx);
                                 idx++;
                                 break;
                             }
@@ -354,7 +354,7 @@ int check_hwthreads()
             }
         }
         free(tmpList);
-        DEBUG_PRINT(DEBUGLEV_DETAIL, Final List filled with %d HW threads %d active, _num_hwthreads, _active_hwthreads);
+        //DEBUG_PRINT(DEBUGLEV_DETAIL, Final List filled with %d HW threads %d active, _num_hwthreads, _active_hwthreads);
     }
     return 0;
 }

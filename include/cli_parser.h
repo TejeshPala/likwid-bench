@@ -62,10 +62,13 @@ static ConstCliOption _basecliopts[] = {
     {"kfolder", 'K', required_argument, "Folder with test files to search for test name"},
     {"tmpfolder", 'D', required_argument, "Temporary folder for the object files"},
     {"workgroup", 'w', multi_argument, "Workgroup definition"},
+    {"arraysize", 'N', required_argument, "Size of array that should be loaded, Possible Values:kB, MB, GB"},
+    {"iterations", 'i', required_argument, "Iterations"},
+    {"runtime", 'r', required_argument, "Runtime"},
 };
 
 static ConstCliOptions basecliopts = {
-    .num_options = 7,
+    .num_options = 10,
     .options = _basecliopts,
 };
 
@@ -76,6 +79,16 @@ static ConstCliOption _wgroupopts[] = {
 static ConstCliOptions wgroupopts = {
     .num_options = 1,
     .options = _wgroupopts,
+};
+
+static ConstCliOption _testopts[] = {
+    {"iterations", 'i', required_argument, "Iterations"},
+    {"runtime", 'r', required_argument, "Runtime"},
+};
+
+static ConstCliOptions testopts = {
+    .num_options = 2,
+    .options = _testopts,
 };
 
 int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg);

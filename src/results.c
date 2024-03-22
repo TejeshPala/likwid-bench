@@ -642,9 +642,44 @@ void destroy_result(RuntimeWorkgroupResult* result)
     }
 }
 
+long long convertToBytes(const_bstring input)
+{
+    long long value = atoi((char *)input->data);
+    bstring unit = bmidstr(input, blength(input) - 2, 2);
+
+    btoupper(unit);
+
+    struct tagbstring bkb = bsStatic("KB");
+    struct tagbstring bmb = bsStatic("MB");
+    struct tagbstring bgb = bsStatic("GB");
+
+    if (biseq(unit, &bkb))
+    {
+        bdestroy(unit);
+	return value * 1024LL;
+    }
+    else if (biseq(unit, &bmb))
+    {
+        bdestroy(unit);
+        return value * 1024LL * 1024LL;
+    }
+    else if (biseq(unit, &bgb))
+    {
+        bdestroy(unit);
+        return value * 1024LL * 1024LL * 1024LL;
+    }
+    else
+    {
+	bdestroy(unit);
+	printf("Invalid unit. Valid array sizes are kB, MB, GB. Retry again with valid input!\n");
+	exit(EXIT_FAILURE);
+    }
+}
+
 int fill_results(RuntimeConfig* runcfg)
 {
     int total_threads = 0;
+    struct tagbstring bsizen = bsStatic("N");
     struct tagbstring biterations = bsStatic("ITER");
     struct tagbstring bnumthreads = bsStatic("NUM_THREADS");
     struct tagbstring bgroupid = bsStatic("GROUP_ID");
@@ -657,9 +692,23 @@ int fill_results(RuntimeConfig* runcfg)
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Add runtime parameter %s, bdata(p->name));
         add_variable(&runcfg->global_results, p->name, p->value);
     }
-    bstring biter = bformat("%d", runcfg->iterations);
-    add_variable(&runcfg->global_results, &biterations, biter);
-    bdestroy(biter);
+
+    bstring barraysize = bformat("%lld", convertToBytes(runcfg->arraysize));
+    add_variable(&runcfg->global_results, &bsizen, barraysize);
+    bdestroy(barraysize);
+
+    if (runcfg->iterations >= 0)
+    {
+	bstring biter = bformat("%d", runcfg->iterations);
+	add_variable(&runcfg->global_results, &biterations, biter);
+	bdestroy(biter);
+    }
+    else
+    {
+	bstring biter = bformat("%d", 0);
+	add_variable(&runcfg->global_results, &biterations, biter);
+	bdestroy(biter);
+    }
 
     for (int i = 0; i < runcfg->tcfg->num_constants; i++)
     {
