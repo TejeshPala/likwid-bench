@@ -408,6 +408,9 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     struct tagbstring bfile = bsStatic("--file");
     struct tagbstring bkfolder = bsStatic("--kfolder");
     struct tagbstring btmpfolder = bsStatic("--tmpfolder");
+    struct tagbstring barraysize = bsStatic("--arraysize");
+    struct tagbstring biterations = bsStatic("--iterations");
+    struct tagbstring bruntime = bsStatic("--runtime");
     struct tagbstring btrue = bsStatic("1");
     for (int i = 0; i < options->num_options; i++)
     {
@@ -467,6 +470,25 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
                 bconcat(runcfg->tmpfolder, opt->value);
             }
         }
+	if (bstrcmp(opt->name, &barraysize) == BSTR_OK && blength(opt->value) > 0)
+        {
+            btrunc(runcfg->arraysize, 0);
+            bconcat(runcfg->arraysize, opt->value);
+        }
+	if (bstrcmp(opt->name, &biterations) == BSTR_OK && blength(opt->value) > 0)
+        {
+	    runcfg->iterations = atoi(bdata(opt->value));
+
+        }
+	if (bstrcmp(opt->name, &bruntime) == BSTR_OK && blength(opt->value) > 0)
+        {
+            runcfg->runtime = atof(bdata(opt->value));
+        }
+	if (runcfg->runtime != -1.0 && runcfg->iterations != -1)
+	{
+	    ERROR_PRINT(Runtime and Iterations cannot be set at a time);
+	    return -EINVAL;
+	}
     }
     return 0;
 }

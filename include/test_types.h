@@ -142,6 +142,7 @@ typedef struct {
     bstring pttfile;
     bstring kernelfolder;
     bstring tmpfolder;
+    bstring arraysize;
     TestConfig_t tcfg;
     struct bstrList* codelines;
     RuntimeWorkgroupResult global_results;

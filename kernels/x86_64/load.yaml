@@ -7,7 +7,6 @@
       options:
         - bytes
         - required
-      default: 100
 - Streams:
   - STR0:
       dimensions: 1

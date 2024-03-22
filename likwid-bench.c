@@ -54,6 +54,9 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->pttfile = bfromcstr("");
     runcfg->tmpfolder = bfromcstr("");
     runcfg->kernelfolder = bfromcstr("");
+    runcfg->arraysize = bfromcstr("");
+    runcfg->iterations = -1;
+    runcfg->runtime = -1.0;
     *config = runcfg;
     return 0;
 }
@@ -70,6 +73,8 @@ void free_runtime_config(RuntimeConfig* runcfg)
         bdestroy(runcfg->tmpfolder);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy kernelfolder in RuntimeConfig);
         bdestroy(runcfg->kernelfolder);
+	DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy arraysize in RuntimeConfig);
+        bdestroy(runcfg->arraysize);
         if (runcfg->wgroups)
         {
             DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy workgroups in RuntimeConfig);
@@ -265,9 +270,15 @@ int main(int argc, char** argv)
         printCliOptions(&testopts);
         goto main_out;
     }
-
+    
     parseCliOptions(args, &testopts);
-    printCliOptions(&testopts);
+    // err = parse_testopts(argc, argv, runcfg->tcfg, runcfg);
+    err = assignBaseCliOptions(&testopts, runcfg);
+    if (err < 0)
+    {
+        printf("Parsing of test CLI options failed\n");
+        goto main_out;
+    }
 
     /*
      * Assign & check if all required benchmark parameters are available
@@ -289,58 +300,58 @@ int main(int argc, char** argv)
     /*
      * Analyse workgroups
      */
-/*    err = resolve_workgroups(runcfg->num_wgroups, runcfg->wgroups);*/
-/*    if (err < 0)*/
-/*    {*/
-/*        ERROR_PRINT(Error resolving workgroups);*/
-/*        goto main_out;*/
-/*    }*/
-/*    for (int i = 0; i < runcfg->num_wgroups; i++)*/
-/*    {*/
-/*        print_workgroup(&runcfg->wgroups[i]);*/
-/*    }*/
+    err = resolve_workgroups(runcfg->num_wgroups, runcfg->wgroups);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error resolving workgroups);
+        goto main_out;
+    }
+    for (int i = 0; i < runcfg->num_wgroups; i++)
+    {
+        print_workgroup(&runcfg->wgroups[i]);
+    }
 
     /*
      * Evaluate variables, constants, ... for remaining operations
      * There should be now all values available
      */
-/*    err = init_result(&runcfg->global_results);*/
-/*    if (err < 0)*/
-/*    {*/
-/*        ERROR_PRINT(Error initializing global result storage);*/
-/*        goto main_out;*/
-/*    }*/
-/*    err = fill_results(runcfg);*/
-/*    if (err < 0)*/
-/*    {*/
-/*        ERROR_PRINT(Error filling result storages);*/
-/*        goto main_out;*/
-/*    }*/
+    err = init_result(&runcfg->global_results);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error initializing global result storage);
+        goto main_out;
+    }
+    err = fill_results(runcfg);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error filling result storages);
+        goto main_out;
+    }
 
     /*
      * Generate assembly
      */
-/*    runcfg->codelines = bstrListCreate();*/
-/*    err = generate_code(runcfg->tcfg, runcfg->codelines);*/
-/*    if (err < 0)*/
-/*    {*/
-/*        ERROR_PRINT(Error generating code);*/
-/*        goto main_out;*/
-/*    }*/
-/*    for (int i = 0; i < runcfg->codelines->qty; i++)*/
-/*    {*/
-/*        DEBUG_PRINT(global_verbosity, "CODE: %s\n", bdata(runcfg->codelines->entry[i]));*/
-/*    }*/
+    runcfg->codelines = bstrListCreate();
+    err = generate_code(runcfg->tcfg, runcfg->codelines);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error generating code);
+        goto main_out;
+    }
+    for (int i = 0; i < runcfg->codelines->qty; i++)
+    {
+        DEBUG_PRINT(global_verbosity, "CODE: %s\n", bdata(runcfg->codelines->entry[i]));
+    }
 
     /*
      * Allocate arrays
      */
-/*     err = allocate_streams(runcfg);*/
-/*     if (err < 0)*/
-/*     {*/
-/*        ERROR_PRINT(Error allocating streams);*/
-/*        goto main_out;*/
-/*     }*/
+     err = allocate_streams(runcfg);
+     if (err < 0)
+     {
+        ERROR_PRINT(Error allocating streams);
+        goto main_out;
+     }
 
     /*
      * Start threads
@@ -349,6 +360,18 @@ int main(int argc, char** argv)
     /*
      * Init arrays
      */
+     for (int i = 0; i < runcfg->num_wgroups; i++)
+     {
+        for (int w = 0; w < runcfg->wgroups[i].num_streams; w++)
+	{
+	     err = initialize_arrays(runcfg->wgroups[i].streams[w].ptr);
+	     if (err < 0)
+	     {
+	        ERROR_PRINT(Error Intializing threads);
+		goto main_out;
+	     }
+	}
+     }
 
     /*
      * Prepare thread runtime info
