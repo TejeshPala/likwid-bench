@@ -13,7 +13,7 @@ int global_verbosity = DEBUGLEV_DEVELOP;
 int main(int argc, char* argv[])
 {
     TestConfig_t config = NULL;
-    char* filename = "load.yaml";
+    char* filename = "../kernels/x86_64/load.yaml";
 
     int ret = read_yaml_ptt(filename, &config);
     if (ret)
