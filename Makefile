@@ -22,11 +22,6 @@ ASM       = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.s,$(wildcard $(SRC_DIR)/*.
 OBJ       = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o,$(wildcard $(SRC_DIR)/*.c))
 
 
-include ./ext/Makefile.bstrlib_helper
-include ./ext/Makefile.calculator
-include ./ext/Makefile.cmap
-
-
 CPPFLAGS := $(CPPFLAGS) $(DEFINES) $(INCLUDES)
 
 $(TARGET): $(BUILD_DIR) $(OBJ) likwid-bench.c
@@ -65,8 +60,6 @@ endif
 
 clean:
 	@echo "===> CLEAN"
-	@make --no-print-directory -C $(BSTRLIB_HELPER_DIR) clean
-	@make --no-print-directory -C $(CALCULATOR_DIR) clean
 	@rm -rf $(BUILD_DIR)
 	@rm -f tags
 

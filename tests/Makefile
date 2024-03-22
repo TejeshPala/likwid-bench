@@ -26,26 +26,29 @@
 #
 # =======================================================================================
 
-CFLAGS = -g -fsanitize=address -fsanitize=leak
+CFLAGS ?= -g -fsanitize=address -fsanitize=leak
 INCLUDES = -I../include
 
 TESTS = test_read_yaml_ptt \
 	test_topology \
 	test_results \
-	test_ptt2asm
+	test_ptt2asm \
+	test_stack \
+	test_map
 
 # External stuff
-BSTRLIB_OBJ := ../ext/bstrlib_helper/ext/bstrlib/bstrlib.c ../ext/bstrlib_helper/bstrlib_helper.c
-BSTRLIB_HEADER := ../ext/bstrlib_helper/ext/bstrlib/bstrlib.h ../ext/bstrlib_helper/bstrlib_helper.h
-INCLUDES += -I../ext/bstrlib_helper -I../ext/bstrlib_helper/ext/bstrlib
+BSTRLIB_OBJ := ../src/bstrlib.c ../src/bstrlib_helper.c
+BSTRLIB_HEADER := ../include/bstrlib.h ../include/bstrlib_helper.h
+INCLUDES += -I../include
 
-MAP_OBJ := ../ext/cmap/src/map.c ../ext/cmap/src/ghash.c
-MAP_HEADER := ../ext/cmap/include/map.h ../ext/cmap/include/ghash.h
-INCLUDES += -I../ext/cmap/include
+MAP_OBJ := ../src/map.c ../src/ghash.c
+MAP_HEADER := ../include/map.h ..//include/ghash.h
 
-CALCULATOR_OBJ := ../ext/calculator/calculator.c ../ext/calculator/stack.c
-CALCULATOR_HEADER := ../ext/calculator/calculator.h ../ext/calculator/stack.h
-INCLUDES += -I../ext/calculator
+CALCULATOR_STACK_OBJ := ../src/stack.c
+CALCULATOR_STACK_HEADER := ../include/stack.h
+
+CALCULATOR_OBJ := ../src/calculator.c
+CALCULATOR_HEADER := ../include/calculator.h
 
 # Internal stuff
 TOPOLOGY_OBJ := ../src/topology.c
@@ -64,14 +67,16 @@ WORKGROUPS_HEADER := ../include/workgroups.h
 RESULTS_OBJ := ../src/results.c
 RESULTS_HEADER := ../include/results.h
 
+MAP_OBJ := ../src/map.c ../src/ghash.c
+MAP_HEADER := ../include/map.h ../include/ghash.h ../include/ghash_add.h
+
 all: $(TESTS)
 
 test_read_yaml_ptt: test_read_yaml_ptt.c $(READ_YAML_OBJ) $(READ_YAML_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) -DWITH_BSTRING test_read_yaml_ptt.c $(READ_YAML_OBJ) $(BSTRLIB_OBJ) -o $@
 
-test_results: test_results.c ../src/results.c $(RESULTS_OBJ) $(RESULTS_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(MAP_OBJ) $(MAP_HEADER) $(CALCULATOR_OBJ) $(CALCULATOR_HEADER)
-	$(CC) $(INCLUDES) $(CFLAGS) -DWITH_BSTRING -DCALCULATOR_AS_LIB test_results.c $(RESULTS_OBJ) $(BSTRLIB_OBJ) $(MAP_OBJ) $(CALCULATOR_OBJ) -o $@ -lm
-
+test_results: test_results.c ../src/results.c $(RESULTS_OBJ) $(RESULTS_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(MAP_OBJ) $(MAP_HEADER) $(CALCULATOR_OBJ) $(CALCULATOR_HEADER) $(CALCULATOR_STACK_OBJ) $(CALCULATOR_STACK_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) -DWITH_BSTRING -DCALCULATOR_AS_LIB test_results.c $(RESULTS_OBJ) $(BSTRLIB_OBJ) $(MAP_OBJ) $(CALCULATOR_OBJ) $(CALCULATOR_STACK_OBJ) -o $@ -lm
 
 test_topology: test_topology.c $(TOPOLOGY_OBJ) $(TOPOLOGY_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) test_topology.c $(TOPOLOGY_OBJ) $(BSTRLIB_OBJ) -o $@
@@ -82,8 +87,20 @@ test_ptt2asm: test_ptt2asm.c $(PTT2ASM_OBJ) $(PTT2ASM_HEADER) $(BSTRLIB_OBJ) $(B
 test_workgroups: test_workgroups.c $(RESULTS_OBJ) $(RESULTS_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(TOPOLOGY_OBJ) $(TOPOLOGY_HEADER) $(WORKGROUPS_OBJ) $(WORKGROUPS_HEADER) $(MAP_OBJ) $(MAP_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) -DWITH_BSTRING test_workgroups.c $(TOPOLOGY_OBJ) $(BSTRLIB_OBJ) $(WORKGROUPS_OBJ) $(MAP_OBJ) $(RESULTS_OBJ) -o $@
 
+test_map: test_map.c $(MAP_OBJ) $(MAP_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) -DWITH_BSTRING test_map.c $(MAP_OBJ) $(BSTRLIB_OBJ) -o $@
+
+benchmark_map: benchmark_map.c $(MAP_OBJ) $(MAP_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) -DWITH_BSTRING benchmark_map.c $(MAP_OBJ) $(BSTRLIB_OBJ) -o $@
+
+test_stack: test_stack.c $(CALCULATOR_STACK_OBJ) $(CALCULATOR_STACK_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) test_stack.c $(CALCULATOR_STACK_OBJ) -o $@
+
+test_calculator: test_calculator.c $(CALCULATOR_OBJ) $(CALCULATOR_HEADER) $(CALCULATOR_STACK_OBJ) $(CALCULATOR_STACK_HEADER)
+	 $(CC) $(INCLUDES) $(CFLAGS) -DCALCULATOR_AS_LIB test_calculator.c $(CALCULATOR_OBJ) $(CALCULATOR_STACK_OBJ) -o $@ -lm
+
 run: $(TESTS)
-	@for T in $(TESTS); do ./$$T; done
+	@for T in $(TESTS); do echo "#### Running $$T ####"; ./$$T; done
 
 clean:
 	rm -f $(TESTS)
