@@ -484,12 +484,14 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
         {
             runcfg->runtime = atof(bdata(opt->value));
         }
-	if (runcfg->runtime != -1.0 && runcfg->iterations != -1)
-	{
-	    ERROR_PRINT(Runtime and Iterations cannot be set at a time);
-	    return -EINVAL;
-	}
     }
+    
+    if (runcfg->runtime != -1.0 && runcfg->iterations != -1)
+    {
+	ERROR_PRINT(Runtime and Iterations cannot be set at a time);
+    	return -EINVAL;
+    }
+    
     return 0;
 }
 
