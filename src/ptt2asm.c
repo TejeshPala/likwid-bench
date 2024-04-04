@@ -397,7 +397,11 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out)
     bdestroy(dstring);
     if (opennames->qty == 0 || closenames->qty == 0)
     {
-        ERROR_PRINT(Code without keyword names);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Code without keyword names);
+        for (int i = 0; i < code->qty; i++)
+        {
+            bstrListAdd(out, code->entry[i]);
+        }
         bstrListDestroy(code);
         bstrListDestroy(openkeys);
         bstrListDestroy(closekeys);
