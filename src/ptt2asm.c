@@ -428,6 +428,7 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out)
         bstrListDestroy(closekeys);
         bstrListDestroy(opennames);
         bstrListDestroy(closenames);
+        bstrListDestroy(bothnames);
         return -EINVAL;
     }
     bstrListDestroy(opennames);
