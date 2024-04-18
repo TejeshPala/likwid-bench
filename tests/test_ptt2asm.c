@@ -13,7 +13,19 @@
 
 int global_verbosity = DEBUGLEV_DEVELOP;
 
-static struct tagbstring testfolder = bsStatic("./ptt2asm");
+#ifdef __x86_64
+static struct tagbstring testfolder = bsStatic("./ptt2asm/x86_64");
+#endif
+#if defined(__ARM_ARCH_8A)
+static struct tagbstring testfolder = bsStatic("./ptt2asm/aarch64");
+#endif
+#if defined(__ARM_ARCH_7A__)
+static struct tagbstring testfolder = bsStatic("./ptt2asm/aarch32");
+#endif
+#if defined(_ARCH_PPC)
+static struct tagbstring testfolder = bsStatic("./ptt2asm/ppc64");
+#endif
+
 
 static bstring get_reference_file(bstring pttfile)
 {
@@ -105,38 +117,50 @@ int main(int argc, char* argv[])
                     {
                         btrimws(tcfg.code);
                         struct bstrList* codelines = bstrListCreate();
-                        prepare_ptt(&tcfg, codelines);
-                        bstring refcode = read_file(bdata(refabspath));
-                        if (refcode)
+                        int ptterr = prepare_ptt(&tcfg, codelines);
+                        if (ptterr == 0)
                         {
-                            btrimws(refcode);
-                            struct bstrList* reflines = NULL;
-                            if (blength(refcode) > 0)
+                            bstring refcode = read_file(bdata(refabspath));
+                            if (refcode)
                             {
-                                reflines = bsplit(refcode, '\n');
-                            }
-                            else
-                            {
-                                reflines = bstrListCreate();
-                            }
-                            if (codelines->qty != reflines->qty)
-                            {
-                                fprintf(stderr, "%s: Generated %d lines of code but the reference code has %d lines\n", bdata(out->entry[i]), codelines->qty, reflines->qty);
-                                err = 1;
-                            }
-                            if (reflines->qty > 0 && codelines->qty > 0)
-                            {
-                                for (int j = 0; j < reflines->qty; j++)
+                                btrimws(refcode);
+                                struct bstrList* reflines = NULL;
+                                if (blength(refcode) > 0)
                                 {
-                                    if (bstrcmp(codelines->entry[j], reflines->entry[j]) != BSTR_OK)
+                                    reflines = bsplit(refcode, '\n');
+                                }
+                                else
+                                {
+                                    reflines = bstrListCreate();
+                                }
+                                if (codelines->qty != reflines->qty)
+                                {
+                                    fprintf(stderr, "%s: Generated %d lines of code but the reference code has %d lines\n", bdata(out->entry[i]), codelines->qty, reflines->qty);
+                                    for (int j = 0; j < codelines->qty; j++)
                                     {
-                                        err = 1;
-                                        break;
+                                        printf("%s\n", bdata(codelines->entry[j]));
+                                    }
+                                    err = 1;
+                                }
+                                if (reflines->qty > 0 && codelines->qty > 0)
+                                {
+                                    for (int j = 0; j < reflines->qty; j++)
+                                    {
+                                        if (bstrcmp(codelines->entry[j], reflines->entry[j]) != BSTR_OK)
+                                        {
+                                            err = 1;
+                                            break;
+                                        }
                                     }
                                 }
+                                bstrListDestroy(reflines);
+                                bdestroy(refcode);
                             }
-                            bstrListDestroy(reflines);
-                            bdestroy(refcode);
+                        }
+                        else
+                        {
+                            printf("ptterr %d\n", ptterr);
+                            err = (ptterr != 0);
                         }
                         bstrListDestroy(codelines);
                         bdestroy(tcfg.code);
