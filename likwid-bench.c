@@ -271,18 +271,10 @@ int main(int argc, char** argv)
         goto main_out;
     }
     
-    parseCliOptions(args, &testopts);
-    // err = parse_testopts(argc, argv, runcfg->tcfg, runcfg);
-    err = assignBaseCliOptions(&testopts, runcfg);
-    if (err < 0)
-    {
-        printf("Parsing of test CLI options failed\n");
-        goto main_out;
-    }
-
     /*
      * Assign & check if all required benchmark parameters are available
      */
+    parseCliOptions(args, &testopts);
     err = assignTestCliOptions(&testopts, runcfg);
     if (err < 0)
     {
@@ -363,14 +355,14 @@ int main(int argc, char** argv)
      for (int i = 0; i < runcfg->num_wgroups; i++)
      {
         for (int w = 0; w < runcfg->wgroups[i].num_streams; w++)
-	{
-	     err = initialize_arrays(runcfg->wgroups[i].streams[w].ptr);
-	     if (err < 0)
-	     {
-	        ERROR_PRINT(Error Intializing threads);
-		goto main_out;
-	     }
-	}
+	    {
+	        err = initialize_arrays(runcfg->wgroups[i].streams[w].ptr);
+	        if (err < 0)
+	        {
+	            ERROR_PRINT(Error Intializing threads);
+		        goto main_out;
+	        }
+	    }
      }
 
     /*
