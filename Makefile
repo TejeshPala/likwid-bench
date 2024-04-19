@@ -9,8 +9,7 @@ INC_DIR    = ./include
 MAKE_DIR   = ./make
 Q         ?= @
 
-#DO NOT EDIT BELOW
-include $(MAKE_DIR)/include_$(strip $(COMPILER)).mk
+include $(MAKE_DIR)/include_$(strip $(COMPILER)).mk $(MAKE_DIR)/test-float16.mk
 INCLUDES  += -g -I$(INC_DIR) -I$(BUILD_DIR)
 LIBDIRS   += 
 LIBS      += -lm  -ldl

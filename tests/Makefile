@@ -28,13 +28,17 @@
 
 CFLAGS ?= -g -fsanitize=address -fsanitize=leak
 INCLUDES = -I../include
+MAKE_DIR = ../make
+include $(MAKE_DIR)/test-float16.mk
 
 TESTS = test_read_yaml_ptt \
 	test_topology \
 	test_results \
 	test_ptt2asm \
 	test_stack \
-	test_map
+	test_map \
+	test_allocator \
+	test_bitmap
 
 # External stuff
 BSTRLIB_OBJ := ../src/bstrlib.c ../src/bstrlib_helper.c
@@ -70,6 +74,12 @@ RESULTS_HEADER := ../include/results.h
 MAP_OBJ := ../src/map.c ../src/ghash.c
 MAP_HEADER := ../include/map.h ../include/ghash.h ../include/ghash_add.h
 
+ALLOCATOR_OBJ := ../src/allocator.c
+ALLOCATOR_HEADER := ../include/allocator.h ../include/test_types.h
+
+BITMAP_OBJ := ../src/bitmap.c
+BITMAP_HEADER := ../include/bitmap.h 
+
 all: $(TESTS)
 
 test_read_yaml_ptt: test_read_yaml_ptt.c $(READ_YAML_OBJ) $(READ_YAML_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
@@ -97,7 +107,13 @@ test_stack: test_stack.c $(CALCULATOR_STACK_OBJ) $(CALCULATOR_STACK_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) test_stack.c $(CALCULATOR_STACK_OBJ) -o $@
 
 test_calculator: test_calculator.c $(CALCULATOR_OBJ) $(CALCULATOR_HEADER) $(CALCULATOR_STACK_OBJ) $(CALCULATOR_STACK_HEADER)
-	 $(CC) $(INCLUDES) $(CFLAGS) -DCALCULATOR_AS_LIB test_calculator.c $(CALCULATOR_OBJ) $(CALCULATOR_STACK_OBJ) -o $@ -lm
+	$(CC) $(INCLUDES) $(CFLAGS) -DCALCULATOR_AS_LIB test_calculator.c $(CALCULATOR_OBJ) $(CALCULATOR_STACK_OBJ) -o $@ -lm
+
+test_allocator: test_allocator.c $(ALLOCATOR_OBJ) $(ALLOCATOR_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(BITMAP_HEADER) $(BITMAP_OBJ)
+	$(CC) $(INCLUDES) $(CFLAGS) -DWITH_BSTRING test_allocator.c $(ALLOCATOR_OBJ) $(BSTRLIB_OBJ) $(BITMAP_OBJ) -o $@
+
+test_bitmap: test_bitmap.c $(BITMAP_OBJ) $(BITMAP_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) test_bitmap.c $(BITMAP_OBJ) -o $@
 
 run: $(TESTS)
 	@for T in $(TESTS); do echo "#### Running $$T ####"; ./$$T; done
