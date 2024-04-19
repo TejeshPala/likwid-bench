@@ -656,7 +656,7 @@ long long convertToBytes(const_bstring input)
     if (biseq(unit, &bkb))
     {
         bdestroy(unit);
-	return value * 1024LL;
+	    return value * 1024LL;
     }
     else if (biseq(unit, &bmb))
     {
@@ -670,10 +670,11 @@ long long convertToBytes(const_bstring input)
     }
     else
     {
-	bdestroy(unit);
-	printf("Invalid unit. Valid array sizes are kB, MB, GB. Retry again with valid input!\n");
-	exit(EXIT_FAILURE);
+        bdestroy(unit);
+        printf("Invalid unit. Valid array sizes are kB, MB, GB. Retry again with valid input!\n");
+        exit(EXIT_FAILURE);
     }
+
 }
 
 int fill_results(RuntimeConfig* runcfg)
@@ -684,30 +685,36 @@ int fill_results(RuntimeConfig* runcfg)
     struct tagbstring bnumthreads = bsStatic("NUM_THREADS");
     struct tagbstring bgroupid = bsStatic("GROUP_ID");
     struct tagbstring bthreadid = bsStatic("THREAD_ID");
-    struct tagbstring bthreadcpu = bsStatic("THREAD_CPU");
+    struct tagbstring bthreadcpu = bsStatic("THREAD_CPU"); 
 
     for (int i = 0; i < runcfg->num_params; i++)
     {
         RuntimeParameterConfig* p = &runcfg->params[i];
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Add runtime parameter %s, bdata(p->name));
-        add_variable(&runcfg->global_results, p->name, p->value);
-    }
+        if (biseq(p->name, &bsizen) && blength(p->value) > 0)
+        {
+            bstring barraysize = bformat("%lld", convertToBytes(p->value));
+            add_variable(&runcfg->global_results, &bsizen, barraysize);
+            bdestroy(barraysize);
+        }
+        else
+        {
+           add_variable(&runcfg->global_results, p->name, p->value);
+        }
 
-    bstring barraysize = bformat("%lld", convertToBytes(runcfg->arraysize));
-    add_variable(&runcfg->global_results, &bsizen, barraysize);
-    bdestroy(barraysize);
+    }
 
     if (runcfg->iterations >= 0)
     {
-	bstring biter = bformat("%d", runcfg->iterations);
-	add_variable(&runcfg->global_results, &biterations, biter);
-	bdestroy(biter);
+	    bstring biter = bformat("%d", runcfg->iterations);
+	    add_variable(&runcfg->global_results, &biterations, biter);
+	    bdestroy(biter);
     }
     else
     {
-	bstring biter = bformat("%d", 0);
-	add_variable(&runcfg->global_results, &biterations, biter);
-	bdestroy(biter);
+	    bstring biter = bformat("%d", 0);
+	    add_variable(&runcfg->global_results, &biterations, biter);
+	    bdestroy(biter);
     }
 
     for (int i = 0; i < runcfg->tcfg->num_constants; i++)

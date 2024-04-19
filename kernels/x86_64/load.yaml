@@ -3,7 +3,7 @@
 - Description: Double-precision load, only scalar operations
 - Parameters:
   - N:
-      description: Size of array that should be loaded
+      description: Size of array that should be loaded, Possible Values:kB, MB, GB
       options:
         - bytes
         - required
