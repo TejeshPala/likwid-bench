@@ -32,6 +32,7 @@
 
 #include "bstrlib.h"
 #include "map.h"
+#include "bitmap.h"
 
 typedef struct {
     bstring                 name;
@@ -41,15 +42,21 @@ typedef struct {
 } TestConfigParameter;
 
 typedef enum {
-    TEST_STREAM_TYPE_SINGLE,
-    TEST_STREAM_TYPE_DOUBLE,
-    TEST_STREAM_TYPE_INT,
+    TEST_STREAM_TYPE_SINGLE = 0,
+    TEST_STREAM_TYPE_DOUBLE = 1,
+    TEST_STREAM_TYPE_INT    = 2,
+    TEST_STREAM_TYPE_HALF   = 3,
+    TEST_STREAM_TYPE_INT64  = 4,
+    MAX_DATA_TYPE
 } TestConfigStreamType;
+#define MIN_DATA_TYPE 0
 
 typedef enum {
     TEST_STREAM_ALLOC_TYPE_1DIM = 0,
     TEST_STREAM_ALLOC_PERTHREAD,
+    MAX_STREAM_TYPE
 } TestConfigStreamFlag;
+#define MIN_STREAM_TYPE 0
 
 typedef struct {
     bstring                 name;
@@ -87,10 +94,10 @@ typedef TestConfig* TestConfig_t;
 typedef struct {
     bstring name;
     void* ptr;
-    int dimsizes[3];
-    int offsets[3];
+    int64_t dimsizes[3];
+    off_t offsets[3];
     int dims;
-    int flags;
+    Bitmap flags;
     int id;
     int (*init)(void* ptr, int state, int dims, ...);
     TestConfigStreamType type;
