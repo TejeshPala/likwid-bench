@@ -38,7 +38,8 @@ TESTS = test_read_yaml_ptt \
 	test_stack \
 	test_map \
 	test_allocator \
-	test_bitmap
+	test_bitmap \
+	test_bstrlib_helper
 
 # External stuff
 BSTRLIB_OBJ := ../src/bstrlib.c ../src/bstrlib_helper.c
@@ -78,7 +79,7 @@ ALLOCATOR_OBJ := ../src/allocator.c
 ALLOCATOR_HEADER := ../include/allocator.h ../include/test_types.h
 
 BITMAP_OBJ := ../src/bitmap.c
-BITMAP_HEADER := ../include/bitmap.h 
+BITMAP_HEADER := ../include/bitmap.h
 
 all: $(TESTS)
 
@@ -114,6 +115,9 @@ test_allocator: test_allocator.c $(ALLOCATOR_OBJ) $(ALLOCATOR_HEADER) $(BSTRLIB_
 
 test_bitmap: test_bitmap.c $(BITMAP_OBJ) $(BITMAP_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) test_bitmap.c $(BITMAP_OBJ) -o $@
+
+test_bstrlib_helper: test_bstrlib_helper.c $(BSTRLIB_HEADER) $(BSTRLIB_OBJ)
+	$(CC) $(INCLUDES) $(CFLAGS) test_bstrlib_helper.c $(BSTRLIB_OBJ) -o $@
 
 run: $(TESTS)
 	@for T in $(TESTS); do echo "#### Running $$T ####"; ./$$T; done
