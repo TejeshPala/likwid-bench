@@ -2,7 +2,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <math.h>
+#include <float.h>
+#include <limits.h>
+#include <inttypes.h>
+#include <stdint.h>
 
 //#include <unistd.h>
 //#include <string.h>
@@ -175,4 +179,70 @@ bstring read_file(char *filename)
         bcatblk(content, buf, ret);
     }
     return content;
+}
+
+int batoi(bstring b, int* value)
+{
+    if (b == NULL || value == NULL || b->data == NULL || blength(b) == 0) return BSTR_ERR;
+
+    char* endptr = NULL;
+    errno = 0;
+    long int result = strtol(bdata(b), &endptr, 10);
+
+    if (endptr == bdata(b))
+    {
+        b = NULL;
+        result = 0;
+        *value = 0;
+        return BSTR_ERR;
+    }
+
+    if ((errno == ERANGE && (result > ULLONG_MAX || result < LLONG_MIN)) || (errno != 0 && result == 0)) return BSTR_ERR;
+
+    *value = (int)result;
+    return BSTR_OK;
+}
+
+int batof(bstring b, float* value)
+{
+    if (b == NULL || value == NULL || bdata(b) == NULL || blength(b) == 0) return BSTR_ERR;
+
+    char* endptr = NULL;
+    errno = 0;
+    float result = strtof(bdata(b), &endptr);
+
+    if (endptr == bdata(b) || *endptr != '\0')
+    {
+        b = NULL;
+        result = 0.0f;
+        *value = 0.0f;
+        return BSTR_ERR;
+    }
+
+    if ((errno == ERANGE && (result > HUGE_VALF || result < -HUGE_VALF)) || (errno != 0 && result == 0.0f)) return BSTR_ERR;
+
+    *value = result;
+    return BSTR_OK;
+}
+
+int batod(bstring b, double* value)
+{
+    if (b == NULL || value == NULL || bdata(b) == NULL || blength(b) == 0) return BSTR_ERR;
+
+    char* endptr = NULL;
+    errno = 0;
+    double result = strtod(bdata(b), &endptr);
+
+    if (endptr == bdata(b) || *endptr != '\0')
+    {
+        b = NULL;
+        result = 0.0;
+        *value = 0.0;
+        return BSTR_ERR;
+    }
+
+    if ((errno == ERANGE && (result > HUGE_VAL || result < -HUGE_VAL)) || (errno != 0 && result == 0.0)) return BSTR_ERR;
+
+    *value = result;
+    return BSTR_OK;
 }
