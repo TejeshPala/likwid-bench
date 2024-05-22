@@ -183,7 +183,7 @@ int loopfooter(struct bstrList* code, bstring loopname, bstring loopreg, bstring
     int sve = is_sve_bstr(loopname);
 
     //bstring bstep = bformat("add GPR6, GPR6, #%d", step);
-    bstring bstep = bformat("add %s, %s, #%s", bdata(loopreg), bdata(loopreg), bdata(step))
+    bstring bstep = bformat("add %s, %s, #%s", bdata(loopreg), bdata(loopreg), bdata(step));
     bstrListAdd(code, bstep);
     bdestroy(bstep);
 
