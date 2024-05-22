@@ -31,9 +31,24 @@
 #ifndef TOPOLOGY_H
 #define TOPOLOGY_H
 
+#include "bstrlib.h"
+#include <stdbool.h>
+
+extern struct tagbstring _topology_interesting_flags[];
+
 int check_hwthreads();
 int get_num_hw_threads();
 int cpustr_to_cpulist(bstring cpustr, int* list, int length);
 void destroy_hwthreads();
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int get_feature_flags(int cpu_id, struct bstrList** outlist);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TOPOLOGY_H */

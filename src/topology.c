@@ -3,17 +3,106 @@
 #endif
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
-
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <sched.h>
 
 #include "error.h"
 #include "bstrlib.h"
+#include "bstrlib_helper.h"
+
+struct tagbstring _topology_interesting_flags[] = {
+#if defined(__x86_64) || defined(__x86_64__)
+    bsStatic("sse"),
+    bsStatic("ssse"),
+    bsStatic("avx"),
+    bsStatic("fma"),
+    bsStatic("ht"),
+    bsStatic("fp"),
+#elif defined(__ARM_ARCH_8A)
+    bsStatic("neon"),
+    bsStatic("vfp"),
+    bsStatic("asimd"),
+    bsStatic("sve"),
+    bsStatic("fp"),
+    bsStatic("pmull"),
+#endif
+    bsStatic("")
+};
+
+typedef struct {
+    bstring processor;
+    struct {
+        bstring vendor;
+        bstring family;
+        bstring model;
+        bstring name;
+        bstring stepping;
+        bstring flags;
+    } ProcInfo;
+} CPUInfo;
+
+static CPUInfo* cpu_info = NULL;
+
+void initialize_cpu_info(int max_processor)
+{
+    for (int p = 0; p <= max_processor; p++)
+    {
+        cpu_info[p].processor = NULL;
+        cpu_info[p].ProcInfo.vendor = NULL;
+        cpu_info[p].ProcInfo.family = NULL;
+        cpu_info[p].ProcInfo.model = NULL;
+        cpu_info[p].ProcInfo.name = NULL;
+        cpu_info[p].ProcInfo.stepping = NULL;
+        cpu_info[p].ProcInfo.flags = NULL;
+    }
+}
+
+void free_cpu_info(int max_processor)
+{
+    if (cpu_info == NULL) return;
+
+    for (int i = 0; i <= max_processor; i ++)
+    {
+        if (cpu_info[i].processor != NULL)
+        {
+            bdestroy(cpu_info[i].processor);
+        }
+        if (cpu_info[i].ProcInfo.vendor != NULL)
+        {
+            bdestroy(cpu_info[i].ProcInfo.vendor);
+        }
+        if (cpu_info[i].ProcInfo.family != NULL)
+        {
+            bdestroy(cpu_info[i].ProcInfo.family);
+        }
+        if (cpu_info[i].ProcInfo.model != NULL)
+        {
+            bdestroy(cpu_info[i].ProcInfo.model);
+        }
+        if (cpu_info[i].ProcInfo.name != NULL)
+        {
+            bdestroy(cpu_info[i].ProcInfo.name);
+        }
+        if (cpu_info[i].ProcInfo.stepping != NULL)
+        {
+            bdestroy(cpu_info[i].ProcInfo.stepping);
+        }
+        if (cpu_info[i].ProcInfo.flags != NULL)
+        {
+            bdestroy(cpu_info[i].ProcInfo.flags);
+        }
+    }
+    free(cpu_info);
+    cpu_info = NULL;
+}
 
 typedef struct {
     int os_id;
@@ -884,4 +973,298 @@ int get_num_hw_threads()
         return ret;
     }
     return _num_hwthreads;
+}
+
+int parse_flags(bstring flagline, struct bstrList** outlist)
+{
+    if (flagline == NULL || outlist == NULL) return -errno;
+
+    struct bstrList* blist = bsplit(flagline, ' ');
+    if (blist == NULL) return -errno;
+
+    struct bstrList* btmplist = bstrListCreate();
+    if (btmplist == NULL)
+    {
+        bstrListDestroy(blist);
+        return -errno;
+    }
+
+    int i = 0;
+    while (_topology_interesting_flags[i].slen > 0)
+    {
+        // struct tagbstring binteresting_flag = _topology_interesting_flags[i];
+        for (int j = 0; j < blist->qty; j++)
+        {
+            int pos = binstr(blist->entry[j], 0, &(_topology_interesting_flags[i]));
+            // printf("pos %d\n", pos);
+            if (pos == 0) bstrListAdd(btmplist, blist->entry[j]);
+            // printf("flag: %s\n", bdata(blist->entry[j]));
+        }
+
+        i++;
+    }
+    
+    bstrListDestroy(blist);
+    *outlist = bstrListCopy(btmplist);
+    bstrListDestroy(btmplist);
+    return (*outlist != NULL) ? 0 : -errno;
+}
+
+int check_cores(int cpu_id, bstring vendor, bstring model)
+{
+    struct tagbstring apple_vendor = bsStatic("0x61");
+    struct tagbstring apple_model = bsStatic("0x2");
+    struct tagbstring apple_ice = bsStatic("apple,icestorm");
+    struct tagbstring apple_fire = bsStatic("apple,firestorm");
+    bstring fname = bformat("/sys/devices/system/cpu/cpu%d/of_node/compatible", cpu_id);
+    if (bstrnicmp(vendor, &apple_vendor, blength(&apple_vendor)) == 0 &&
+        bstrnicmp(model, &apple_model, blength(&apple_model)) == 0)
+    {
+        bstring bcore = read_file(bdata(fname));
+        if (blength(bcore) == 0)
+        {
+            DEBUG_PRINT(DEBUGLEV_ONLY_ERROR, Failed to read /sys/devices/system/cpu/cpu%d/of_node/compatible, cpu_id);
+            bdestroy(bcore);
+            return -errno;
+        }
+
+        if (bstrncmp(bcore, &apple_ice, blength(&apple_ice)) == 0)
+        {
+            printf("CPU core\t: HWThread %d is an icestorm core\n", cpu_id);
+        }
+        else if (bstrncmp(bcore, &apple_fire, blength(&apple_fire)) == 0)
+        {
+            printf("CPU core\t: HWThread %d is an firestorm core\n", cpu_id);
+        }
+        else
+        {
+            printf("CPU Core\t: HWThread %d is not found\n", cpu_id);
+            bdestroy(bcore);
+            return -errno;
+        }
+
+        bdestroy(bcore);
+    }
+
+    bdestroy(fname);
+    return 0;
+}
+
+int read_flags_line(int cpu_id, bstring* flagline)
+{
+    int result = 0;
+    FILE *file = fopen("/proc/cpuinfo", "r");
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file /proc/cpuinfo for interesting flags);
+    if (file == NULL)
+    {
+        DEBUG_PRINT(DEBUGLEV_ONLY_ERROR, Failed to open /proc/cpuinfo file);
+        return -errno;
+    }
+    
+    bstring src = bread ((bNread) fread, file);
+    fclose(file);
+    if (src == NULL)
+    {
+        DEBUG_PRINT(DEBUGLEV_ONLY_ERROR, Unable to read file using bread);
+        return -errno;
+    }
+
+    struct bstrList* blist = bsplit(src, '\n');
+    if (blist == NULL)
+    {
+        bdestroy(src);
+        DEBUG_PRINT(DEBUGLEV_ONLY_ERROR, Unable to split from src);
+        return -errno;
+    }
+
+    struct tagbstring processorString = bsStatic("processor");
+#if defined(__x86_64) || defined(__x86_64__)
+    struct tagbstring vendorString = bsStatic("vendor_id");
+    struct tagbstring familyString = bsStatic("cpu family");
+    struct tagbstring modelString = bsStatic("model");
+    struct tagbstring nameString = bsStatic("model name");
+    struct tagbstring steppingString = bsStatic("stepping");
+    struct tagbstring flagString = bsStatic("flags");
+#elif defined(__ARM_ARCH_8A)
+    struct tagbstring vendorString = bsStatic("CPU implementer");
+    struct tagbstring familyString = bsStatic("CPU architecture");
+    struct tagbstring modelString = bsStatic("CPU variant");
+    struct tagbstring nameString = bsStatic("CPU part");
+    struct tagbstring steppingString = bsStatic("CPU revision");
+    struct tagbstring flagString = bsStatic("Features");
+#elif defined(_ARCH_PPC)
+    struct tagbstring vendorString = bsStatic("vendor_id");
+    struct tagbstring familyString = bsStatic("cpu family");
+    struct tagbstring modelString = bsStatic("cpu");
+    struct tagbstring nameString = bsStatic("machine");
+    struct tagbstring steppingString = bsStatic("revision");
+#endif
+
+    int min_processor = 0;
+    int max_processor = 0;
+    int tmp= 0;
+    for (int i = 0; i < blist->qty; i++)
+    {
+        if (bstrncmp(blist->entry[i], &processorString, blength(&processorString)) == 0)
+        {
+            if (sscanf(bdata(blist->entry[i]), "processor : %d", &tmp) == 1)
+            {
+                if (tmp == min_processor)
+                {
+                    min_processor = tmp;
+                }
+                else if (tmp > max_processor)
+                {
+                    max_processor = tmp;
+                }
+
+            }
+
+        }
+
+    }
+    // printf("min: %d, max: %d\n", min_processor, max_processor);
+
+    cpu_info = (CPUInfo*)malloc((max_processor + 1) * sizeof(CPUInfo));
+    if (cpu_info == NULL)
+    {
+        DEBUG_PRINT(DEBUGLEV_ONLY_ERROR, Error in allocating memory for cpu_info);
+        free_cpu_info(max_processor);
+        bstrListDestroy(blist);
+        bdestroy(src);
+        return -errno;
+    }
+
+    initialize_cpu_info(max_processor);
+    bstring bcpu_id = bfromcstr("");
+    bformata(bcpu_id, "%d", cpu_id);
+
+    for (int p = 0; p <= max_processor; p++)
+    {
+        for (int i = 0; i < blist->qty; i++)
+        {
+            struct bstrList* bkvpair = bsplit(blist->entry[i], ':');
+            if (bkvpair->qty >= 2)
+            {
+                bstring bval = bstrcpy(bkvpair->entry[1]);
+                btrimws(bval);
+                if (bstrncmp(bkvpair->entry[0], &processorString, blength(&processorString)) == 0 && cpu_info[p].processor == NULL)
+                {
+                    int tmp = 0;
+                    // printf("bval: %s ,", bdata(bkvpair->entry[1]));
+                    if (sscanf(bdata(bkvpair->entry[1]), "%d", &tmp) == 1 && tmp == p)
+                    {
+                        cpu_info[p].processor = bstrcpy(bval);
+                    }
+                }
+                else if (bstrncmp(bkvpair->entry[0], &vendorString, blength(&vendorString)) == 0 && cpu_info[p].ProcInfo.vendor == NULL)
+                {
+                    cpu_info[p].ProcInfo.vendor = bstrcpy(bval);
+                }
+                else if (bstrncmp(bkvpair->entry[0], &familyString, blength(&familyString)) == 0 && cpu_info[p].ProcInfo.family == NULL)
+                {
+                    cpu_info[p].ProcInfo.family = bstrcpy(bval);
+                }
+                else if (bstrncmp(bkvpair->entry[0], &modelString, blength(&modelString)) == 0 && cpu_info[p].ProcInfo.model == NULL)
+                {
+                    cpu_info[p].ProcInfo.model = bstrcpy(bval);
+                }
+                else if (bstrncmp(bkvpair->entry[0], &nameString, blength(&nameString)) == 0 && cpu_info[p].ProcInfo.name == NULL)
+                {
+                    cpu_info[p].ProcInfo.name = bstrcpy(bval);
+                }
+                else if (bstrncmp(bkvpair->entry[0], &steppingString, blength(&steppingString)) == 0 && cpu_info[p].ProcInfo.stepping == NULL)
+                {
+                    cpu_info[p].ProcInfo.stepping = bstrcpy(bval);
+                }
+
+#if defined(__x86_64) || defined(__x86_64__)
+                else if (bstrncmp(bkvpair->entry[0], &flagString, blength(&flagString)) == 0 && cpu_info[p].ProcInfo.flags == NULL)
+#elif defined(__ARM_ARCH_8A)
+                else if (bstrncmp(bkvpair->entry[0], &flagString, blength(&flagString)) == 0 && cpu_info[p].ProcInfo.flags == NULL)
+#endif
+                {
+                    cpu_info[p].ProcInfo.flags = bstrcpy(bval);
+                }
+
+                bdestroy(bval);
+            }
+
+            bstrListDestroy(bkvpair);
+        }
+
+    }
+
+    for (int i = 0; i <= max_processor; i++)
+    {
+        if (i == cpu_id && cpu_info[i].processor != NULL)
+        {
+            if (cpu_info[i].ProcInfo.flags != NULL)
+            {
+                bconcat(*flagline, cpu_info[i].ProcInfo.flags);
+            }
+
+            if (DEBUGLEV_DEVELOP)
+            {
+                printf("CPU processor\t: %s\n", bdata(cpu_info[i].processor));
+                printf("CPU vendor\t: %s\n", bdata(cpu_info[i].ProcInfo.vendor));
+                printf("CPU family\t: %s\n", bdata(cpu_info[i].ProcInfo.family));
+                printf("CPU model\t: %s\n", bdata(cpu_info[i].ProcInfo.model));
+                printf("CPU name\t: %s\n", bdata(cpu_info[i].ProcInfo.name));
+                printf("CPU stepping\t: %s\n", bdata(cpu_info[i].ProcInfo.stepping));
+                // printf("CPU flags\t: %s\n", bdata(cpu_info[i].ProcInfo.flags));
+                result = check_cores(cpu_id, cpu_info[i].ProcInfo.vendor, cpu_info[i].ProcInfo.model);
+                if (result != 0)
+                {
+                    free_cpu_info(max_processor);
+                    bdestroy(src);
+                    bdestroy(bcpu_id);
+                    bstrListDestroy(blist);
+                    return -errno;
+                }
+            }
+
+        }
+
+    }
+
+    free_cpu_info(max_processor);
+    bdestroy(src);
+    bdestroy(bcpu_id);
+    bstrListDestroy(blist);
+    return 0;
+}
+
+int get_feature_flags(int cpu_id, struct bstrList** outlist)
+{
+    int result = 0;
+    if (outlist == NULL) return -errno;
+
+    bstring flagline = bfromcstr("");
+    result = read_flags_line(cpu_id, &flagline);
+    // printf("content: %s\n", bdata(flagline));
+    if (result != 0)
+    {
+        DEBUG_PRINT(DEBUGLEV_ONLY_ERROR, Failed to read cpu flags from /proc/cpuinfo file);
+        bdestroy(flagline);
+        return -errno;
+    }
+
+    bstrListDestroy(*outlist);
+    struct bstrList* blist = NULL;
+    result = parse_flags(flagline, &blist);
+    bdestroy(flagline);
+    if (result != 0)
+    {
+        bstrListDestroy(blist);
+        DEBUG_PRINT(DEBUGLEV_ONLY_ERROR, Unable to parse the flags);
+        return -errno;
+    }
+
+    *outlist = bstrListCopy(blist);
+    bstrListDestroy(blist);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Available flags are );
+    if (DEBUGLEV_DEVELOP) bstrListPrint(*outlist);
+
+    return 0;
 }

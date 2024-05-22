@@ -18,6 +18,7 @@
 #include "ptt2asm.h"
 #include "allocator.h"
 #include "results.h"
+#include "topology.h"
 
 #ifndef global_verbosity
 int global_verbosity = DEBUGLEV_DEVELOP;
@@ -319,6 +320,10 @@ int main(int argc, char** argv)
         ERROR_PRINT(Error filling result storages);
         goto main_out;
     }
+
+    struct bstrList* flist = bstrListCreate();
+    int res = get_feature_flags(1, &flist);
+    bstrListDestroy(flist);
 
     /*
      * Generate assembly
