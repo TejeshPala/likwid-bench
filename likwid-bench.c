@@ -259,6 +259,47 @@ int main(int argc, char** argv)
         goto main_out;
     }
 
+    struct bstrList* flist = bstrListCreate();
+    int res = get_feature_flags(1, &flist);
+    if (res < 0)
+    {
+        ERROR_PRINT(Error reading Flags);
+        bstrListDestroy(flist);
+        goto main_out;
+    }
+
+    // printf("flags qty: %d\n", runcfg->tcfg->flags->qty);
+    int found = 0;
+    if (runcfg->tcfg->flags->qty > 0 && flist->qty > 0)
+    {
+        for (int i = 0; i < runcfg->tcfg->flags->qty; i++)
+        {
+            btrimws(runcfg->tcfg->flags->entry[i]);
+            for (int j = 0; j < flist->qty; j++)
+            {
+                btrimws(flist->entry[j]);
+                if (bstrnicmp(runcfg->tcfg->flags->entry[i], flist->entry[j], blength(runcfg->tcfg->flags->entry[i])) == BSTR_OK && blength(runcfg->tcfg->flags->entry[i]) > 0)
+                {
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Flag %s found on the system, bdata(runcfg->tcfg->flags->entry[i]));
+                    found++;
+                }
+
+            }
+
+        }
+
+    }
+
+    if (found != runcfg->tcfg->flags->qty)
+    {
+        ERROR_PRINT(Flags not found on the system);
+        bstrListPrint(runcfg->tcfg->flags);
+        bstrListDestroy(flist);
+        goto main_out;
+    }
+
+    bstrListDestroy(flist);
+
     bstring title = bformat("Commandline options for kernel '%s'", bdata(runcfg->testname));
     cliOptionsTitle(&testopts, title);
     bdestroy(title);
@@ -320,10 +361,6 @@ int main(int argc, char** argv)
         ERROR_PRINT(Error filling result storages);
         goto main_out;
     }
-
-    struct bstrList* flist = bstrListCreate();
-    int res = get_feature_flags(1, &flist);
-    bstrListDestroy(flist);
 
     /*
      * Generate assembly

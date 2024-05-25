@@ -1,6 +1,8 @@
 ---
 - Name: load
 - Description: Double-precision load, only scalar operations
+- FeatureFlag: 
+    - 
 - Parameters:
   - N:
       description: Size of array that should be loaded, Possible Values:kB, MB, GB

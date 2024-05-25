@@ -182,7 +182,7 @@ static int read_yaml_ptt_list(bstring obj, struct bstrList** list)
             bstring x;
             int ret = read_keyvalue(objlist->entry[l], &x, NULL);
             btrimws(x);
-            bstrListAdd(*list, x);
+            if (blength(x) > 0) bstrListAdd(*list, x);
             bdestroy(x);
             count++;
         }
@@ -248,7 +248,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
     struct tagbstring bthreads = bsStatic("Threads");
     struct tagbstring bthreadsoff = bsStatic("offsets");
     struct tagbstring bthreadssize = bsStatic("sizes");
-    struct tagbstring bflags = bsStatic("Flags");
+    struct tagbstring bflags = bsStatic("FeatureFlag");
     bstring bptt = read_file(filename);
     if (blength(bptt) == 0)
     {
@@ -425,6 +425,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
             }
             else if (bstrnicmp(k, &bflags, blength(&bflags)) == BSTR_OK)
             {
+                btrimws(v);
                 read_yaml_ptt_list(v, &conf->flags);
             }
 /*            else if (bstrnicmp(k, &bthreads, 7) == BSTR_OK)*/
