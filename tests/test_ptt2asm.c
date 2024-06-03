@@ -25,6 +25,7 @@ static struct tagbstring testfolder = bsStatic("./ptt2asm/aarch32");
 #if defined(_ARCH_PPC)
 static struct tagbstring testfolder = bsStatic("./ptt2asm/ppc64");
 #endif
+static struct tagbstring bshouldfail_prefix = bsStatic("sf_");
 
 
 static bstring get_reference_file(bstring pttfile)
@@ -96,6 +97,7 @@ int main(int argc, char* argv[])
 
     int allerrors = 0;
     int alltests = 0;
+    printf("###### Searching for tests in folder %s\n", bdata(&testfolder));
     get_tests(&testfolder, &out);
     if (out)
     {
@@ -103,13 +105,22 @@ int main(int argc, char* argv[])
         for (int i = 0; i< out->qty; i++)
         {
             int err = 0;
+            int want_error = 0;
+            
             TestConfig tcfg;
-            bstring ref = get_reference_file(out->entry[i]);
-            if (ref)
+            bstring ref = NULL;
+            bstring refabspath = NULL;
+            if (bstrncmp(out->entry[i], &bshouldfail_prefix, 3) == BSTR_OK) want_error = -22;
+            if (want_error == 0)
+            {
+                ref = get_reference_file(out->entry[i]);
+                refabspath = bformat("%s/%s", bdata(&testfolder), bdata(ref));
+            }
+            printf("###### %s\n", bdata(out->entry[i]));
+            if (ref || want_error != 0)
             {
                 bstring testabspath = bformat("%s/%s", bdata(&testfolder), bdata(out->entry[i]));
-                bstring refabspath = bformat("%s/%s", bdata(&testfolder), bdata(ref));
-                if (testabspath && refabspath)
+                if (testabspath)
                 {
                     tcfg.name = &name;
                     tcfg.code = read_file(bdata(testabspath));
@@ -118,7 +129,7 @@ int main(int argc, char* argv[])
                         btrimws(tcfg.code);
                         struct bstrList* codelines = bstrListCreate();
                         int ptterr = prepare_ptt(&tcfg, codelines);
-                        if (ptterr == 0)
+                        if (ptterr == 0 && ref != NULL)
                         {
                             bstring refcode = read_file(bdata(refabspath));
                             if (refcode)
@@ -159,8 +170,11 @@ int main(int argc, char* argv[])
                         }
                         else
                         {
-                            printf("ptterr %d\n", ptterr);
-                            err = (ptterr != 0);
+                            err = (ptterr != want_error);
+                            if (err != 0)
+                            {
+                                printf("###### ptt parser returned %d and we want %d\n", ptterr, want_error);
+                            }
                         }
                         bstrListDestroy(codelines);
                         bdestroy(tcfg.code);
@@ -175,6 +189,6 @@ int main(int argc, char* argv[])
         }
         bstrListDestroy(out);
     }
-    printf("%d Tests out of %d failed\n", allerrors, alltests);
+    printf("###### %d Tests out of %d failed\n", allerrors, alltests);
     return 0;
 }
