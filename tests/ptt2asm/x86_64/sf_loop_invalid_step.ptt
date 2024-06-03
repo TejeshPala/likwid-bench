@@ -1,0 +1,2 @@
+LOOP(loop, rax=0, <, rdi=1000, foobar)
+LOOPEND(loop)
