@@ -124,12 +124,20 @@ int loopheader(struct bstrList* code, bstring loopname, bstring loopreg, bstring
 
 int loopfooter(struct bstrList* code, bstring loopname, bstring loopreg, bstring condreg, bstring cond, bstring dir, bstring step)
 {
+    int err = 0;
     struct tagbstring bless = bsStatic("<");
     struct tagbstring blesseq = bsStatic("<=");
     struct tagbstring bgreat = bsStatic(">");
     struct tagbstring bgreateq = bsStatic(">=");
     struct tagbstring bequal = bsStatic("==");
     struct tagbstring bnequal = bsStatic("!=");
+
+    if (!bisnumber(step))
+    {
+        errno = EINVAL;
+        ERROR_PRINT(Invalid loop step '%s'. Not numeric, bdata(step));
+        return -EINVAL;
+    }
 
     bstring bstep = bformat("add %s, %s", bdata(loopreg), bdata(step));
     bstrListAdd(code, bstep);
@@ -139,7 +147,7 @@ int loopfooter(struct bstrList* code, bstring loopname, bstring loopreg, bstring
     bstrListAdd(code, bcmp);
     bdestroy(bcmp);
 
-    bstring jumpline;
+    bstring jumpline = NULL;
     if (bstrncmp(dir, &bless, blength(&bless)) == BSTR_OK)
     {
         jumpline = bformat("jl %s", bdata(loopname));
@@ -164,13 +172,20 @@ int loopfooter(struct bstrList* code, bstring loopname, bstring loopreg, bstring
     {
         jumpline = bformat("jne %s", bdata(loopname));
     }
-    bstrListAdd(code, jumpline);
-    bdestroy(jumpline);
+    else
+    {
+        errno = EINVAL;
+        ERROR_PRINT(Invalid compare sign '%s', bdata(dir));
+        err = -EINVAL;
+    }
 
-    //bstrListAddChar(code, "\n");
+    if (jumpline != NULL)
+    {
+        bstrListAdd(code, jumpline);
+        bdestroy(jumpline);
+    }
 
-    
-    return 0;
+    return err;
 }
 
 

@@ -110,7 +110,18 @@ int parse_loop(TestConfig_t config, struct bstrList* code, struct bstrList* out)
     }
     toComment(out, code->entry[0]);
     /* This creates the arch-specific assembly to setup a loop */
-    loopheader(out, beginArgs->entry[0], startloop->entry[0], startloop->entry[1], endloop->entry[0], endloop->entry[1], beginArgs->entry[4]);
+    err = loopheader(out, beginArgs->entry[0], startloop->entry[0], startloop->entry[1], endloop->entry[0], endloop->entry[1], beginArgs->entry[4]);
+    if (err < 0)
+    {
+        errno = -err;
+        ERROR_PRINT(Failed to create loop header with args %s %s %s %s %s %s, bdata(beginArgs->entry[0]), bdata(startloop->entry[0]), bdata(startloop->entry[1]), bdata(endloop->entry[0]), bdata(endloop->entry[1]), bdata(beginArgs->entry[4]));
+        bstrListDestroy(startloop);
+        bstrListDestroy(endloop);
+        bstrListDestroy(beginArgs);
+        bstrListDestroy(endArgs);
+        return err;
+    }
+    
     // Add the loop body
     for (int i = 1; i < code->qty-1; i++)
     {
@@ -118,7 +129,19 @@ int parse_loop(TestConfig_t config, struct bstrList* code, struct bstrList* out)
     }
     /* This creates the arch-specific assembly to close a loop (compare + jump commonly)*/
     toComment(out, code->entry[code->qty-1]);
-    loopfooter(out, endArgs->entry[0], startloop->entry[0], endloop->entry[0], endloop->entry[1], beginArgs->entry[2], beginArgs->entry[4]);
+    err = loopfooter(out, endArgs->entry[0], startloop->entry[0], endloop->entry[0], endloop->entry[1], beginArgs->entry[2], beginArgs->entry[4]);
+    if (err < 0)
+    {
+        errno = -err;
+        ERROR_PRINT(Failed to create loop footer with args %s %s %s %s %s %s, bdata(endArgs->entry[0]), bdata(startloop->entry[0]), bdata(endloop->entry[0]), bdata(endloop->entry[1]), bdata(beginArgs->entry[2]), bdata(beginArgs->entry[4]));
+        bstrListDestroy(startloop);
+        bstrListDestroy(endloop);
+        bstrListDestroy(beginArgs);
+        bstrListDestroy(endArgs);
+/*        bstrListDestroy(out);*/
+/*        out = bstrListCreate();*/
+        return err;
+    }
 
     // Cleaup used data structures
     bstrListDestroy(startloop);
