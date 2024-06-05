@@ -626,11 +626,12 @@ int assignTestCliOptions(CliOptions* options, RuntimeConfig* runcfg)
         {
             CliOption* opt = &options->options[j];
             DEBUG_PRINT(DEBUGLEV_DETAIL, Comparing with CLI option %s, bdata(opt->name));
-            if (bstrncmp(paramname, opt->name, blength(paramname)) == BSTR_OK)
+            if (bstrncmp(paramname, opt->name, blength(paramname)) == BSTR_OK && blength(opt->value) > 0)
             {
                 int err = add_runtime_parameter(runcfg, param, opt);
                 if (err != 0)
                 {
+                    errno = EINVAL;
                     ERROR_PRINT(Cannot add runtime parameter %s, bdata(opt->name));
                     continue;
                 }
@@ -640,6 +641,8 @@ int assignTestCliOptions(CliOptions* options, RuntimeConfig* runcfg)
         bdestroy(paramname);
         if (!found) miss++;
     }
+
+    if (miss > 0) errno = EINVAL;
     return miss;
 }
 
