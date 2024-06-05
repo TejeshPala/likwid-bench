@@ -1,43 +1,32 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 
 #include "bitmap.h"
-int createBitmap(size_t size, size_t alignment, Bitmap* bitmap)
+
+
+int create_bitmap(size_t size, size_t alignment, Bitmap* bitmap)
 {
-    if (bitmap == NULL || size <= 0) return -EINVAL;
+    if (bitmap == NULL || size == 0) return -EINVAL;
 
     if (bitmap->data != NULL) return -EFAULT;
     
-    if (alignment <= 0 || (alignment & (alignment - 1)) != 0) return -EFAULT;
+    if (alignment == 0 || (alignment & (alignment - 1)) != 0) return -EINVAL;
     
-    size_t data = (size + BITS_PER_ELEMENT - 1)/ BITS_PER_ELEMENT;
-    bitmap->data = (BitmapDataType *)aligned_alloc(alignment, data * sizeof(BitmapDataType));
-    if (bitmap->data == NULL)
-    {
-        free(bitmap);
-        return -ENOMEM;
-    }
+    size_t data_size = (size + BITS_PER_ELEMENT - 1)/ BITS_PER_ELEMENT;
+    BitmapDataType* data = (BitmapDataType *)aligned_alloc(alignment, data_size * sizeof(BitmapDataType));
+    if (data == NULL) return -ENOMEM;
 
+    bitmap->data = data;
     bitmap->size = size;
     bitmap->alignment = alignment;
-    for (size_t i = 0; i < data; i++)
-    {
-        if (i == data - 1)
-        {
-            bitmap->data[i] = (1ULL << (size % BITS_PER_ELEMENT)) - 1;
-        }
-        else
-        {
-            bitmap->data[i] = (BitmapDataType) - 1;
-        }
-
-    }
+    memset(bitmap->data, 0, data_size * sizeof(BitmapDataType));
 
     return 0;
 }
 
-void destroyBitmap(Bitmap *bitmap)
+void destroy_bitmap(Bitmap *bitmap)
 {
     if (bitmap != NULL && bitmap->data != NULL)
     {
@@ -48,31 +37,55 @@ void destroyBitmap(Bitmap *bitmap)
     }
 }
 
-int setBit(Bitmap *bitmap, size_t index)
+int set_bit(Bitmap *bitmap, size_t index)
 {
-   if (bitmap == NULL || bitmap->data == NULL || index >= bitmap->size) return -EINVAL;
+    if (bitmap == NULL || bitmap->data == NULL || index >= bitmap->size) return -EINVAL;
 
-   bitmap->data[index / BITS_PER_ELEMENT] |= (1ULL << (index % BITS_PER_ELEMENT));
-
-   if (bitmap->data[index / BITS_PER_ELEMENT] & (1ULL << (index % BITS_PER_ELEMENT)) == 0ULL) return -EINVAL;
+    bitmap->data[index / BITS_PER_ELEMENT] |= (1ULL << (index % BITS_PER_ELEMENT));
 
    return 0;
 }
 
-int clearBit(Bitmap *bitmap, size_t index)
+int clear_bit(Bitmap *bitmap, size_t index)
 {
     if (bitmap == NULL || bitmap->data == NULL || index >= bitmap->size) return -EINVAL;
 
     bitmap->data[index / BITS_PER_ELEMENT] &= ~(1ULL << (index % BITS_PER_ELEMENT));
 
-    if (bitmap->data[index / BITS_PER_ELEMENT] & (1ULL << (index % BITS_PER_ELEMENT)) == 0ULL) return -EINVAL;
-
     return 0;
 }
 
-int isBitSet(Bitmap *bitmap, size_t index)
+int is_bit_set(Bitmap *bitmap, size_t index)
 {
     if (bitmap == NULL || bitmap->data == NULL || index >= bitmap->size) return 0;
 
-    return (bitmap->data[index / BITS_PER_ELEMENT] & (1ULL << (index % BITS_PER_ELEMENT))) != 0ULL ? 1 : 0;
+    return (bitmap->data[index / BITS_PER_ELEMENT] & (1ULL << (index % BITS_PER_ELEMENT))) != 0ULL;
+}
+
+void print_set_bits(const Bitmap *bitmap)
+{
+    if (bitmap == NULL || bitmap->data == NULL)
+    {
+        printf("bitmap data not found\n");
+        return;
+    }
+
+    int found = 0;
+    printf("Set Bits are: ");
+    for (size_t i = 0; i < bitmap->size; ++i)
+    {
+        if (is_bit_set((Bitmap*) bitmap, i))
+        {
+            printf("%lu ", i);
+            found = 1;
+        }
+
+    }
+
+    if (!found)
+    {
+        printf("bitmap is not set");
+    }
+
+    printf("\n");
 }

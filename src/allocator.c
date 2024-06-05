@@ -297,7 +297,7 @@ int allocate_arrays(RuntimeStreamConfig *sdata)
     
     if ((sdata->type < MIN_DATA_TYPE) || (sdata->type >= MAX_DATA_TYPE)) return -EINVAL;
 
-    if (sdata->dims == 1 || isBitSet(&sdata->flags, TEST_STREAM_ALLOC_TYPE_1DIM))
+    if (sdata->dims == 1 || is_bit_set(&sdata->flags, TEST_STREAM_ALLOC_TYPE_1DIM))
     {
         return _allocate_arrays_1dim(sdata);
     }
@@ -455,7 +455,7 @@ void _release_arrays_3dim(RuntimeStreamConfig *sdata)
 
 void release_arrays(RuntimeStreamConfig *sdata)
 {
-    if (sdata->dims == 1 || isBitSet(&sdata->flags, TEST_STREAM_ALLOC_TYPE_1DIM))
+    if (sdata->dims == 1 || is_bit_set(&sdata->flags, TEST_STREAM_ALLOC_TYPE_1DIM))
     {
         _release_arrays_1dim(sdata);
     }

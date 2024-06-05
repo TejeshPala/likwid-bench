@@ -46,6 +46,8 @@ extern "C" {
 #endif
 
 int get_feature_flags(int cpu_id, struct bstrList** outlist);
+int initialize_cpu_lists(int _max_processor);
+int parse_cpu_folders();
 
 #ifdef __cplusplus
 }

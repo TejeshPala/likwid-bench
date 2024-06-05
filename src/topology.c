@@ -17,6 +17,11 @@
 #include "error.h"
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
+#include "bitmap.h"
+#include "path.h"
+
+static int _min_processor = 0;
+static int _max_processor = 0;
 
 struct tagbstring _topology_interesting_flags[] = {
 #if defined(__x86_64) || defined(__x86_64__)
@@ -37,6 +42,24 @@ struct tagbstring _topology_interesting_flags[] = {
     bsStatic("")
 };
 
+struct tagbstring _cpu_folders[] = {
+    bsStatic("present"),
+    bsStatic("possible"),
+    bsStatic("online"),
+    bsStatic("offline"),
+    bsStatic("isolated")
+};
+
+typedef struct {
+    Bitmap present;
+    Bitmap possible;
+    Bitmap online;
+    Bitmap offline;
+    Bitmap isolated;
+} CPULists;
+
+static CPULists* cpu_lists = NULL;
+
 typedef struct {
     bstring processor;
     struct {
@@ -51,9 +74,50 @@ typedef struct {
 
 static CPUInfo* cpu_info = NULL;
 
-void initialize_cpu_info(int max_processor)
+void destroy_cpu_lists()
 {
-    for (int p = 0; p <= max_processor; p++)
+    if (cpu_lists != NULL)
+    {
+        destroy_bitmap(&cpu_lists->present);
+        destroy_bitmap(&cpu_lists->possible);
+        destroy_bitmap(&cpu_lists->online);
+        destroy_bitmap(&cpu_lists->offline);
+        destroy_bitmap(&cpu_lists->isolated);
+        free(cpu_lists);
+        cpu_lists = NULL;
+    }
+}
+
+int initialize_cpu_lists(int _max_processor)
+{
+
+    cpu_lists = (CPULists*)malloc((_max_processor + 1) * sizeof(CPULists));
+    if (cpu_lists == NULL)
+    {
+        ERROR_PRINT(Error in allocating memory for CPULists);
+        destroy_cpu_lists();
+        return -ENOMEM;
+    }
+
+    memset(cpu_lists, 0, sizeof(CPULists));
+
+    if (create_bitmap(_max_processor + 1, sizeof(BitmapDataType), &cpu_lists->present) != 0 ||
+        create_bitmap(_max_processor + 1, sizeof(BitmapDataType), &cpu_lists->possible) != 0 ||
+        create_bitmap(_max_processor + 1, sizeof(BitmapDataType), &cpu_lists->online) != 0 ||
+        create_bitmap(_max_processor + 1, sizeof(BitmapDataType), &cpu_lists->offline) != 0 ||
+        create_bitmap(_max_processor + 1, sizeof(BitmapDataType), &cpu_lists->isolated) != 0)
+    {
+        ERROR_PRINT(Unable to intialize bitmaps for CPULists);
+        destroy_cpu_lists();
+        return -ENOMEM;
+    }
+
+    return 0;
+}
+
+void initialize_cpu_info(int _max_processor)
+{
+    for (int p = 0; p <= _max_processor; p++)
     {
         cpu_info[p].processor = NULL;
         cpu_info[p].ProcInfo.vendor = NULL;
@@ -65,11 +129,11 @@ void initialize_cpu_info(int max_processor)
     }
 }
 
-void free_cpu_info(int max_processor)
+void free_cpu_info(int _max_processor)
 {
     if (cpu_info == NULL) return;
 
-    for (int i = 0; i <= max_processor; i ++)
+    for (int i = 0; i <= _max_processor; i ++)
     {
         if (cpu_info[i].processor != NULL)
         {
@@ -1023,7 +1087,7 @@ int check_cores(int cpu_id, bstring vendor, bstring model)
         bstring bcore = read_file(bdata(fname));
         if (blength(bcore) == 0)
         {
-            DEBUG_PRINT(DEBUGLEV_ONLY_ERROR, Failed to read /sys/devices/system/cpu/cpu%d/of_node/compatible, cpu_id);
+            ERROR_PRINT(Failed to read /sys/devices/system/cpu/cpu%d/of_node/compatible, cpu_id);
             bdestroy(bcore);
             return -errno;
         }
@@ -1050,6 +1114,62 @@ int check_cores(int cpu_id, bstring vendor, bstring model)
     return 0;
 }
 
+int update_processors()
+{
+    int tmp= 0;
+    struct tagbstring processorString = bsStatic("processor");
+    bstring src = read_file(bdata(&bcpuinfo));
+    if (blength(src) == 0)
+    {
+        int err = errno;
+        ERROR_PRINT(Error reading %s file, bdata(&bcpuinfo));
+        bdestroy(src);
+        return -err;
+    }
+
+    struct bstrList* blist = bsplit(src, '\n');
+    if (blist == NULL)
+    {
+        int err = errno;
+        ERROR_PRINT(Unable to split from src);
+        bdestroy(src);
+        return -errno;
+    }
+
+
+    for (int i = 0; i < blist->qty; i++)
+    {
+        if (bstrncmp(blist->entry[i], &processorString, blength(&processorString)) == 0)
+        {
+            if (sscanf(bdata(blist->entry[i]), "processor : %d", &tmp) == 1)
+            {
+                if (tmp == _min_processor)
+                {
+                    _min_processor = tmp;
+                }
+                else if (tmp > _max_processor)
+                {
+                    _max_processor = tmp;
+                }
+
+            }
+
+        }
+
+    }
+    // printf("min: %d, max: %d\n", _min_processor, _max_processor);
+
+    bdestroy(src);
+    bstrListDestroy(blist);
+    return 0;
+}
+
+void clear_processors()
+{
+    _min_processor = 0;
+    _max_processor = 0;
+}
+
 int read_flags_line(int cpu_id, bstring* flagline)
 {
     int result = 0;
@@ -1057,7 +1177,7 @@ int read_flags_line(int cpu_id, bstring* flagline)
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file /proc/cpuinfo for interesting flags);
     if (file == NULL)
     {
-        DEBUG_PRINT(DEBUGLEV_ONLY_ERROR, Failed to open /proc/cpuinfo file);
+        ERROR_PRINT(Failed to open /proc/cpuinfo file);
         return -errno;
     }
     
@@ -1065,7 +1185,7 @@ int read_flags_line(int cpu_id, bstring* flagline)
     fclose(file);
     if (src == NULL)
     {
-        DEBUG_PRINT(DEBUGLEV_ONLY_ERROR, Unable to read file using bread);
+        ERROR_PRINT(Unable to read file using bread);
         return -errno;
     }
 
@@ -1073,7 +1193,7 @@ int read_flags_line(int cpu_id, bstring* flagline)
     if (blist == NULL)
     {
         bdestroy(src);
-        DEBUG_PRINT(DEBUGLEV_ONLY_ERROR, Unable to split from src);
+        ERROR_PRINT(Unable to split from src);
         return -errno;
     }
 
@@ -1100,46 +1220,30 @@ int read_flags_line(int cpu_id, bstring* flagline)
     struct tagbstring steppingString = bsStatic("revision");
 #endif
 
-    int min_processor = 0;
-    int max_processor = 0;
-    int tmp= 0;
-    for (int i = 0; i < blist->qty; i++)
+    result = update_processors();
+    if (result != 0)
     {
-        if (bstrncmp(blist->entry[i], &processorString, blength(&processorString)) == 0)
-        {
-            if (sscanf(bdata(blist->entry[i]), "processor : %d", &tmp) == 1)
-            {
-                if (tmp == min_processor)
-                {
-                    min_processor = tmp;
-                }
-                else if (tmp > max_processor)
-                {
-                    max_processor = tmp;
-                }
-
-            }
-
-        }
-
+        ERROR_PRINT(Unable to update processors data from %s, bdata(&bcpuinfo));
+        bdestroy(src);
+        bstrListDestroy(blist);
+        return result;
     }
-    // printf("min: %d, max: %d\n", min_processor, max_processor);
 
-    cpu_info = (CPUInfo*)malloc((max_processor + 1) * sizeof(CPUInfo));
+    cpu_info = (CPUInfo*)malloc((_max_processor + 1) * sizeof(CPUInfo));
     if (cpu_info == NULL)
     {
-        DEBUG_PRINT(DEBUGLEV_ONLY_ERROR, Error in allocating memory for cpu_info);
-        free_cpu_info(max_processor);
+        ERROR_PRINT(Error in allocating memory for cpu_info);
+        free_cpu_info(_max_processor);
         bstrListDestroy(blist);
         bdestroy(src);
         return -errno;
     }
 
-    initialize_cpu_info(max_processor);
+    initialize_cpu_info(_max_processor);
     bstring bcpu_id = bfromcstr("");
     bformata(bcpu_id, "%d", cpu_id);
 
-    for (int p = 0; p <= max_processor; p++)
+    for (int p = 0; p <= _max_processor; p++)
     {
         for (int i = 0; i < blist->qty; i++)
         {
@@ -1195,7 +1299,7 @@ int read_flags_line(int cpu_id, bstring* flagline)
 
     }
 
-    for (int i = 0; i <= max_processor; i++)
+    for (int i = 0; i <= _max_processor; i++)
     {
         if (i == cpu_id && cpu_info[i].processor != NULL)
         {
@@ -1216,7 +1320,7 @@ int read_flags_line(int cpu_id, bstring* flagline)
                 result = check_cores(cpu_id, cpu_info[i].ProcInfo.vendor, cpu_info[i].ProcInfo.model);
                 if (result != 0)
                 {
-                    free_cpu_info(max_processor);
+                    free_cpu_info(_max_processor);
                     bdestroy(src);
                     bdestroy(bcpu_id);
                     bstrListDestroy(blist);
@@ -1228,10 +1332,11 @@ int read_flags_line(int cpu_id, bstring* flagline)
 
     }
 
-    free_cpu_info(max_processor);
+    free_cpu_info(_max_processor);
     bdestroy(src);
     bdestroy(bcpu_id);
     bstrListDestroy(blist);
+    clear_processors();
     return 0;
 }
 
@@ -1245,7 +1350,7 @@ int get_feature_flags(int cpu_id, struct bstrList** outlist)
     // printf("content: %s\n", bdata(flagline));
     if (result != 0)
     {
-        DEBUG_PRINT(DEBUGLEV_ONLY_ERROR, Failed to read cpu flags from /proc/cpuinfo file);
+        ERROR_PRINT(Failed to read cpu flags from /proc/cpuinfo file);
         bdestroy(flagline);
         return -errno;
     }
@@ -1257,7 +1362,7 @@ int get_feature_flags(int cpu_id, struct bstrList** outlist)
     if (result != 0)
     {
         bstrListDestroy(blist);
-        DEBUG_PRINT(DEBUGLEV_ONLY_ERROR, Unable to parse the flags);
+        ERROR_PRINT(Unable to parse the flags);
         return -errno;
     }
 
@@ -1266,5 +1371,116 @@ int get_feature_flags(int cpu_id, struct bstrList** outlist)
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Available flags are );
     if (DEBUGLEV_DEVELOP) bstrListPrint(*outlist);
 
+    return 0;
+}
+
+Bitmap* get_bitmap(const bstring fname)
+{
+    if (biseq(fname, &_cpu_folders[0])) return &cpu_lists->present;
+    if (biseq(fname, &_cpu_folders[1])) return &cpu_lists->possible;
+    if (biseq(fname, &_cpu_folders[2])) return &cpu_lists->online;
+    if (biseq(fname, &_cpu_folders[3])) return &cpu_lists->offline;
+    if (biseq(fname, &_cpu_folders[4])) return &cpu_lists->isolated;
+}
+
+int read_cpu_cores(bstring fname, Bitmap* bm)
+{
+    int start, end = 0;
+    int res = 0;
+    bstring src = read_file(bdata(fname));
+    if (src == NULL || blength(src) == 0)
+    {
+        int err = errno;
+        ERROR_PRINT(Failed to read %s, bdata(fname));
+        bdestroy(src);
+        return -err;
+    }
+
+    struct bstrList* blist = bsplit(src, ',');
+    bdestroy(src);
+    if (blist == NULL)
+    {
+        ERROR_PRINT(Failed to split src);
+        bstrListDestroy(blist);
+        return -errno;
+    }
+
+
+    for (int i = 0; i < blist->qty; i++)
+    {
+        int c = sscanf(bdata(blist->entry[i]), "%d-%d", &start, &end);
+        if (c == 1)
+        {
+            // printf("setting bits at index %d\n", start);
+            res = set_bit(bm, start);
+            if (res != 0)
+            {
+                printf("set bit Failed\n");
+                return res;
+            }
+            // printf("start: %d\n", start);
+        }
+        else if (c == 2)
+        {
+            // printf("setting bits from %d-%d\n", start, end);
+            for (int b = start; b <= end; ++b)
+            {
+                res = set_bit(bm, b);
+                if (res != 0)
+                {
+                    printf("set bits Failed\n");
+                    return res;
+                }
+                // printf("fname: %s,start-end: %d-%d\n", bdata(fname), start, end);
+            }
+        }
+    }
+
+    if (DEBUGLEV_DEVELOP)
+    {
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Bits set for %s, bdata(fname));
+        print_set_bits(bm);
+    }
+    bstrListDestroy(blist);
+    return 0;
+}
+
+int parse_cpu_folders()
+{
+    int result = 0;
+    result = update_processors();
+    if (result != 0)
+    {
+        ERROR_PRINT(Unable to update processors data from %s, bdata(&bcpuinfo));
+        clear_processors();
+        return result;
+    }
+
+    result = initialize_cpu_lists(_max_processor);
+    if (result != 0)
+    {
+        ERROR_PRINT(Failed to intilialie CPULists);
+        clear_processors();
+        destroy_cpu_lists();
+        return result;
+    }
+
+    for (int i = 0; i < sizeof(_cpu_folders) / sizeof(_cpu_folders[0]); ++i)
+    {
+        bstring bfile = bformat("%s/%s", bdata(&cpu_dir), _cpu_folders[i].data);
+        Bitmap* bm = get_bitmap(&_cpu_folders[i]);
+        result = read_cpu_cores(bfile, bm);
+        if (result != 0)
+        {
+            ERROR_PRINT(Failed to read %s, bdata(bfile));
+            bdestroy(bfile);
+            return result;
+        }
+
+        bdestroy(bfile);
+    }
+
+    clear_processors();
+    destroy_cpu_lists();
     return 0;
 }

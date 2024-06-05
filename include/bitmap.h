@@ -20,10 +20,11 @@ typedef struct {
     size_t          alignment;
 } Bitmap;
 
-int createBitmap(size_t size, size_t alignment, Bitmap* bitmap);
-void destroyBitmap(Bitmap *bitmap);
-int setBit(Bitmap *bitmap, size_t index);
-int clearBit(Bitmap *bitmap, size_t index);
-int isBitSet(Bitmap *bitmap, size_t index);
+int create_bitmap(size_t size, size_t alignment, Bitmap* bitmap);
+void destroy_bitmap(Bitmap *bitmap);
+int set_bit(Bitmap *bitmap, size_t index);
+int clear_bit(Bitmap *bitmap, size_t index);
+int is_bit_set(Bitmap *bitmap, size_t index);
+void print_set_bits(const Bitmap *bitmap);
 
 #endif /* BITMAP_H */
