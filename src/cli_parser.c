@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdbool.h>
 
 #include "cli_parser.h"
 #include "bstrlib.h"
@@ -551,11 +552,20 @@ int generateTestCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     {
         return -EINVAL;
     }
-    err = addConstCliOptions(options, &wgroupopts);
-    if (err < 0)
+    if (runcfg->tcfg->requirewg)
     {
-        return err;
+        DEBUG_PRINT(DEBUGLEV_DETAIL, Workgroup is set to %s so -w/--workgroup option will be parsed, "true");
+        err = addConstCliOptions(options, &wgroupopts);
+        if (err < 0)
+        {
+            return err;
+        }
     }
+    else
+    {
+        DEBUG_PRINT(DEBUGLEV_DETAIL, Workgroup is set to %s so skipping -w/--workgroup parsing, "false");
+    }
+
     for (int i = 0; i < runcfg->tcfg->num_params; i++)
     {
         TestConfigParameter* p = &runcfg->tcfg->params[i];

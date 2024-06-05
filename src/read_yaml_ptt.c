@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
@@ -249,6 +250,8 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
     struct tagbstring bthreadsoff = bsStatic("offsets");
     struct tagbstring bthreadssize = bsStatic("sizes");
     struct tagbstring bflags = bsStatic("FeatureFlag");
+    struct tagbstring brequirewg = bsStatic("RequireWorkgroup");
+    struct tagbstring btrue = bsStatic("true");
     bstring bptt = read_file(filename);
     if (blength(bptt) == 0)
     {
@@ -262,6 +265,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
     memset(conf, 0, sizeof(TestConfig));
     conf->code = NULL;
     conf->flags = bstrListCreate();
+    conf->requirewg = false;
     read_obj(bptt, &objs);
     for (i = 0; i < objs->qty; i++)
     {
@@ -428,39 +432,56 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                 btrimws(v);
                 read_yaml_ptt_list(v, &conf->flags);
             }
-/*            else if (bstrnicmp(k, &bthreads, 7) == BSTR_OK)*/
-/*            {*/
-/*                printf("Threads\n");*/
-/*                struct bstrList* threads = NULL;*/
-/*                read_obj(v, &threads);*/
-/*                for (int l = 0; l < threads->qty; l++)*/
-/*                {*/
-/*                    bstring tk, tv;*/
-/*                    ret = read_keyvalue(threads->entry[l], &tk, &tv);*/
-/*                    printf("'%s'\n", bdata(tk));*/
-/*                    if (ret == 0)*/
-/*                    {*/
-/*                        if (bstrnicmp(k, &bthreadsoff, 7) == BSTR_OK)*/
-/*                        {*/
-/*                            conf->threads.offsets = bstrListCreate();*/
-/*                            struct bstrList* vals = NULL;*/
-/*                            read_obj(tv, &vals);*/
-/*                            for (int n = 0; n < vals->qty; n++)*/
-/*                            {*/
-/*                                btrimws(vals->entry[n]);*/
-/*                                bstring x, y;*/
-/*                                ret = read_keyvalue(dims->entry[n], &x, &y);*/
-/*                                btrimws(x);*/
-/*                                bstrListAdd(p->options, x);*/
-/*                                bdestroy(x);*/
-/*                                bdestroy(y);*/
-/*                            }*/
-/*                        }*/
-/*                    }*/
-/*                    */
-/*                }*/
-/*                bstrListDestroy(threads);*/
-/*            }*/
+            else if (bstrnicmp(k, &brequirewg, blength(&brequirewg)) == BSTR_OK)
+            {
+                btrimws(v);
+                if (bstrnicmp(v, &btrue, blength(&btrue)) == BSTR_OK)
+                {
+                    conf->requirewg = true;
+                }
+                // printf("requirewg: %d\n", conf->requirewg);
+            }
+            else if (bstrnicmp(k, &bthreads, 7) == BSTR_OK)
+            {
+                // printf("Threads\n");
+                struct bstrList* threads = NULL;
+                read_obj(v, &threads);
+                conf->threads = malloc(threads->qty * sizeof(TestConfigThread));
+                if (conf->threads)
+                {
+                    for (int l = 0; l < threads->qty; l++)
+                    {
+                        TestConfigThread* t = &conf->threads[l];
+                        t->offsets = bstrListCreate();
+                        t->sizes = bstrListCreate();
+                        bstring tk, tv;
+                        ret = read_keyvalue(threads->entry[l], &tk, &tv);
+                        // printf("'%s'\n", bdata(tk));
+                        btrimws(tv);
+                        if (ret == 0)
+                        {
+                            if (bstrnicmp(tk, &bthreadsoff, 7) == BSTR_OK)
+                            {
+                                read_yaml_ptt_list(tv, &t->offsets);
+                                // bstrListPrint(t->offsets);
+                            }
+                            else if (bstrnicmp(tk, &bthreadssize, 5) == BSTR_OK)
+                            {
+                                read_yaml_ptt_list(tv, &t->sizes);
+                                // bstrListPrint(t->sizes);
+                            }
+
+                        }
+
+                        bdestroy(tk);
+                        bdestroy(tv);
+                    }
+
+                    conf->num_threads = threads->qty;
+                }
+
+                bstrListDestroy(threads);
+            }
             bdestroy(k);
             bdestroy(v);
         }
@@ -491,6 +512,22 @@ void close_vars(int num_vars, TestConfigVariable* vars)
         }
         free(vars);
         vars = NULL;
+    }
+}
+
+void close_threads(int num_threads, TestConfigThread* threads)
+{
+    int i = 0;
+    if (num_threads > 0 && threads)
+    {
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying %d threads, num_threads);
+        for (i = 0; i < num_threads; i++)
+        {
+            TestConfigThread* t = &threads[i];
+            if (t->offsets) bstrListDestroy(t->offsets);
+            if (t->sizes) bstrListDestroy(t->sizes);
+        }
+        free(threads);
     }
 }
 
@@ -553,6 +590,8 @@ void close_yaml_ptt(TestConfig_t config)
         close_vars(config->num_metrics, config->metrics);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying streams in TestConfig);
         close_streams(config->num_streams, config->streams);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying threads in TestConfig);
+        close_threads(config->num_threads, config->threads);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying parameters in TestConfig);
         close_parameters(config->num_params, config->params);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying flags in TestConfig);
