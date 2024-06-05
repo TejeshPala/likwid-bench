@@ -30,6 +30,7 @@
 #ifndef TEST_TYPES_H
 #define TEST_TYPES_H
 
+#include <stdbool.h>
 #include "bstrlib.h"
 #include "map.h"
 #include "bitmap.h"
@@ -73,6 +74,11 @@ typedef struct {
 } TestConfigVariable;
 
 typedef struct {
+    struct bstrList*        sizes;
+    struct bstrList*        offsets;
+} TestConfigThread;
+
+typedef struct {
     bstring                 name;
     bstring                 description;
     bstring                 language;
@@ -88,6 +94,9 @@ typedef struct {
     int                     num_metrics;
     TestConfigVariable *    metrics;
     struct bstrList*        flags;
+    bool                    requirewg;
+    int                     num_threads;
+    TestConfigThread *      threads;
 } TestConfig;
 typedef TestConfig* TestConfig_t;
 

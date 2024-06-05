@@ -1,6 +1,7 @@
 ---
 - Name: load
 - Description: Double-precision load, only scalar operations
+- RequireWorkgroup: true
 - FeatureFlag: 
     - sse2
 - Parameters:

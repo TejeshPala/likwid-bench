@@ -61,13 +61,12 @@ static ConstCliOption _basecliopts[] = {
     {"file", 'f', required_argument, "Test file"},
     {"kfolder", 'K', required_argument, "Folder with test files to search for test name"},
     {"tmpfolder", 'D', required_argument, "Temporary folder for the object files"},
-    {"workgroup", 'w', multi_argument, "Workgroup definition"},
     {"iterations", 'i', required_argument, "Iterations"},
     {"runtime", 'r', required_argument, "Possible Units: ms, s, m, h. Default: s. Runtime"},
 };
 
 static ConstCliOptions basecliopts = {
-    .num_options = 9,
+    .num_options = 8,
     .options = _basecliopts,
 };
 
