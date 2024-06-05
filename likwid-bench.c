@@ -268,6 +268,13 @@ int main(int argc, char** argv)
         goto main_out;
     }
 
+    res = parse_cpu_folders();
+    if (res < 0)
+    {
+        ERROR_PRINT(Error parsing CPU folders);
+        goto main_out;
+    }
+
     // printf("flags qty: %d\n", runcfg->tcfg->flags->qty);
     int found = 0;
     if (runcfg->tcfg->flags->qty > 0 && flist->qty > 0)
