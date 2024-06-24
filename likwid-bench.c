@@ -336,7 +336,21 @@ int main(int argc, char** argv)
         goto main_out;
     }
 
-
+    if (runcfg->tcfg->requirewg)
+    {
+        err = assignWorkgroupCliOptions(&testopts, runcfg);
+        if (err < 0)
+        {
+            errno = -err;
+            ERROR_PRINT(Error assigning workgroup CLI options);
+            goto main_out;
+        }
+        if (runcfg->num_wgroups == 0) {
+            errno = EINVAL;
+            ERROR_PRINT(No workgroups on the command line);
+            goto main_out;
+        }
+    }
 
     /*
      * Analyse workgroups
@@ -387,12 +401,12 @@ int main(int argc, char** argv)
     /*
      * Allocate arrays
      */
-     err = allocate_streams(runcfg);
-     if (err < 0)
-     {
+    err = allocate_streams(runcfg);
+    if (err < 0)
+    {
         ERROR_PRINT(Error allocating streams);
         goto main_out;
-     }
+    }
 
     /*
      * Start threads
