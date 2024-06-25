@@ -51,6 +51,7 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->tcfg = NULL;
     runcfg->codelines = NULL;
     runcfg->params = NULL;
+    runcfg->global_results = NULL;
     runcfg->testname = bfromcstr("");
     runcfg->pttfile = bfromcstr("");
     runcfg->tmpfolder = bfromcstr("");
@@ -88,7 +89,7 @@ void free_runtime_config(RuntimeConfig* runcfg)
                     {
                         destroy_result(&runcfg->wgroups[i].results[j]);
                     }
-                    destroy_result(&runcfg->wgroups[i].group_results);
+                    destroy_result(runcfg->wgroups[i].group_results);
                     free(runcfg->wgroups[i].results);
                     runcfg->wgroups[i].results = NULL;
                 }
@@ -155,11 +156,11 @@ void free_runtime_config(RuntimeConfig* runcfg)
             runcfg->codelines = NULL;
         }
 
-        if (runcfg->global_results.variables)
+        if (runcfg->global_results->variables)
         {
-            destroy_result(&runcfg->global_results);
-            //free(runcfg->global_results);
-/*            runcfg->global_results = NULL;*/
+            destroy_result(runcfg->global_results);
+            free(runcfg->global_results);
+            runcfg->global_results = NULL;
         }
         free(runcfg);
     }

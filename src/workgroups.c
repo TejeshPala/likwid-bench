@@ -25,7 +25,7 @@ void delete_workgroup(RuntimeWorkgroupConfig* wg)
         free(wg->results);
         wg->results = NULL;
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy result storage for workgroup %s, bdata(wg->str));
-        destroy_result(&wg->group_results);
+        destroy_result(wg->group_results);
     }
     if (wg->hwthreads)
     {
@@ -90,7 +90,7 @@ int allocate_workgroup_stuff(RuntimeWorkgroupConfig* wg)
         }
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Init result storage for workgroup %s, bdata(wg->str));
-    err = init_result(&wg->group_results);
+    err = init_result(wg->group_results);
     if (err != 0)
     {
         for (int j = 0; j < wg->num_threads; j++)
@@ -149,7 +149,7 @@ void print_workgroup(RuntimeWorkgroupConfig* wg)
     }
     printf("\n");
     printf("Group result\n");
-    print_result(&wg->group_results);
+    print_result(wg->group_results);
     for (int i = 0; i < wg->num_threads; i++)
     {
         printf("Results for Thread %d (HWThread %d)\n", i, wg->hwthreads[i]);

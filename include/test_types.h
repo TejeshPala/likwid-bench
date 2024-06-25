@@ -138,7 +138,7 @@ typedef struct {
     int* hwthreads;
     RuntimeWorkgroupResult* results;
     pthread_t *threads;
-    RuntimeWorkgroupResult group_results;
+    RuntimeWorkgroupResult* group_results;
     int num_streams;
     RuntimeStreamConfig* streams;
     int num_params;
@@ -161,7 +161,7 @@ typedef struct {
     bstring arraysize;
     TestConfig_t tcfg;
     struct bstrList* codelines;
-    RuntimeWorkgroupResult global_results;
+    RuntimeWorkgroupResult* global_results;
     RuntimeTestConfig testconfig;
 } RuntimeConfig;
 
