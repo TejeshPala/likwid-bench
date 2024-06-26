@@ -435,31 +435,34 @@ static void bmap_free(mpointer val)
 /*}*/
 
 
-int init_result(RuntimeWorkgroupResult* result)
+int init_result(RuntimeWorkgroupResult** result)
 {
     int err = 0;
-    result->values = NULL;
-    result->variables = NULL;
+    RuntimeWorkgroupResult* nresult = malloc(sizeof(RuntimeWorkgroupResult));
+    nresult->values = NULL;
+    nresult->variables = NULL;
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Creating values map);
-    err = init_bmap(&result->values, bmap_free);
+    err = init_bmap(&nresult->values, bmap_free);
     if (err != 0)
     {
         ERROR_PRINT(Creating values map failed);
-        result->values = NULL;
-        result->variables = NULL;
+        nresult->values = NULL;
+        nresult->variables = NULL;
         return err;
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Creating variables map);
-    err = init_bmap(&result->variables, bmap_free);
+    err = init_bmap(&nresult->variables, bmap_free);
     if (err != 0)
     {
         ERROR_PRINT(Creating variables map failed);
-        destroy_bmap(result->values);
-        result->values = NULL;
-        result->variables = NULL;
+        destroy_bmap(nresult->values);
+        nresult->values = NULL;
+        nresult->variables = NULL;
         return err;
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Values %p Variables %p, result->values, result->variables);
+    *result = nresult;
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Values %p Variables %p, nresult->values, nresult->variables);
+    destroy_result(nresult);
     return 0;
 }
 

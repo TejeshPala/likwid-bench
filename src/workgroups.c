@@ -90,7 +90,7 @@ int allocate_workgroup_stuff(RuntimeWorkgroupConfig* wg)
         }
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Init result storage for workgroup %s, bdata(wg->str));
-    err = init_result(wg->group_results);
+    err = init_result(&wg->group_results);
     if (err != 0)
     {
         for (int j = 0; j < wg->num_threads; j++)
