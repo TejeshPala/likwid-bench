@@ -3,15 +3,15 @@
 #include <string.h>
 #include <unistd.h>
 #include <error.h>
+#include <pthread.h>
 
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
 #include "test_types.h"
-
 #include "workgroups.h"
 #include "topology.h"
 #include "results.h"
-#include <pthread.h>
+#include "allocator.h"
 
 void delete_workgroup(RuntimeWorkgroupConfig* wg)
 {
@@ -80,13 +80,16 @@ int allocate_workgroup_stuff(RuntimeWorkgroupConfig* wg)
     for (int j = 0; j < wg->num_threads; j++)
     {
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Init result storage for thread %d (HWThread %d), j, wg->hwthreads[j]);
-        int err = init_result(&wg->results[j]);
+        err = init_result(&wg->results);
         if (err < 0)
         {
             for (int k = 0; k < j; k++)
             {
                 destroy_result(&wg->results[k]);
             }
+            free(wg->results);
+            wg->results = NULL;
+            return err;
         }
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Init result storage for workgroup %s, bdata(wg->str));

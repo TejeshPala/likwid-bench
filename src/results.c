@@ -439,6 +439,11 @@ int init_result(RuntimeWorkgroupResult** result)
 {
     int err = 0;
     RuntimeWorkgroupResult* nresult = malloc(sizeof(RuntimeWorkgroupResult));
+    if (!nresult)
+    {
+        printf("failed to allocate memory for RuntimeWorkgroupResult\n");
+        return -ENOMEM;
+    }
     nresult->values = NULL;
     nresult->variables = NULL;
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Creating values map);
@@ -462,7 +467,6 @@ int init_result(RuntimeWorkgroupResult** result)
     }
     *result = nresult;
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Values %p Variables %p, nresult->values, nresult->variables);
-    destroy_result(nresult);
     return 0;
 }
 
