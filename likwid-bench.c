@@ -385,6 +385,34 @@ int main(int argc, char** argv)
     }
 
     /*
+     * Init arrays
+     */
+    for (int i = 0; i < runcfg->num_wgroups; i++)
+    {
+        // move allocate stream per wg
+        // do if only global_initialization
+        for (int w = 0; w < runcfg->wgroups[i].num_streams; w++)
+        {
+            err = initialize_arrays(runcfg->wgroups[i].streams[w].ptr);
+            if (err < 0)
+            {
+                ERROR_PRINT(Error Intializing threads);
+                goto main_out;
+            }
+        }
+    }
+
+    /*
+     * Allocate arrays
+     */
+    err = allocate_streams(runcfg);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error allocating streams);
+        goto main_out;
+    }
+
+    /*
      * Generate assembly
      */
     runcfg->codelines = bstrListCreate();
@@ -399,35 +427,10 @@ int main(int argc, char** argv)
         DEBUG_PRINT(global_verbosity, "CODE: %s\n", bdata(runcfg->codelines->entry[i]));
     }
 
-    /*
-     * Allocate arrays
-     */
-    err = allocate_streams(runcfg);
-    if (err < 0)
-    {
-        ERROR_PRINT(Error allocating streams);
-        goto main_out;
-    }
 
     /*
      * Start threads
      */
-
-    /*
-     * Init arrays
-     */
-     for (int i = 0; i < runcfg->num_wgroups; i++)
-     {
-        for (int w = 0; w < runcfg->wgroups[i].num_streams; w++)
-	    {
-	        err = initialize_arrays(runcfg->wgroups[i].streams[w].ptr);
-	        if (err < 0)
-	        {
-	            ERROR_PRINT(Error Intializing threads);
-		        goto main_out;
-	        }
-	    }
-     }
 
     /*
      * Prepare thread runtime info
