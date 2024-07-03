@@ -132,7 +132,7 @@ int _allocate_arrays_1dim(RuntimeStreamConfig *sdata)
     size_t size = getstreambytes(sdata);
     size_t msize;
     if (msize < 0) return msize;
-    printf("_allocate_arrays_1dim %lu Bytes for str %d\n", msize, sdata->id);
+    printf("_allocate_arrays_1dim %lu Bytes with stream name %s\n", size, bdata(sdata->name));
     switch(sdata->type)
     {
         DEFINE_1DIM_TYPE_CASE_ALLOC(TEST_STREAM_TYPE_DOUBLE, double, sdata->offsets[0])

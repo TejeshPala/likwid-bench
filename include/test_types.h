@@ -95,6 +95,7 @@ typedef struct {
     TestConfigVariable *    metrics;
     struct bstrList*        flags;
     bool                    requirewg;
+    bool                    initialization;
     int                     num_threads;
     TestConfigThread *      threads;
 } TestConfig;

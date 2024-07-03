@@ -140,6 +140,63 @@ int resolve_workgroups(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
     return 0;
 }
 
+int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
+{
+    int err = 0;
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Allocating %d streams, runcfg->tcfg->num_streams);
+    wg->streams = malloc(runcfg->tcfg->num_streams * sizeof(RuntimeStreamConfig));
+    if (!wg->streams)
+    {
+        ERROR_PRINT(Unable to allocate memory for Streams);
+        return -ENOMEM;
+    }
+    memset(wg->streams, 0, runcfg->tcfg->num_streams * sizeof(RuntimeStreamConfig));
+
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Allocating %d streams, runcfg->tcfg->num_streams);
+    for (int j = 0; j < runcfg->tcfg->num_streams; j++)
+    {
+        TestConfigStream *istream = &runcfg->tcfg->streams[j];
+        RuntimeStreamConfig* ostream = &wg->streams[j];
+        if (istream && ostream)
+        {
+            ostream->name = bstrcpy(istream->name);
+            ostream->type = istream->type;
+            ostream->dims = 0;
+            for (int j = 0; j < istream->num_dims && j < istream->dims->qty; j++)
+            {
+                bstring t = bstrcpy(istream->dims->entry[j]);
+                printf("dimsize before %s\n", bdata(t));
+                replace_all(runcfg->global_results, t, NULL);
+                int res = 0;
+                int c = sscanf(bdata(t), "%d", &res);
+                if (c == 1)
+                {
+                    ostream->dimsizes[j] = res;
+                }
+                printf("dimsize after %ld\n", ostream->dimsizes[j]);
+                ostream->dims++;
+            }
+            // printf("name: %s, type: %d, dims: %d\n", bdata(ostream->name), ostream->type, ostream->dims);
+        }
+    }
+
+
+    wg->num_streams = runcfg->tcfg->num_streams;
+    for (int j = 0; j < wg->num_streams; j++)
+    {
+        err = allocate_arrays(&wg->streams[j]);
+        if (err < 0)
+        {
+            release_arrays(&wg->streams[j]);
+            for(int k = 0; k < j; k++)
+            {
+                release_arrays(&wg->streams[k]);
+            }
+        }
+    }
+    return 0;
+}
+
 void _print_workgroup_cb(mpointer key, mpointer val, mpointer user_data)
 {
     bstring bkey = (bstring)key;

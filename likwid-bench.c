@@ -389,27 +389,32 @@ int main(int argc, char** argv)
      */
     for (int i = 0; i < runcfg->num_wgroups; i++)
     {
-        // move allocate stream per wg
-        // do if only global_initialization
-        for (int w = 0; w < runcfg->wgroups[i].num_streams; w++)
-        {
-            err = initialize_arrays(runcfg->wgroups[i].streams[w].ptr);
-            if (err < 0)
-            {
-                ERROR_PRINT(Error Intializing threads);
-                goto main_out;
-            }
-        }
-    }
-
     /*
      * Allocate arrays
      */
-    err = allocate_streams(runcfg);
-    if (err < 0)
-    {
-        ERROR_PRINT(Error allocating streams);
-        goto main_out;
+        // move allocate stream per wg
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[i];
+        err = manage_streams(wg, runcfg);
+        if (err < 0)
+        {
+            ERROR_PRINT(Error allocating streams);
+            goto main_out;
+        }
+        // do if only global_initialization
+        if (runcfg->tcfg->initialization)
+        {
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Global Initializing arrays);
+            for (int w = 0; w < wg->num_streams; w++)
+            {
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Working on stream %s, bdata(wg->streams[w].name));
+                err = initialize_arrays(wg->streams[w].ptr);
+                if (err < 0)
+                {
+                    ERROR_PRINT(Error Intializing threads);
+                    goto main_out;
+                }
+            }
+        }
     }
 
     /*

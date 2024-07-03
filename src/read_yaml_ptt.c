@@ -236,6 +236,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
     struct tagbstring bstrdatatypeint = bsStatic("integer");
     struct tagbstring bstrdimensions = bsStatic("dimensions");
     struct tagbstring bstrdimsizes = bsStatic("dimsizes");
+    struct tagbstring bstropts = bsStatic("options");
     struct tagbstring bname = bsStatic("Name");
     struct tagbstring bdesc = bsStatic("Description");
     struct tagbstring blang = bsStatic("Language");
@@ -252,6 +253,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
     struct tagbstring bflags = bsStatic("FeatureFlag");
     struct tagbstring brequirewg = bsStatic("RequireWorkgroup");
     struct tagbstring btrue = bsStatic("true");
+    struct tagbstring bperthread = bsStatic("perthread");
     bstring bptt = read_file(filename);
     if (blength(bptt) == 0)
     {
@@ -266,6 +268,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
     conf->code = NULL;
     conf->flags = bstrListCreate();
     conf->requirewg = false;
+    conf->initialization = false;
     read_obj(bptt, &objs);
     for (i = 0; i < objs->qty; i++)
     {
@@ -333,6 +336,14 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                                     if (bstrnicmp(vk, &bstrdimsizes, 8) == BSTR_OK)
                                     {
                                         read_yaml_ptt_list(vv, &s->dims);
+                                    }
+                                    if (bstrnicmp(vk, &bstropts, 7) == BSTR_OK)
+                                    {
+                                        btrimws(vv);
+                                        if (bstrnicmp(vv, &bperthread, blength(&bperthread)) == BSTR_OK)
+                                        {
+                                            conf->initialization = true;
+                                        }
                                     }
                                     //printf("Stream '%s' '%s'\n", bdata(s->name), bdata(vk));
                                     bdestroy(vk);
