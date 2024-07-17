@@ -90,6 +90,8 @@ void free_runtime_config(RuntimeConfig* runcfg)
                         destroy_result(&runcfg->wgroups[i].results[j]);
                     }
                     destroy_result(runcfg->wgroups[i].group_results);
+                    free(runcfg->wgroups[i].group_results);
+                    runcfg->wgroups[i].group_results = NULL;
                     free(runcfg->wgroups[i].results);
                     runcfg->wgroups[i].results = NULL;
                 }

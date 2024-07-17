@@ -43,7 +43,6 @@ void delete_workgroup(RuntimeWorkgroupConfig* wg)
 int resolve_workgroup(RuntimeWorkgroupConfig* wg, int maxThreads)
 {
     int err = 0;
-
     wg->num_threads = 0;
     wg->hwthreads = malloc(maxThreads * sizeof(int));
     if (!wg->hwthreads)
@@ -62,6 +61,7 @@ int resolve_workgroup(RuntimeWorkgroupConfig* wg, int maxThreads)
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Workgroup string %s resolves to %d threads, bdata(wg->str), nthreads);
     wg->num_threads = nthreads;
+    wg->threads = NULL;
     return 0;
 }
 
@@ -72,10 +72,10 @@ int allocate_workgroup_stuff(RuntimeWorkgroupConfig* wg)
     {
         return -EINVAL;
     }
-    wg->results = malloc(wg->num_threads * sizeof(RuntimeWorkgroupConfig));
+    wg->results = malloc(wg->num_threads * sizeof(RuntimeWorkgroupResult));
     if (!wg->results)
     {
-        ERROR_PRINT(Unable to allocate memory for wg results);
+        ERROR_PRINT(Unable to allocate memory for RuntimeWorkgroupResult);
         return -ENOMEM;
     }
     for (int j = 0; j < wg->num_threads; j++)
@@ -103,6 +103,7 @@ int allocate_workgroup_stuff(RuntimeWorkgroupConfig* wg)
         }
         free(wg->results);
         wg->results = NULL;
+        return err;
     }
     return err;
 }
@@ -162,18 +163,18 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
             ostream->name = bstrcpy(istream->name);
             ostream->type = istream->type;
             ostream->dims = 0;
-            for (int j = 0; j < istream->num_dims && j < istream->dims->qty; j++)
+            for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
             {
-                bstring t = bstrcpy(istream->dims->entry[j]);
+                bstring t = bstrcpy(istream->dims->entry[k]);
                 printf("dimsize before %s\n", bdata(t));
                 replace_all(runcfg->global_results, t, NULL);
                 int res = 0;
                 int c = sscanf(bdata(t), "%d", &res);
                 if (c == 1)
                 {
-                    ostream->dimsizes[j] = res;
+                    ostream->dimsizes[k] = res;
                 }
-                printf("dimsize after %ld\n", ostream->dimsizes[j]);
+                printf("dimsize after %ld\n", ostream->dimsizes[k]);
                 ostream->dims++;
             }
             // printf("name: %s, type: %d, dims: %d\n", bdata(ostream->name), ostream->type, ostream->dims);
@@ -192,6 +193,7 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
             {
                 release_arrays(&wg->streams[k]);
             }
+            return err;
         }
     }
     return 0;

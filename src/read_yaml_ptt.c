@@ -268,7 +268,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
     conf->code = NULL;
     conf->flags = bstrListCreate();
     conf->requirewg = false;
-    conf->initialization = false;
+    conf->initialization = true;
     read_obj(bptt, &objs);
     for (i = 0; i < objs->qty; i++)
     {
@@ -339,11 +339,15 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                                     }
                                     if (bstrnicmp(vk, &bstropts, 7) == BSTR_OK)
                                     {
-                                        btrimws(vv);
-                                        if (bstrnicmp(vv, &bperthread, blength(&bperthread)) == BSTR_OK)
+                                        struct bstrList* tmpl = bstrListCreate();
+                                        read_yaml_ptt_list(vv, &tmpl);
+                                        // printf("Options: %s\n", bdata(tmpl->entry[0]));
+                                        // bstrListPrint(tmpl);
+                                        if (bstrnicmp(tmpl->entry[0], &bperthread, blength(&bperthread)) == BSTR_OK)
                                         {
-                                            conf->initialization = true;
+                                            conf->initialization = false;
                                         }
+                                        bstrListDestroy(tmpl);
                                     }
                                     //printf("Stream '%s' '%s'\n", bdata(s->name), bdata(vk));
                                     bdestroy(vk);
