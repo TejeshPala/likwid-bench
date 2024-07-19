@@ -60,7 +60,7 @@ int add_thread_const(int thread, bstring name, double constant);
 int get_formula(int thread, bstring name, double* value);
 void destroy_results();
 
-int init_result(RuntimeWorkgroupResult** result);
+int init_result(RuntimeWorkgroupResult* result);
 int add_value(RuntimeWorkgroupResult* result, bstring name, double value);
 int add_variable(RuntimeWorkgroupResult* result, bstring name, bstring value);
 int get_value(RuntimeWorkgroupResult* result, bstring name, double* value);

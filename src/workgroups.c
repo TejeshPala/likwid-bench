@@ -75,13 +75,13 @@ int allocate_workgroup_stuff(RuntimeWorkgroupConfig* wg)
     wg->results = malloc(wg->num_threads * sizeof(RuntimeWorkgroupResult));
     if (!wg->results)
     {
-        ERROR_PRINT(Unable to allocate memory for RuntimeWorkgroupResult);
+        ERROR_PRINT(Unable to allocate memory for results);
         return -ENOMEM;
     }
     for (int j = 0; j < wg->num_threads; j++)
     {
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Init result storage for thread %d (HWThread %d), j, wg->hwthreads[j]);
-        err = init_result(&wg->results);
+        err = init_result(&wg->results[j]);
         if (err < 0)
         {
             for (int k = 0; k < j; k++)
@@ -93,8 +93,20 @@ int allocate_workgroup_stuff(RuntimeWorkgroupConfig* wg)
             return err;
         }
     }
+    wg->group_results = malloc(sizeof(RuntimeWorkgroupResult));
+    if (!wg->group_results)
+    {
+        ERROR_PRINT(Unable to allocate memory for group results);
+        for (int j = 0; j < wg->num_threads; j++)
+        {
+            destroy_result(&wg->results[j]);
+        }
+        free(wg->results);
+        wg->results = NULL;
+        return -ENOMEM;
+    }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Init result storage for workgroup %s, bdata(wg->str));
-    err = init_result(&wg->group_results);
+    err = init_result(wg->group_results);
     if (err < 0)
     {
         for (int j = 0; j < wg->num_threads; j++)
@@ -103,6 +115,8 @@ int allocate_workgroup_stuff(RuntimeWorkgroupConfig* wg)
         }
         free(wg->results);
         wg->results = NULL;
+        free(wg->group_results);
+        wg->group_results = NULL;
         return err;
     }
     return err;

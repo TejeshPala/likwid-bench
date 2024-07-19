@@ -435,38 +435,31 @@ static void bmap_free(mpointer val)
 /*}*/
 
 
-int init_result(RuntimeWorkgroupResult** result)
+int init_result(RuntimeWorkgroupResult* result)
 {
     int err = 0;
-    RuntimeWorkgroupResult* nresult = malloc(sizeof(RuntimeWorkgroupResult));
-    if (!nresult)
-    {
-        printf("failed to allocate memory for RuntimeWorkgroupResult\n");
-        return -ENOMEM;
-    }
-    nresult->values = NULL;
-    nresult->variables = NULL;
+    result->values = NULL;
+    result->variables = NULL;
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Creating values map);
-    err = init_bmap(&nresult->values, bmap_free);
+    err = init_bmap(&result->values, bmap_free);
     if (err != 0)
     {
         ERROR_PRINT(Creating values map failed);
-        nresult->values = NULL;
-        nresult->variables = NULL;
+        result->values = NULL;
+        result->variables = NULL;
         return err;
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Creating variables map);
-    err = init_bmap(&nresult->variables, bmap_free);
+    err = init_bmap(&result->variables, bmap_free);
     if (err != 0)
     {
         ERROR_PRINT(Creating variables map failed);
-        destroy_bmap(nresult->values);
-        nresult->values = NULL;
-        nresult->variables = NULL;
+        destroy_bmap(result->values);
+        result->values = NULL;
+        result->variables = NULL;
         return err;
     }
-    *result = nresult;
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Values %p Variables %p, nresult->values, nresult->variables);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Values %p Variables %p, result->values, result->variables);
     return 0;
 }
 

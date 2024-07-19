@@ -373,7 +373,13 @@ int main(int argc, char** argv)
      * Evaluate variables, constants, ... for remaining operations
      * There should be now all values available
      */
-    err = init_result(&runcfg->global_results);
+    runcfg->global_results = malloc(sizeof(RuntimeWorkgroupResult));
+    if (!runcfg->global_results)
+    {
+        ERROR_PRINT(Unable to allocate memory for global results);
+        goto main_out;
+    }
+    err = init_result(runcfg->global_results);
     if (err < 0)
     {
         ERROR_PRINT(Error initializing global result storage);
