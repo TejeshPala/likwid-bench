@@ -190,6 +190,7 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
                 }
                 printf("dimsize after %ld\n", ostream->dimsizes[k]);
                 ostream->dims++;
+                bdestroy(t);
             }
             // printf("name: %s, type: %d, dims: %d\n", bdata(ostream->name), ostream->type, ostream->dims);
         }
