@@ -116,10 +116,11 @@ int join_threads(int num_wgroups, thread_group_t* thread_groups)
     {
         for (int i = 0; i < thread_groups[w].num_threads; i++)
         {
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Joining thread %d in workgroup %d with thread ID %d, thread_groups[w].threads[i].local_id, w, thread_groups[w].threads[i].thread);
             err = pthread_join(thread_groups[w].threads[i].thread, NULL);
             if (err != 0)
             {
-                ERROR_PRINT(Error joining thread %d in workgroup %d with error, thread_groups[w].threads[i].local_id, w, strerror(err));
+                ERROR_PRINT(Error joining thread %d in workgroup %d with error %s, thread_groups[w].threads[i].local_id, w, strerror(err));
                 return -1;
             }
         }
@@ -130,8 +131,8 @@ int join_threads(int num_wgroups, thread_group_t* thread_groups)
 int update_thread_group(RuntimeConfig* runcfg, thread_group_t** thread_groups)
 {
     int err = 0;
-    *thread_groups = (thread_group_t*) malloc(runcfg->num_wgroups * sizeof(thread_group_t));
-    if (!*thread_groups)
+    thread_group_t* temp_groups = (thread_group_t*) malloc(runcfg->num_wgroups * sizeof(thread_group_t));
+    if (!temp_groups)
     {
         ERROR_PRINT(Failed to allocate memory for thread groups);
         err = -ENOMEM;
@@ -141,7 +142,7 @@ int update_thread_group(RuntimeConfig* runcfg, thread_group_t** thread_groups)
     for (int w = 0; w < runcfg->num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
-        thread_group_t* group = &(*thread_groups)[w];
+        thread_group_t* group = &temp_groups[w];
         group->num_threads = wg->num_threads;
         // printf("Num threads: %d\n", group->num_threads);
         group->id = wg->hwthreads;
@@ -194,7 +195,7 @@ int update_thread_group(RuntimeConfig* runcfg, thread_group_t** thread_groups)
             // printf("Threadid: %d\n", thread->data->hwthread);
             if (pthread_create(&thread->thread, NULL, _func_t, thread))
             {
-                ERROR_PRINT(Error creating thread %d, thread);
+                ERROR_PRINT(Error creating thread %d, thread->local_id);
                 err = -1;
                 goto free;
             }
@@ -211,31 +212,36 @@ int update_thread_group(RuntimeConfig* runcfg, thread_group_t** thread_groups)
             }
         }
     }
+
+    *thread_groups = temp_groups;
     return 0;
 
 free:
-    for (int w = 0; w < runcfg->num_wgroups; w++)
+    if (temp_groups)
     {
-        thread_group_t* group = &(*thread_groups)[w];
-        if (group->barrier)
+        for (int w = 0; w < runcfg->num_wgroups; w++)
         {
-            pthread_barrier_destroy(&group->barrier->barrier);
-            free(group->barrier);
-        }
-        if (group->threads)
-        {
-            for (int i = 0; i < group->num_threads; i++)
+            thread_group_t* group = &temp_groups[w];
+            if (group->barrier)
             {
-                if (group->threads[i].data)
-                {
-                    free(group->threads[i].data);
-                }
+                pthread_barrier_destroy(&group->barrier->barrier);
+                free(group->barrier);
             }
-            free(group->threads);
+            if (group->threads)
+            {
+                for (int i = 0; i < group->num_threads; i++)
+                {
+                    if (group->threads[i].data)
+                    {
+                        free(group->threads[i].data);
+                    }
+                }
+                free(group->threads);
+            }
         }
+        free(temp_groups);
+        temp_groups = NULL;
     }
-    free(*thread_groups);
-    *thread_groups = NULL;
     return err;
 }
 
