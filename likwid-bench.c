@@ -19,6 +19,7 @@
 #include "allocator.h"
 #include "results.h"
 #include "topology.h"
+#include "thread_group.h"
 
 #ifndef global_verbosity
 int global_verbosity = DEBUGLEV_DEVELOP;
@@ -75,7 +76,7 @@ void free_runtime_config(RuntimeConfig* runcfg)
         bdestroy(runcfg->tmpfolder);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy kernelfolder in RuntimeConfig);
         bdestroy(runcfg->kernelfolder);
-	DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy arraysize in RuntimeConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy arraysize in RuntimeConfig);
         bdestroy(runcfg->arraysize);
         if (runcfg->wgroups)
         {
@@ -444,6 +445,13 @@ int main(int argc, char** argv)
     /*
      * Start threads
      */
+    thread_group_t* tgroups = NULL;
+    err = update_thread_group(runcfg, &tgroups);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error updating thread groups);
+        goto main_out;
+    }
 
     /*
      * Prepare thread runtime info
@@ -452,6 +460,12 @@ int main(int argc, char** argv)
     /*
      * Run benchmark
      */
+    //err = bench(join_threads, runcfg->num_wgroups, tgroups, runcfg);
+    //if (err < 0)
+    //{
+    //    ERROR_PRINT(Error benchmarking the run);
+    //    goto main_out;
+    //}
 
     /*
      * Free arrays
@@ -460,6 +474,12 @@ int main(int argc, char** argv)
     /*
      * Destroy threads
      */
+    //err = destroy_tgroups(runcfg->num_wgroups, tgroups);
+    //if (err != 0)
+    //{
+    //    ERROR_PRINT(Error destroying thread groups);
+    //    goto main_out;
+    //}
 
     /*
      * Calculate metrics

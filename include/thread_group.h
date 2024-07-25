@@ -34,15 +34,18 @@
 /*#include <stdio.h>*/
 /*#include <string.h>*/
 /*#include <unistd.h>*/
+/*#include <map.h>*/
 #include <stdint.h>
-
 #include <pthread.h>
 
-/*#include <map.h>*/
+#include "test_types.h"
+
+#define MIN_ITERATIONS 100
+#define MIN_RUNTIME 0.2
 
 typedef struct {
     pthread_barrier_t barrier;
-    pthread_barrier_attr_t b_attr;
+    pthread_barrierattr_t b_attr;
 } thread_barrier_t;
 
 typedef enum {
@@ -64,7 +67,7 @@ typedef struct {
 typedef _thread_data* thread_data_t;
 
 typedef struct {
-    pthread thread;
+    pthread_t thread;
     int local_id;
     int global_id;
     double runtime;
@@ -74,11 +77,16 @@ typedef struct {
 } thread_group_thread_t;
 
 typedef struct {
-    int id;
+    int* id;
     int workgroup;
     int num_threads;
-    thread_group_thread_t *threads;
+    thread_group_thread_t* threads;
     thread_barrier_t* barrier;
 } thread_group_t;
+
+int destroy_tgroups(int num_wgroups, thread_group_t* thread_groups);
+int update_thread_group(RuntimeConfig* runcfg, thread_group_t** thread_groups);
+int join_threads(int num_wgroups, thread_group_t* thread_groups);
+double bench(int (*fn)(int num_wgroups, thread_group_t* thread_groups), int num_wgroups, thread_group_t* thread_groups, RuntimeConfig* runcfg);
 
 #endif /* THREAD_GROUP_H */
