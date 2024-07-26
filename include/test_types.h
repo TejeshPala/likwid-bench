@@ -184,6 +184,7 @@ typedef struct {
     RuntimeStreamConfig* streams;
     int num_params;
     RuntimeParameterConfig* params;
+    RuntimeThreadgroupConfig* tgroups;
 } RuntimeWorkgroupConfig;
 
 typedef struct {
@@ -204,7 +205,6 @@ typedef struct {
     struct bstrList* codelines;
     RuntimeWorkgroupResult* global_results;
     RuntimeTestConfig testconfig;
-    RuntimeThreadgroupConfig* tgroups;
 } RuntimeConfig;
 
 
