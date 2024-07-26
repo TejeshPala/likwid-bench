@@ -53,7 +53,6 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->codelines = NULL;
     runcfg->params = NULL;
     runcfg->global_results = NULL;
-    runcfg->tgroups = NULL;
     runcfg->testname = bfromcstr("");
     runcfg->pttfile = bfromcstr("");
     runcfg->tmpfolder = bfromcstr("");
@@ -446,7 +445,7 @@ int main(int argc, char** argv)
     /*
      * Start threads
      */
-    err = update_thread_group(runcfg, &runcfg->tgroups);
+    err = update_thread_group(runcfg, &runcfg->wgroups->tgroups);
     if (err < 0)
     {
         ERROR_PRINT(Error updating thread groups);
@@ -457,7 +456,7 @@ int main(int argc, char** argv)
      * Prepare thread runtime info
      */
 
-    err = create_threads(runcfg->num_wgroups, runcfg->tgroups);
+    err = create_threads(runcfg->num_wgroups, runcfg->wgroups->tgroups);
     if (err < 0)
     {   
         ERROR_PRINT(Error creating thread);
@@ -534,7 +533,7 @@ int main(int argc, char** argv)
     //}
     // command loop for threads
 
-    err = join_threads(runcfg->num_wgroups, runcfg->tgroups);
+    err = join_threads(runcfg->num_wgroups, runcfg->wgroups->tgroups);
     if (err < 0)
     {
         ERROR_PRINT(Error joining threads);
@@ -548,7 +547,7 @@ int main(int argc, char** argv)
     /*
      * Destroy threads
      */
-    err = destroy_tgroups(runcfg->num_wgroups, runcfg->tgroups);
+    err = destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups->tgroups);
     if (err != 0)
     {
         ERROR_PRINT(Error destroying thread groups);
