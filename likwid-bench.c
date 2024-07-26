@@ -53,6 +53,7 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->codelines = NULL;
     runcfg->params = NULL;
     runcfg->global_results = NULL;
+    runcfg->tgroups = NULL;
     runcfg->testname = bfromcstr("");
     runcfg->pttfile = bfromcstr("");
     runcfg->tmpfolder = bfromcstr("");
@@ -445,8 +446,7 @@ int main(int argc, char** argv)
     /*
      * Start threads
      */
-    thread_group_t* tgroups = NULL;
-    err = update_thread_group(runcfg, &tgroups);
+    err = update_thread_group(runcfg, &runcfg->tgroups);
     if (err < 0)
     {
         ERROR_PRINT(Error updating thread groups);
@@ -460,12 +460,19 @@ int main(int argc, char** argv)
     /*
      * Run benchmark
      */
-    //int time_exec = bench(join_threads, runcfg->num_wgroups, tgroups, runcfg);
-    //if (time_exec < 0)
-    //{
-    //    ERROR_PRINT(Error benchmarking the run);
-    //    goto main_out;
-    //}
+    int time_exec = bench(create_threads, runcfg->num_wgroups, runcfg->tgroups, runcfg);
+    if (time_exec < 0)
+    {
+        ERROR_PRINT(Error benchmarking the run);
+        goto main_out;
+    }
+
+    err = join_threads(runcfg->num_wgroups, runcfg->tgroups);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error joining threads);
+        goto main_out;
+    }
 
     /*
      * Free arrays
@@ -474,12 +481,12 @@ int main(int argc, char** argv)
     /*
      * Destroy threads
      */
-    //err = destroy_tgroups(runcfg->num_wgroups, tgroups);
-    //if (err != 0)
-    //{
-    //    ERROR_PRINT(Error destroying thread groups);
-    //    goto main_out;
-    //}
+    err = destroy_tgroups(runcfg->num_wgroups, runcfg->tgroups);
+    if (err != 0)
+    {
+        ERROR_PRINT(Error destroying thread groups);
+        goto main_out;
+    }
 
     /*
      * Calculate metrics

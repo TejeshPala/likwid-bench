@@ -19,30 +19,26 @@
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
 
-int destroy_tgroups(int num_wgroups, thread_group_t* thread_groups)
+int destroy_tgroups(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
 {
     for (int w = 0; w < num_wgroups; w++)
     {
+        RuntimeThreadgroupConfig* group = &thread_groups[w];
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread groups for workgroup %d, w);
-        if (thread_groups[w].barrier)
-        {
-            pthread_barrier_destroy(&thread_groups[w].barrier->barrier);
-            free(thread_groups[w].barrier);
-        }
-        for (int i = 0; i < thread_groups[w].num_threads; i++)
+        pthread_barrier_destroy(&group->barrier.barrier);
+        for (int i = 0; i < group->num_threads; i++)
         {
             DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread group %d for workgroup %d, i, w);
-            if (thread_groups[w].threads[i].data)
+            if (group->threads[i].data)
             {
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying data for thread %d, thread_groups[w].threads[i].local_id);
-                free(thread_groups[w].threads[i].data);
-                thread_groups[w].threads[i].data = NULL;
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying data for thread %d, group->threads[i].local_id);
+                free(group->threads[i].data);
+                group->threads[i].data = NULL;
             }
         }
-        free(thread_groups[w].threads);
+        free(group->threads);
     }
     free(thread_groups);
-    thread_groups = NULL;
     return 0;
 }
 
@@ -97,14 +93,14 @@ double get_time_s()
 
 void* _func_t(void* arg)
 {
-    thread_group_thread_t* thread = (thread_group_thread_t*)arg;
+    RuntimeThreadConfig* thread = (RuntimeThreadConfig*)arg;
     DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is running, thread->local_id, thread->global_id);
     pthread_barrier_wait(&thread->barrier->barrier);
     DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d has completed, thread->local_id, thread->global_id);
     pthread_exit(NULL);
 }
 
-int join_threads(int num_wgroups, thread_group_t* thread_groups)
+int join_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
 {
     if (num_wgroups < 0 || !thread_groups)
     {
@@ -114,13 +110,14 @@ int join_threads(int num_wgroups, thread_group_t* thread_groups)
     int err = 0;
     for (int w = 0; w < num_wgroups; w++)
     {
-        for (int i = 0; i < thread_groups[w].num_threads; i++)
+        RuntimeThreadgroupConfig* group = &thread_groups[w];
+        for (int i = 0; i < group->num_threads; i++)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Joining thread %d in workgroup %d with thread ID %d, thread_groups[w].threads[i].local_id, w, thread_groups[w].threads[i].thread);
-            err = pthread_join(thread_groups[w].threads[i].thread, NULL);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Joining thread %d in workgroup %d with thread ID %d, group->threads[i].local_id, w, group->threads[i].thread);
+            err = pthread_join(group->threads[i].thread, NULL);
             if (err != 0)
             {
-                ERROR_PRINT(Error joining thread %d in workgroup %d with error %s, thread_groups[w].threads[i].local_id, w, strerror(err));
+                ERROR_PRINT(Error joining thread %d in workgroup %d with error %s, group->threads[i].local_id, w, strerror(err));
                 return -1;
             }
         }
@@ -128,25 +125,63 @@ int join_threads(int num_wgroups, thread_group_t* thread_groups)
     return 0;
 }
 
-int update_thread_group(RuntimeConfig* runcfg, thread_group_t** thread_groups)
+int create_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
+{
+    if (num_wgroups < 0 || !thread_groups)
+    {
+        return -1;
+    }
+
+    int err = 0;
+    for (int w = 0; w < num_wgroups; w++)
+    {
+        RuntimeThreadgroupConfig* group = &thread_groups[w];
+        for (int i = 0; i < group->num_threads; i++)
+        {
+            RuntimeThreadConfig* thread = &group->threads[i];
+            if (pthread_create(&thread->thread, NULL, _func_t, thread))
+            {
+                ERROR_PRINT(Error creating thread %d, thread->local_id);
+                err = -1;
+                return err;
+            }
+            err = _set_t_aff(thread->thread, thread->data->hwthread);
+            if (err < 0)
+            {
+                ERROR_PRINT(Failed to set thread affinity for group %d thread %d, w, thread->data->hwthread);
+                err = -1;
+                return err;
+            }
+            if (DEBUGLEV_DEVELOP)
+            {
+                _print_aff(thread->thread);
+            }
+        }
+    }
+    return 0;
+}
+
+int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread_groups)
 {
     int err = 0;
-    thread_group_t* temp_groups = (thread_group_t*) malloc(runcfg->num_wgroups * sizeof(thread_group_t));
+    int total_threads = 0;
+    RuntimeThreadgroupConfig* temp_groups = (RuntimeThreadgroupConfig*) malloc(runcfg->num_wgroups * sizeof(RuntimeThreadgroupConfig));
     if (!temp_groups)
     {
         ERROR_PRINT(Failed to allocate memory for thread groups);
         err = -ENOMEM;
         return err;
     }
+
     // printf("Num Workgroups: %d\n", runcfg->num_wgroups);
     for (int w = 0; w < runcfg->num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
-        thread_group_t* group = &temp_groups[w];
+        RuntimeThreadgroupConfig* group = &temp_groups[w];
         group->num_threads = wg->num_threads;
         // printf("Num threads: %d\n", group->num_threads);
-        group->id = wg->hwthreads;
-        group->threads = (thread_group_thread_t*) malloc(group->num_threads * sizeof(thread_group_thread_t));
+        group->hwthreads = wg->hwthreads;
+        group->threads = (RuntimeThreadConfig*) malloc(group->num_threads * sizeof(RuntimeThreadConfig));
         if (!group->threads)
         {
             ERROR_PRINT(Failed to allocate memory for threads in group);
@@ -154,15 +189,7 @@ int update_thread_group(RuntimeConfig* runcfg, thread_group_t** thread_groups)
             goto free;
         }
 
-        group->barrier = (thread_barrier_t*) malloc(sizeof(thread_barrier_t));
-        if (!group->barrier)
-        {
-            ERROR_PRINT(Failed to allocate memory for barrier);
-            err = -ENOMEM;
-            goto free;
-        }
-
-        err = pthread_barrier_init(&group->barrier->barrier, NULL, group->num_threads);
+        err = pthread_barrier_init(&group->barrier.barrier, NULL, group->num_threads);
         if (err != 0)
         {
             ERROR_PRINT(Failed to initialize barrier %s, strerror(err));
@@ -171,12 +198,12 @@ int update_thread_group(RuntimeConfig* runcfg, thread_group_t** thread_groups)
 
         for (int i = 0; i < group->num_threads; i++)
         {
-            thread_group_thread_t* thread = &group->threads[i];
-            thread->local_id = group->id[i];
-            thread->global_id = w * group->num_threads + i;
+            RuntimeThreadConfig* thread = &group->threads[i];
+            thread->local_id = group->hwthreads[i];
+            thread->global_id = total_threads + i;
             thread->runtime = 0.0;
             thread->cycles = 0;
-            thread->barrier = group->barrier;
+            thread->barrier = &group->barrier;
             // printf("Num threads: %d\n", group->num_threads);
             thread->data = (_thread_data*)malloc(sizeof(_thread_data));
             if (!thread->data)
@@ -188,29 +215,14 @@ int update_thread_group(RuntimeConfig* runcfg, thread_group_t** thread_groups)
             memset(thread->data, 0, sizeof(_thread_data));
             // printf("Threadid: %d\n", thread->local_id);
             thread->data->hwthread = thread->local_id;
-            thread->data->flags = 0;
+            thread->data->flags = THREAD_DATA_THREADINIT_FLAG;
             thread->data->iters = 0;
             thread->data->cycles = 0;
             thread->data->min_runtime = 0;
             // printf("Threadid: %d\n", thread->data->hwthread);
-            if (pthread_create(&thread->thread, NULL, _func_t, thread))
-            {
-                ERROR_PRINT(Error creating thread %d, thread->local_id);
-                err = -1;
-                goto free;
-            }
-            err = _set_t_aff(thread->thread, thread->data->hwthread);
-            if (err < 0)
-            {
-                ERROR_PRINT(Failed to set thread affinity for group %d thread %d, w, thread->data->hwthread);
-                err = -1;
-                goto free;
-            }
-            if (DEBUGLEV_DEVELOP)
-            {
-                _print_aff(thread->thread);
-            }
         }
+
+        total_threads += group->num_threads;
     }
 
     *thread_groups = temp_groups;
@@ -221,12 +233,8 @@ free:
     {
         for (int w = 0; w < runcfg->num_wgroups; w++)
         {
-            thread_group_t* group = &temp_groups[w];
-            if (group->barrier)
-            {
-                pthread_barrier_destroy(&group->barrier->barrier);
-                free(group->barrier);
-            }
+            RuntimeThreadgroupConfig* group = &temp_groups[w];
+            pthread_barrier_destroy(&group->barrier.barrier);
             if (group->threads)
             {
                 for (int i = 0; i < group->num_threads; i++)
@@ -245,7 +253,7 @@ free:
     return err;
 }
 
-double bench(int (*fn)(int num_wgroups, thread_group_t* thread_groups), int num_wgroups, thread_group_t* thread_groups, RuntimeConfig* runcfg)
+double bench(int (*fn)(int num_wgroups, RuntimeThreadgroupConfig* thread_groups), int num_wgroups, RuntimeThreadgroupConfig* thread_groups, RuntimeConfig* runcfg)
 {
     double s = 0.0;
     double e = 0.0;
@@ -271,6 +279,10 @@ double bench(int (*fn)(int num_wgroups, thread_group_t* thread_groups), int num_
     if (runcfg->iterations > 0)
     {
         iter = (runcfg->iterations > MIN_ITERATIONS) ? runcfg->iterations : MIN_ITERATIONS;
+        if (runcfg->iterations < MIN_ITERATIONS)
+        {
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Overwriting iterations to %d, MIN_ITERATIONS);
+        }
         while (1)
         {
             s = get_time_s();
