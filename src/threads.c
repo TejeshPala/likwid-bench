@@ -95,7 +95,20 @@ void* _func_t(void* arg)
 {
     RuntimeThreadConfig* thread = (RuntimeThreadConfig*)arg;
     DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is running, thread->local_id, thread->global_id);
-    pthread_barrier_wait(&thread->barrier->barrier);
+    while (1)
+    {
+        pthread_barrier_wait(&thread->barrier->barrier);
+        if (thread->command->cmd = LIKWID_THREAD_COMMAND_EXIT)
+        {
+            break;
+        }
+        switch(thread->command->cmd)
+        {
+            case LIKWID_THREAD_COMMAND_NOOP:
+                break;
+        }
+        pthread_barrier_wait(&thread->barrier->barrier);
+    }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d has completed, thread->local_id, thread->global_id);
     pthread_exit(NULL);
 }

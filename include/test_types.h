@@ -133,6 +133,19 @@ typedef struct {
     void* function;
 } RuntimeTestConfig;
 
+typedef enum {
+    LIKWID_THREAD_COMMAND_EXIT = 0,
+    LIKWID_THREAD_COMMAND_NOOP,
+} likwid_thread_command;
+
+typedef struct {
+    likwid_thread_command cmd;
+    union {
+        int (*exit)();
+    } cmdfunc;
+    int done;
+} RuntimeThreadCommand;
+
 typedef struct {
     pthread_barrier_t barrier;
     pthread_barrierattr_t b_attr;
@@ -164,6 +177,7 @@ typedef struct {
     uint64_t cycles;
     thread_barrier_t* barrier;
     thread_data_t data;
+    RuntimeThreadCommand* command;
 } RuntimeThreadConfig;
 
 typedef struct {

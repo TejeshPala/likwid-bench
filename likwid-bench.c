@@ -461,7 +461,66 @@ int main(int argc, char** argv)
     if (err < 0)
     {   
         ERROR_PRINT(Error creating thread);
+        destroy_tgroups(runcfg->num_wgroups, runcfg->tgroups);
         goto main_out;
+    }
+
+    RuntimeThreadCommand cmd;
+    int running = 1;
+    while (running)
+    {
+        cmd.done = 0;
+        for (int w = 0; w < runcfg->num_wgroups; w++)
+        {
+            RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+            RuntimeThreadgroupConfig* group = &wg->tgroups;
+            for (int t = 0; t < wg->num_threads; t++)
+            {
+                group->threads[t].command = &cmd;
+            }
+        }
+
+        for (int w = 0; w < runcfg->num_wgroups; w++)
+        {
+            pthread_barrier_wait(&runcfg->wgroups[w].tgroups->barrier.barrier);
+        }
+
+        switch (cmd.cmd)
+        {
+            case LIKWID_THREAD_COMMAND_EXIT:
+                if (cmd.cmdfunc.exit)
+                {
+                    cmd.cmdfunc.exit();
+                }
+                running = 0;
+                break;
+            case LIKWID_THREAD_COMMAND_NOOP:
+                break;
+            default:
+                ERROR_PRINT(Invalid likwid command);
+                break;
+        }
+
+        cmd.done = 1;
+
+        for (int w = 0; w < runcfg->num_wgroups; w++)
+        {
+            pthread_barrier_wait(&runcfg->wgroups[w].tgroups->barrier.barrier);
+        }
+
+        if (!running)
+        {
+            cmd.cmd = LIKWID_THREAD_COMMAND_EXIT;
+            for (int w = 0; w < runcfg->num_wgroups; w++)
+            {
+                for (int t = 0; t < runcfg->wgroups[w].tgroups->num_threads; t++)
+                {
+                    runcfg->wgroups[w].tgroups->threads[t].command = &cmd;
+                }
+            }
+            break;
+        }
+
     }
 
     /*
