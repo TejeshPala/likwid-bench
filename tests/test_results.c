@@ -20,20 +20,20 @@ static struct tagbstring TEST_CALC = bsStatic("TIME/NUM_THREADS + NUM_THREADS*(T
 int main(int argc, char* argv)
 {
     int err = 0;
-    RuntimeWorkgroupResult single;
+    RuntimeWorkgroupResult* single;
     err = init_result(&single);
     if (err != 0)
     {
         printf("Error initializing single result\n");
         return -1;
     }
-    err = add_variable(&single, &NUM_THREADS_KEY, &NUM_THREADS_VAL);
+    err = add_variable(single, &NUM_THREADS_KEY, &NUM_THREADS_VAL);
     if (err != 0)
     {
         printf("Error adding variable %s=%s to single result\n", bdata(&NUM_THREADS_KEY), bdata(&NUM_THREADS_VAL));
         return -1;
     }
-    err = add_value(&single, &TIME_KEY, TIME_VAL);
+    err = add_value(single, &TIME_KEY, TIME_VAL);
     if (err != 0)
     {
         printf("Error adding value %s=%f to single result\n", bdata(&TIME_KEY), TIME_VAL);
@@ -41,10 +41,10 @@ int main(int argc, char* argv)
     }
     bstring t = bstrcpy(&TEST_CALC);
     printf("Before %s\n", bdata(t));
-    err = replace_all(&single, t, NULL);
+    err = replace_all(single, t, NULL);
     printf("After %s\n", bdata(t));
     bdestroy(t);
-    destroy_result(&single);
+    destroy_result(single);
     return 0;
 }
 

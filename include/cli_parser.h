@@ -3,6 +3,7 @@
 
 #include "bstrlib.h"
 #include "test_types.h"
+#include "results.h"
 
 typedef enum {
     no_argument = 0,
@@ -92,5 +93,6 @@ static ConstCliOptions basetestopts = {
 int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg);
 int generateTestCliOptions(CliOptions* options, RuntimeConfig* runcfg);
 int assignTestCliOptions(CliOptions* options, RuntimeConfig* runcfg);
+int assignWorkgroupCliOptions(CliOptions* options, RuntimeConfig* runcfg);
 
 #endif

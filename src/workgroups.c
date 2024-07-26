@@ -3,15 +3,15 @@
 #include <string.h>
 #include <unistd.h>
 #include <error.h>
+#include <pthread.h>
 
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
 #include "test_types.h"
-
 #include "workgroups.h"
 #include "topology.h"
 #include "results.h"
-#include <pthread.h>
+#include "allocator.h"
 
 void delete_workgroup(RuntimeWorkgroupConfig* wg)
 {
@@ -25,7 +25,7 @@ void delete_workgroup(RuntimeWorkgroupConfig* wg)
         free(wg->results);
         wg->results = NULL;
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy result storage for workgroup %s, bdata(wg->str));
-        destroy_result(&wg->group_results);
+        destroy_result(wg->group_results);
     }
     if (wg->hwthreads)
     {
@@ -43,7 +43,6 @@ void delete_workgroup(RuntimeWorkgroupConfig* wg)
 int resolve_workgroup(RuntimeWorkgroupConfig* wg, int maxThreads)
 {
     int err = 0;
-
     wg->num_threads = 0;
     wg->hwthreads = malloc(maxThreads * sizeof(int));
     if (!wg->hwthreads)
@@ -62,6 +61,7 @@ int resolve_workgroup(RuntimeWorkgroupConfig* wg, int maxThreads)
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Workgroup string %s resolves to %d threads, bdata(wg->str), nthreads);
     wg->num_threads = nthreads;
+    wg->threads = NULL;
     return 0;
 }
 
@@ -72,26 +72,42 @@ int allocate_workgroup_stuff(RuntimeWorkgroupConfig* wg)
     {
         return -EINVAL;
     }
-    wg->results = malloc(wg->num_threads * sizeof(RuntimeWorkgroupConfig));
+    wg->results = malloc(wg->num_threads * sizeof(RuntimeWorkgroupResult));
     if (!wg->results)
     {
+        ERROR_PRINT(Unable to allocate memory for results);
         return -ENOMEM;
     }
     for (int j = 0; j < wg->num_threads; j++)
     {
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Init result storage for thread %d (HWThread %d), j, wg->hwthreads[j]);
-        int err = init_result(&wg->results[j]);
+        err = init_result(&wg->results[j]);
         if (err < 0)
         {
             for (int k = 0; k < j; k++)
             {
                 destroy_result(&wg->results[k]);
             }
+            free(wg->results);
+            wg->results = NULL;
+            return err;
         }
     }
+    wg->group_results = malloc(sizeof(RuntimeWorkgroupResult));
+    if (!wg->group_results)
+    {
+        ERROR_PRINT(Unable to allocate memory for group results);
+        for (int j = 0; j < wg->num_threads; j++)
+        {
+            destroy_result(&wg->results[j]);
+        }
+        free(wg->results);
+        wg->results = NULL;
+        return -ENOMEM;
+    }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Init result storage for workgroup %s, bdata(wg->str));
-    err = init_result(&wg->group_results);
-    if (err != 0)
+    err = init_result(wg->group_results);
+    if (err < 0)
     {
         for (int j = 0; j < wg->num_threads; j++)
         {
@@ -99,6 +115,9 @@ int allocate_workgroup_stuff(RuntimeWorkgroupConfig* wg)
         }
         free(wg->results);
         wg->results = NULL;
+        free(wg->group_results);
+        wg->group_results = NULL;
+        return err;
     }
     return err;
 }
@@ -110,11 +129,11 @@ int resolve_workgroups(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
     {
         return -EINVAL;
     }
-    
+
     for (int i = 0; i < num_wgroups; i++)
     {
         int err = resolve_workgroup(&wgroups[i], hwthreads);
-        if (err != 0)
+        if (err == 0)
         {
             err = allocate_workgroup_stuff(&wgroups[i]);
             if (err != 0)
@@ -124,6 +143,70 @@ int resolve_workgroups(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
                 {
                     delete_workgroup(&wgroups[j]);
                 }
+                return err;
+            }
+        }
+        else
+        {
+            ERROR_PRINT(Unable to resolve workgroup for each workgroup);
+            return err;
+        }
+    }
+    return 0;
+}
+
+int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
+{
+    int err = 0;
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Allocating %d streams, runcfg->tcfg->num_streams);
+    wg->streams = malloc(runcfg->tcfg->num_streams * sizeof(RuntimeStreamConfig));
+    if (!wg->streams)
+    {
+        ERROR_PRINT(Unable to allocate memory for Streams);
+        return -ENOMEM;
+    }
+    memset(wg->streams, 0, runcfg->tcfg->num_streams * sizeof(RuntimeStreamConfig));
+
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Allocating %d streams, runcfg->tcfg->num_streams);
+    for (int j = 0; j < runcfg->tcfg->num_streams; j++)
+    {
+        TestConfigStream *istream = &runcfg->tcfg->streams[j];
+        RuntimeStreamConfig* ostream = &wg->streams[j];
+        if (istream && ostream)
+        {
+            ostream->name = bstrcpy(istream->name);
+            ostream->type = istream->type;
+            ostream->dims = 0;
+            for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
+            {
+                bstring t = bstrcpy(istream->dims->entry[k]);
+                printf("dimsize before %s\n", bdata(t));
+                replace_all(runcfg->global_results, t, NULL);
+                int res = 0;
+                int c = sscanf(bdata(t), "%d", &res);
+                if (c == 1)
+                {
+                    ostream->dimsizes[k] = res;
+                }
+                printf("dimsize after %ld\n", ostream->dimsizes[k]);
+                ostream->dims++;
+                bdestroy(t);
+            }
+            // printf("name: %s, type: %d, dims: %d\n", bdata(ostream->name), ostream->type, ostream->dims);
+        }
+    }
+
+
+    wg->num_streams = runcfg->tcfg->num_streams;
+    for (int j = 0; j < wg->num_streams; j++)
+    {
+        err = allocate_arrays(&wg->streams[j]);
+        if (err < 0)
+        {
+            release_arrays(&wg->streams[j]);
+            for(int k = 0; k < j; k++)
+            {
+                release_arrays(&wg->streams[k]);
             }
             return err;
         }
@@ -149,7 +232,7 @@ void print_workgroup(RuntimeWorkgroupConfig* wg)
     }
     printf("\n");
     printf("Group result\n");
-    print_result(&wg->group_results);
+    print_result(wg->group_results);
     for (int i = 0; i < wg->num_threads; i++)
     {
         printf("Results for Thread %d (HWThread %d)\n", i, wg->hwthreads[i]);

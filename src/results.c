@@ -574,15 +574,18 @@ static void replace_all_cb(mpointer key, mpointer value, mpointer user_data)
         }
     }
 
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing '%s' with '%s' in '%s', bdata(bkey), bdata(bval), bdata(data->formula));
-    err = bfindreplace(data->formula, bkey, bval, 0);
-    if (err != BSTR_OK)
+    if (bstrncmp(bkey, data->formula, blength(bkey)) == BSTR_OK)
     {
-        ERROR_PRINT(Failed to replace %s in '%s', bdata(bkey), bdata(data->formula));
-    }
-    if (data->exclude)
-    {
-        bstrListAdd(data->exclude, bkey);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing '%s' with '%s' in '%s', bdata(bkey), bdata(bval), bdata(data->formula));
+        err = bfindreplace(data->formula, bkey, bval, 0);
+        if (err != BSTR_OK)
+        {
+            ERROR_PRINT(Failed to replace %s in '%s', bdata(bkey), bdata(data->formula));
+        }
+        if (data->exclude)
+        {
+            bstrListAdd(data->exclude, bkey);
+        }
     }
 }
 
@@ -694,12 +697,12 @@ int fill_results(RuntimeConfig* runcfg)
         if (biseq(p->name, &bsizen) && blength(p->value) > 0)
         {
             bstring barraysize = bformat("%lld", convertToBytes(p->value));
-            add_variable(&runcfg->global_results, &bsizen, barraysize);
+            add_variable(runcfg->global_results, &bsizen, barraysize);
             bdestroy(barraysize);
         }
         else
         {
-           add_variable(&runcfg->global_results, p->name, p->value);
+           add_variable(runcfg->global_results, p->name, p->value);
         }
 
     }
@@ -707,46 +710,46 @@ int fill_results(RuntimeConfig* runcfg)
     if (runcfg->iterations >= 0)
     {
 	    bstring biter = bformat("%d", runcfg->iterations);
-	    add_variable(&runcfg->global_results, &biterations, biter);
+	    add_variable(runcfg->global_results, &biterations, biter);
 	    bdestroy(biter);
     }
     else
     {
 	    bstring biter = bformat("%d", 0);
-	    add_variable(&runcfg->global_results, &biterations, biter);
+	    add_variable(runcfg->global_results, &biterations, biter);
 	    bdestroy(biter);
     }
 
     for (int i = 0; i < runcfg->tcfg->num_constants; i++)
     {
         TestConfigVariable* v = &runcfg->tcfg->constants[i];
-        add_variable(&runcfg->global_results, v->name, v->value);
+        add_variable(runcfg->global_results, v->name, v->value);
     }
     for (int i = 0; i < runcfg->tcfg->num_vars; i++)
     {
         TestConfigVariable* v = &runcfg->tcfg->vars[i];
-        add_variable(&runcfg->global_results, v->name, v->value);
+        add_variable(runcfg->global_results, v->name, v->value);
     }
     for (int i = 0; i < runcfg->num_wgroups; i++)
     {
         RuntimeWorkgroupConfig *wgroup = &runcfg->wgroups[i];
 
         bstring x = bformat("%d", wgroup->num_threads);
-        add_variable(&wgroup->group_results, &bnumthreads, x);
+        add_variable(wgroup->group_results, &bnumthreads, x);
         bdestroy(x);
 
         x = bformat("%d", i);
-        add_variable(&wgroup->group_results, &bgroupid, x);
+        add_variable(wgroup->group_results, &bgroupid, x);
         bdestroy(x);
 
         for (int j = 0; j < wgroup->num_threads; j++)
         {
             x = bformat("%d", j);
-            add_variable(&wgroup->group_results, &bthreadid, x);
+            add_variable(wgroup->group_results, &bthreadid, x);
             bdestroy(x);
 
             x = bformat("%d", wgroup->hwthreads[j]);
-            add_variable(&wgroup->group_results, &bthreadcpu, x);
+            add_variable(wgroup->group_results, &bthreadcpu, x);
             bdestroy(x);
         }
     }
