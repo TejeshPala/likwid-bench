@@ -538,10 +538,10 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     
     if (runcfg->runtime != -1.0 && runcfg->iterations != -1)
     {
-	    ERROR_PRINT(Runtime and Iterations cannot be set at a time);
-    	return -EINVAL;
+        ERROR_PRINT(Runtime and Iterations cannot be set at a time);
+        return -EINVAL;
     }
-    
+
     return 0;
 }
 
@@ -636,7 +636,7 @@ int assignTestCliOptions(CliOptions* options, RuntimeConfig* runcfg)
         {
             CliOption* opt = &options->options[j];
             DEBUG_PRINT(DEBUGLEV_DETAIL, Comparing with CLI option %s, bdata(opt->name));
-            if (bstrncmp(paramname, opt->name, blength(paramname)) == BSTR_OK && blength(opt->value) > 0)
+            if (bstrncmp(paramname, opt->name, blength(paramname)) == BSTR_OK && (blength(opt->value) > 0 || opt->values->qty > 0))
             {
                 int err = add_runtime_parameter(runcfg, param, opt);
                 if (err != 0)
@@ -655,6 +655,55 @@ int assignTestCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     if (miss > 0) errno = EINVAL;
     return miss;
 }
+
+int assignWorkgroupCliOptions(CliOptions* options, RuntimeConfig* runcfg)
+{
+    int err = 0;
+    CliOption* wopt = NULL;
+    RuntimeWorkgroupConfig* wgroups = NULL;
+    bstring woptstr = NULL;
+    if ((!options) || (!runcfg))
+    {
+        return -EINVAL;
+    }
+    woptstr = bformat("--%s", wgroupopts.options[0].name);
+    
+    for (int i = 0; i < options->num_options; i++)
+    {
+        CliOption* opt = &options->options[i];
+        if (bstrncmp(woptstr, opt->name, blength(woptstr)) == BSTR_OK && opt->has_arg == multi_argument) {
+            wopt = opt;
+            break;
+        }
+    }
+    if (wopt == NULL) {
+        errno = EINVAL;
+        ERROR_PRINT(Cannot find %s setting on command line, bdata(woptstr));
+        return -EINVAL;
+    }
+
+    wgroups = malloc(wopt->values->qty * sizeof(RuntimeWorkgroupConfig));
+    if (!wgroups)
+    {
+        errno = ENOMEM;
+        ERROR_PRINT(Cannot allocate space for workgroups);
+        bdestroy(woptstr);
+        return -ENOMEM;
+    }
+
+    for (int i = 0; i < wopt->values->qty; i++)
+    {
+        RuntimeWorkgroupConfig* wg = &wgroups[i];
+        wg->str = bstrcpy(wopt->values->entry[i]);
+    }
+
+    runcfg->wgroups = wgroups;
+    runcfg->num_wgroups = wopt->values->qty;
+
+    bdestroy(woptstr);
+    return 0;
+}
+
 
 /*int main(int argc, char* argv[])*/
 /*{*/

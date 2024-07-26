@@ -95,6 +95,7 @@ typedef struct {
     TestConfigVariable *    metrics;
     struct bstrList*        flags;
     bool                    requirewg;
+    bool                    initialization;
     int                     num_threads;
     TestConfigThread *      threads;
 } TestConfig;
@@ -133,12 +134,52 @@ typedef struct {
 } RuntimeTestConfig;
 
 typedef struct {
+    pthread_barrier_t barrier;
+    pthread_barrierattr_t b_attr;
+} thread_barrier_t;
+
+typedef enum {
+    THREAD_DATA_THREADINIT = 0,
+    THREAD_DATA_MAX,
+} _thread_data_flags;
+#define THREAD_DATA_MIN THREAD_DATA_FLAG_THREADINIT
+
+#define THREAD_DATA_THREADINIT_FLAG (1<<THREAD_DATA_THREADINIT)
+
+typedef struct {
+    uint64_t iters;
+    uint64_t cycles;
+    uint64_t min_runtime;
+    //const TestConfig_t test;
+    int hwthread;
+    int flags;
+} _thread_data;
+typedef _thread_data* thread_data_t;
+
+typedef struct {
+    pthread_t thread;
+    int local_id;
+    int global_id;
+    double runtime;
+    uint64_t cycles;
+    thread_barrier_t* barrier;
+    thread_data_t data;
+} RuntimeThreadConfig;
+
+typedef struct {
+    int* hwthreads;
+    int num_threads;
+    RuntimeThreadConfig* threads;
+    thread_barrier_t barrier;
+} RuntimeThreadgroupConfig;
+
+typedef struct {
     bstring str;
     int num_threads;
     int* hwthreads;
     RuntimeWorkgroupResult* results;
     pthread_t *threads;
-    RuntimeWorkgroupResult group_results;
+    RuntimeWorkgroupResult* group_results;
     int num_streams;
     RuntimeStreamConfig* streams;
     int num_params;
@@ -161,8 +202,9 @@ typedef struct {
     bstring arraysize;
     TestConfig_t tcfg;
     struct bstrList* codelines;
-    RuntimeWorkgroupResult global_results;
+    RuntimeWorkgroupResult* global_results;
     RuntimeTestConfig testconfig;
+    RuntimeThreadgroupConfig* tgroups;
 } RuntimeConfig;
 
 

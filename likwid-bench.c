@@ -19,6 +19,7 @@
 #include "allocator.h"
 #include "results.h"
 #include "topology.h"
+#include "thread_group.h"
 
 #ifndef global_verbosity
 int global_verbosity = DEBUGLEV_DEVELOP;
@@ -51,6 +52,8 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->tcfg = NULL;
     runcfg->codelines = NULL;
     runcfg->params = NULL;
+    runcfg->global_results = NULL;
+    runcfg->tgroups = NULL;
     runcfg->testname = bfromcstr("");
     runcfg->pttfile = bfromcstr("");
     runcfg->tmpfolder = bfromcstr("");
@@ -74,7 +77,7 @@ void free_runtime_config(RuntimeConfig* runcfg)
         bdestroy(runcfg->tmpfolder);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy kernelfolder in RuntimeConfig);
         bdestroy(runcfg->kernelfolder);
-	DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy arraysize in RuntimeConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy arraysize in RuntimeConfig);
         bdestroy(runcfg->arraysize);
         if (runcfg->wgroups)
         {
@@ -88,7 +91,9 @@ void free_runtime_config(RuntimeConfig* runcfg)
                     {
                         destroy_result(&runcfg->wgroups[i].results[j]);
                     }
-                    destroy_result(&runcfg->wgroups[i].group_results);
+                    destroy_result(runcfg->wgroups[i].group_results);
+                    free(runcfg->wgroups[i].group_results);
+                    runcfg->wgroups[i].group_results = NULL;
                     free(runcfg->wgroups[i].results);
                     runcfg->wgroups[i].results = NULL;
                 }
@@ -155,11 +160,11 @@ void free_runtime_config(RuntimeConfig* runcfg)
             runcfg->codelines = NULL;
         }
 
-        if (runcfg->global_results.variables)
+        if (runcfg->global_results->variables)
         {
-            destroy_result(&runcfg->global_results);
-            //free(runcfg->global_results);
-/*            runcfg->global_results = NULL;*/
+            destroy_result(runcfg->global_results);
+            free(runcfg->global_results);
+            runcfg->global_results = NULL;
         }
         free(runcfg);
     }
@@ -336,7 +341,21 @@ int main(int argc, char** argv)
         goto main_out;
     }
 
-
+    if (runcfg->tcfg->requirewg)
+    {
+        err = assignWorkgroupCliOptions(&testopts, runcfg);
+        if (err < 0)
+        {
+            errno = -err;
+            ERROR_PRINT(Error assigning workgroup CLI options);
+            goto main_out;
+        }
+        if (runcfg->num_wgroups == 0) {
+            errno = EINVAL;
+            ERROR_PRINT(No workgroups on the command line);
+            goto main_out;
+        }
+    }
 
     /*
      * Analyse workgroups
@@ -356,7 +375,13 @@ int main(int argc, char** argv)
      * Evaluate variables, constants, ... for remaining operations
      * There should be now all values available
      */
-    err = init_result(&runcfg->global_results);
+    runcfg->global_results = malloc(sizeof(RuntimeWorkgroupResult));
+    if (!runcfg->global_results)
+    {
+        ERROR_PRINT(Unable to allocate memory for global results);
+        goto main_out;
+    }
+    err = init_result(runcfg->global_results);
     if (err < 0)
     {
         ERROR_PRINT(Error initializing global result storage);
@@ -367,6 +392,39 @@ int main(int argc, char** argv)
     {
         ERROR_PRINT(Error filling result storages);
         goto main_out;
+    }
+
+    /*
+     * Init arrays
+     */
+    for (int i = 0; i < runcfg->num_wgroups; i++)
+    {
+    /*
+     * Allocate arrays
+     */
+        // move allocate stream per wg
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[i];
+        err = manage_streams(wg, runcfg);
+        if (err < 0)
+        {
+            ERROR_PRINT(Error allocating streams);
+            goto main_out;
+        }
+        // do if only global_initialization
+        if (runcfg->tcfg->initialization)
+        {
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Global Initializing arrays);
+            for (int w = 0; w < wg->num_streams; w++)
+            {
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Working on stream %s, bdata(wg->streams[w].name));
+                err = initialize_arrays(wg->streams[w].ptr);
+                if (err < 0)
+                {
+                    ERROR_PRINT(Error Intializing threads);
+                    goto main_out;
+                }
+            }
+        }
     }
 
     /*
@@ -384,43 +442,45 @@ int main(int argc, char** argv)
         DEBUG_PRINT(global_verbosity, "CODE: %s\n", bdata(runcfg->codelines->entry[i]));
     }
 
-    /*
-     * Allocate arrays
-     */
-     err = allocate_streams(runcfg);
-     if (err < 0)
-     {
-        ERROR_PRINT(Error allocating streams);
-        goto main_out;
-     }
 
     /*
      * Start threads
      */
-
-    /*
-     * Init arrays
-     */
-     for (int i = 0; i < runcfg->num_wgroups; i++)
-     {
-        for (int w = 0; w < runcfg->wgroups[i].num_streams; w++)
-	    {
-	        err = initialize_arrays(runcfg->wgroups[i].streams[w].ptr);
-	        if (err < 0)
-	        {
-	            ERROR_PRINT(Error Intializing threads);
-		        goto main_out;
-	        }
-	    }
-     }
+    err = update_thread_group(runcfg, &runcfg->tgroups);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error updating thread groups);
+        goto main_out;
+    }
 
     /*
      * Prepare thread runtime info
      */
 
+    err = create_threads(runcfg->num_wgroups, runcfg->tgroups);
+    if (err < 0)
+    {   
+        ERROR_PRINT(Error creating thread);
+        goto main_out;
+    }
+
     /*
      * Run benchmark
      */
+    //int time_exec = bench(create_threads, runcfg->num_wgroups, runcfg->tgroups, runcfg);
+    //if (time_exec < 0)
+    //{
+    //    ERROR_PRINT(Error benchmarking the run);
+    //    goto main_out;
+    //}
+    // command loop for threads
+
+    err = join_threads(runcfg->num_wgroups, runcfg->tgroups);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error joining threads);
+        goto main_out;
+    }
 
     /*
      * Free arrays
@@ -429,6 +489,12 @@ int main(int argc, char** argv)
     /*
      * Destroy threads
      */
+    err = destroy_tgroups(runcfg->num_wgroups, runcfg->tgroups);
+    if (err != 0)
+    {
+        ERROR_PRINT(Error destroying thread groups);
+        goto main_out;
+    }
 
     /*
      * Calculate metrics
