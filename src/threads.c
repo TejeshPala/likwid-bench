@@ -204,7 +204,7 @@ int join_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
         RuntimeThreadgroupConfig* group = &thread_groups[w];
         for (int i = 0; i < group->num_threads; i++)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Joining thread %d in workgroup %d with thread ID %d, group->threads[i].local_id, w, group->threads[i].thread);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Joining thread %d in workgroup %d with thread ID %ld, group->threads[i].local_id, w, group->threads[i].thread);
             err = pthread_join(group->threads[i].thread, NULL);
             if (err != 0)
             {
