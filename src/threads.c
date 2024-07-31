@@ -12,12 +12,21 @@
 #include <string.h>
 #include <sched.h>
 #include <errno.h>
+#include <sys/time.h>
 
 #include "test_types.h"
 #include "thread_group.h"
 #include "error.h"
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+RuntimeThreadCommand t_command;
+int num_threads;
+int threads_completed;
+int all_threads_created = 0;
+int threads_exited = 0;
 
 int destroy_tgroups(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
 {
@@ -97,20 +106,89 @@ void* _func_t(void* arg)
     DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is running, thread->local_id, thread->global_id);
     while (1)
     {
-        pthread_barrier_wait(&thread->barrier->barrier);
-        if (thread->command->cmd = LIKWID_THREAD_COMMAND_EXIT)
+        pthread_mutex_lock(&mutex);
+        while(t_command.done)
         {
-            break;
+            struct timespec ts;
+            clock_gettime(CLOCK_REALTIME, &ts);
+            ts.tv_sec += 5;
+            int err = pthread_cond_timedwait(&cond, &mutex, &ts);
+            if (err == ETIMEDOUT)
+            {
+                ERROR_PRINT(Thread %d timedout waiting for command, thread->local_id);
+                pthread_mutex_unlock(&mutex);
+                goto exit_thread;
+            }
+            // pthread_cond_wait(&cond, &mutex);
         }
-        switch(thread->command->cmd)
+        LikwidThreadCommand c_cmd = t_command.cmd;
+        pthread_mutex_unlock(&mutex);
+
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d received cmd %d, thread->local_id, thread->global_id, c_cmd);
+
+        switch(c_cmd)
         {
             case LIKWID_THREAD_COMMAND_NOOP:
                 break;
+            case LIKWID_THREAD_COMMAND_EXIT:
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d exits, thread->local_id, thread->global_id);
+                goto exit_thread;
+                break;
+            default:
+                ERROR_PRINT(Invalid Command);
+                break;
         }
+
+        /* signal for completion */
+        pthread_mutex_lock(&mutex);
+        threads_completed++;
+        if (threads_completed == num_threads)
+        {
+            t_command.done = 1;
+            pthread_cond_signal(&cond);
+        }
+        pthread_mutex_unlock(&mutex);
+        /* wait at the barrier */
         pthread_barrier_wait(&thread->barrier->barrier);
     }
+
+exit_thread:
+    pthread_mutex_lock(&mutex);
+    threads_completed++;
+    threads_exited++;
+    if (threads_completed == num_threads)
+    {
+        t_command.done = 1;
+        pthread_cond_broadcast(&cond);
+    }
+    pthread_mutex_unlock(&mutex);
     DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d has completed, thread->local_id, thread->global_id);
     pthread_exit(NULL);
+    return NULL;
+}
+
+void send_cmd(LikwidThreadCommand cmd)
+{
+    pthread_mutex_lock(&mutex);
+    t_command.cmd = cmd;
+    t_command.done = 0;
+    threads_completed = 0;
+    pthread_cond_broadcast(&cond);
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += 10;
+    while (!t_command.done)
+    {
+        int err = pthread_cond_timedwait(&cond, &mutex, &ts);
+        if (err == ETIMEDOUT)
+        {
+            ERROR_PRINT(time out waiting for threads to complete command);
+            break;
+        }
+        // pthread_cond_wait(&cond, &mutex);
+    }
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, All threads completed the command);
+    pthread_mutex_unlock(&mutex);
 }
 
 int join_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
@@ -171,6 +249,7 @@ int create_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
             }
         }
     }
+    all_threads_created = 1;
     return 0;
 }
 
@@ -239,6 +318,7 @@ int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread
     }
 
     *thread_groups = temp_groups;
+    num_threads = total_threads;
     return 0;
 
 free:

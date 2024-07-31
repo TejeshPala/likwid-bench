@@ -31,6 +31,7 @@
 #define TEST_TYPES_H
 
 #include <stdbool.h>
+#include <pthread.h>
 #include "bstrlib.h"
 #include "map.h"
 #include "bitmap.h"
@@ -136,10 +137,10 @@ typedef struct {
 typedef enum {
     LIKWID_THREAD_COMMAND_EXIT = 0,
     LIKWID_THREAD_COMMAND_NOOP,
-} likwid_thread_command;
+} LikwidThreadCommand;
 
 typedef struct {
-    likwid_thread_command cmd;
+    LikwidThreadCommand cmd;
     union {
         int (*exit)();
     } cmdfunc;
