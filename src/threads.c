@@ -124,7 +124,7 @@ void* _func_t(void* arg)
         LikwidThreadCommand c_cmd = thread->command->cmd;
         pthread_mutex_unlock(&thread->command->mutex);
 
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d received cmd %d, thread->local_id, thread->global_id, c_cmd);
+        // DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d received cmd %d, thread->local_id, thread->global_id, c_cmd);
 
         switch(c_cmd)
         {
