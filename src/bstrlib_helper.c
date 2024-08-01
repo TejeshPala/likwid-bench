@@ -187,7 +187,8 @@ int batoi(bstring b, int* value)
 
     char* endptr = NULL;
     errno = 0;
-    long int result = strtol(bdata(b), &endptr, 10);
+    long (*mystrtol)(const char *nptr, char **endptr, int base) = strtol;
+    long int result = mystrtol(bdata(b), &endptr, 10);
 
     if (endptr == bdata(b))
     {
@@ -209,7 +210,8 @@ int batof(bstring b, float* value)
 
     char* endptr = NULL;
     errno = 0;
-    float result = strtof(bdata(b), &endptr);
+    float (*mystrtof)(const char *nptr, char **endptr) = strtof;
+    float result = mystrtof(bdata(b), &endptr);
 
     if (endptr == bdata(b) || *endptr != '\0')
     {
@@ -231,7 +233,8 @@ int batod(bstring b, double* value)
 
     char* endptr = NULL;
     errno = 0;
-    double result = strtod(bdata(b), &endptr);
+    double (*mystrtod)(const char *nptr, char **endptr) = strtod;
+    double result = mystrtod(bdata(b), &endptr);
 
     if (endptr == bdata(b) || *endptr != '\0')
     {

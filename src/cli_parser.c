@@ -525,7 +525,8 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
 
         if (bstrcmp(opt->name, &biterations) == BSTR_OK && blength(opt->value) > 0)
         {
-            runcfg->iterations = atoi(bdata(opt->value));
+            int (*myatoi)(const char *nptr) = atoi;
+            runcfg->iterations = myatoi(bdata(opt->value));
         }
 
         if (bstrcmp(opt->name, &bruntime) == BSTR_OK && blength(opt->value) > 0)
