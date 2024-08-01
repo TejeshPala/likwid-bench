@@ -145,6 +145,8 @@ typedef struct {
         int (*exit)();
     } cmdfunc;
     int done;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
 } RuntimeThreadCommand;
 
 typedef struct {

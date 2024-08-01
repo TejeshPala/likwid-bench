@@ -42,16 +42,9 @@
 
 #define MIN_ITERATIONS 100
 #define MIN_RUNTIME 0.2
+#define TIMEOUT_SECONDS 5
 
-extern pthread_mutex_t mutex;
-extern pthread_cond_t cond;
-extern RuntimeThreadCommand t_command;
-extern int num_threads;
-extern int threads_completed;
-extern int all_threads_created;
-extern int threads_exited;
-
-void send_cmd(LikwidThreadCommand cmd);
+int send_cmd(int num_wgroups, RuntimeThreadgroupConfig* thread_groups, LikwidThreadCommand cmd);
 int destroy_tgroups(int num_wgroups, RuntimeThreadgroupConfig* thread_groups);
 int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread_groups);
 int create_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups);

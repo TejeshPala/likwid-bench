@@ -464,23 +464,12 @@ int main(int argc, char** argv)
         goto main_out;
     }
 
-    while (!all_threads_created)
+    err = send_cmd(runcfg->num_wgroups, runcfg->wgroups->tgroups, LIKWID_THREAD_COMMAND_EXIT);
+    if (err < 0)
     {
-        usleep(100000);
-    }
-
-    send_cmd(LIKWID_THREAD_COMMAND_EXIT);
-    int timeout = 0;
-    while (threads_exited < num_threads)
-    {
-        usleep(100000); /* sleep for 100ms */
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Waiting for threads %d/%d to exit, threads_exited, num_threads);
-        timeout++;
-        if (timeout > 100)
-        {
-            ERROR_PRINT(timeout waiting for threads to exit. exited %d/%d, threads_exited, num_threads);
-            break;
-        }
+        ERROR_PRINT(Error communicating with threads);
+        destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups->tgroups);
+        goto main_out;
     }
 
     /*

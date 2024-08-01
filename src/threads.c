@@ -20,14 +20,6 @@
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
 
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-RuntimeThreadCommand t_command;
-int num_threads;
-int threads_completed;
-int all_threads_created = 0;
-int threads_exited = 0;
-
 int destroy_tgroups(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
 {
     for (int w = 0; w < num_wgroups; w++)
@@ -43,6 +35,14 @@ int destroy_tgroups(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
                 DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying data for thread %d, group->threads[i].local_id);
                 free(group->threads[i].data);
                 group->threads[i].data = NULL;
+            }
+            if (group->threads[i].command)
+            {
+                pthread_mutex_destroy(&group->threads[i].command->mutex);
+                pthread_cond_destroy(&group->threads[i].command->cond);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying commands for thread %d, group->threads[i].local_id);
+                free(group->threads[i].command);
+                group->threads[i].command = NULL;
             }
         }
         free(group->threads);
@@ -106,23 +106,23 @@ void* _func_t(void* arg)
     DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is running, thread->local_id, thread->global_id);
     while (1)
     {
-        pthread_mutex_lock(&mutex);
-        while(t_command.done)
+        pthread_mutex_lock(&thread->command->mutex);
+        while(thread->command->done)
         {
             struct timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts);
-            ts.tv_sec += 5;
-            int err = pthread_cond_timedwait(&cond, &mutex, &ts);
+            ts.tv_sec += TIMEOUT_SECONDS;
+            int err = pthread_cond_timedwait(&thread->command->cond, &thread->command->mutex, &ts);
             if (err == ETIMEDOUT)
             {
                 ERROR_PRINT(Thread %d timedout waiting for command, thread->local_id);
-                pthread_mutex_unlock(&mutex);
+                pthread_mutex_unlock(&thread->command->mutex);
                 goto exit_thread;
             }
-            // pthread_cond_wait(&cond, &mutex);
+            // pthread_cond_wait(&thread->command->cond, &thread->command->mutex);
         }
-        LikwidThreadCommand c_cmd = t_command.cmd;
-        pthread_mutex_unlock(&mutex);
+        LikwidThreadCommand c_cmd = thread->command->cmd;
+        pthread_mutex_unlock(&thread->command->mutex);
 
         DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d received cmd %d, thread->local_id, thread->global_id, c_cmd);
 
@@ -140,55 +140,98 @@ void* _func_t(void* arg)
         }
 
         /* signal for completion */
-        pthread_mutex_lock(&mutex);
-        threads_completed++;
-        if (threads_completed == num_threads)
-        {
-            t_command.done = 1;
-            pthread_cond_signal(&cond);
-        }
-        pthread_mutex_unlock(&mutex);
+        pthread_mutex_lock(&thread->command->mutex);
+        thread->command->done = 1;
+        pthread_cond_signal(&thread->command->cond);
+        pthread_mutex_unlock(&thread->command->mutex);
         /* wait at the barrier */
         pthread_barrier_wait(&thread->barrier->barrier);
     }
 
 exit_thread:
-    pthread_mutex_lock(&mutex);
-    threads_completed++;
-    threads_exited++;
-    if (threads_completed == num_threads)
-    {
-        t_command.done = 1;
-        pthread_cond_broadcast(&cond);
-    }
-    pthread_mutex_unlock(&mutex);
+    pthread_mutex_lock(&thread->command->mutex);
+    thread->command->done = 1;
+    pthread_cond_signal(&thread->command->cond);
+    pthread_mutex_unlock(&thread->command->mutex);
     DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d has completed, thread->local_id, thread->global_id);
     pthread_exit(NULL);
     return NULL;
 }
 
-void send_cmd(LikwidThreadCommand cmd)
+int send_cmd(int num_wgroups, RuntimeThreadgroupConfig* thread_groups, LikwidThreadCommand cmd)
 {
-    pthread_mutex_lock(&mutex);
-    t_command.cmd = cmd;
-    t_command.done = 0;
-    threads_completed = 0;
-    pthread_cond_broadcast(&cond);
+    int err = 0;
     struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += 10;
-    while (!t_command.done)
+    int completed = 1;
+    if (num_wgroups < 0 || !thread_groups)
     {
-        int err = pthread_cond_timedwait(&cond, &mutex, &ts);
-        if (err == ETIMEDOUT)
-        {
-            ERROR_PRINT(time out waiting for threads to complete command);
-            break;
-        }
-        // pthread_cond_wait(&cond, &mutex);
+        return -1;
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, All threads completed the command);
-    pthread_mutex_unlock(&mutex);
+
+    /* send command to all threads in workgroups */
+    for (int w = 0; w < num_wgroups; w++)
+    {
+        RuntimeThreadgroupConfig* group = &thread_groups[w];
+        for (int i = 0; i < group->num_threads; i++)
+        {
+            RuntimeThreadConfig* thread = &group->threads[i];
+            err = pthread_mutex_lock(&thread->command->mutex);
+            if (err != 0)
+            {
+                ERROR_PRINT(Failed to lock mutex for thread %d with error %s, thread->local_id, strerror(err));
+                continue;
+            }
+
+            thread->command->cmd = cmd;
+            thread->command->done = 0;
+            err = pthread_cond_signal(&thread->command->cond);
+            if (err != 0)
+            {
+                ERROR_PRINT(Failed to signal condition for thread %d with error %s, thread->local_id, strerror(err));
+            }
+            pthread_mutex_unlock(&thread->command->mutex);
+        }
+    }
+
+    /* wait for all threads to complete the command */
+    for (int w = 0; w < num_wgroups; w++)
+    {
+        RuntimeThreadgroupConfig* group = &thread_groups[w];
+        for (int i = 0; i < group->num_threads; i++)
+        {
+            RuntimeThreadConfig* thread = &group->threads[i];
+            err = pthread_mutex_lock(&thread->command->mutex);
+            if (err != 0)
+            {
+                ERROR_PRINT(Failed to lock mutex for thread %d with error %s, thread->local_id, strerror(err));
+                continue;
+            }
+
+            clock_gettime(CLOCK_REALTIME, &ts);
+            ts.tv_sec += TIMEOUT_SECONDS;
+            while (!thread->command->done)
+            {
+                int err = pthread_cond_timedwait(&thread->command->cond, &thread->command->mutex, &ts);
+                if (err == ETIMEDOUT)
+                {
+                    ERROR_PRINT(time out waiting for thread %d to complete command, thread->local_id);
+                    completed = 0;
+                    break;
+                }
+                else if (err != 0)
+                {
+                    ERROR_PRINT(Waiting for thread %d with error %s, thread->local_id, strerror(err));
+                    completed = 0;
+                    break;
+                }
+                // pthread_cond_wait(&thread->command->cond, &thread->command->mutex);
+            }
+
+            pthread_mutex_unlock(&thread->command->mutex);
+        }
+    }
+
+    return completed ? 0 : -1;
 }
 
 int join_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
@@ -249,7 +292,6 @@ int create_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
             }
         }
     }
-    all_threads_created = 1;
     return 0;
 }
 
@@ -291,6 +333,18 @@ int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread
         for (int i = 0; i < group->num_threads; i++)
         {
             RuntimeThreadConfig* thread = &group->threads[i];
+            thread->command = (RuntimeThreadCommand*)malloc(sizeof(RuntimeThreadCommand));
+            if (!thread->command)
+            {
+                ERROR_PRINT(Failed to allocate memory for thread commands);
+                err = -ENOMEM;
+                goto free;
+            }
+
+            pthread_mutex_init(&thread->command->mutex, NULL);
+            pthread_cond_init(&thread->command->cond, NULL);
+            thread->command->done = 1;
+
             thread->local_id = group->hwthreads[i];
             thread->global_id = total_threads + i;
             thread->runtime = 0.0;
@@ -318,7 +372,6 @@ int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread
     }
 
     *thread_groups = temp_groups;
-    num_threads = total_threads;
     return 0;
 
 free:
@@ -335,6 +388,13 @@ free:
                     if (group->threads[i].data)
                     {
                         free(group->threads[i].data);
+                    }
+
+                    if (group->threads[i].command)
+                    {
+                        pthread_mutex_destroy(&group->threads[i].command->mutex);
+                        pthread_cond_destroy(&group->threads[i].command->cond);
+                        free(group->threads[i].command);
                     }
                 }
                 free(group->threads);
