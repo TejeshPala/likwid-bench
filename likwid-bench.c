@@ -460,7 +460,24 @@ int main(int argc, char** argv)
     if (err < 0)
     {   
         ERROR_PRINT(Error creating thread);
+        destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups->tgroups);
         goto main_out;
+    }
+
+    /* Send LIKWID CMD's */
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        RuntimeThreadgroupConfig* group = &runcfg->wgroups->tgroups[w];
+        for (int i = 0; i < group->num_threads; i++)
+        {
+            err = send_cmd(LIKWID_THREAD_COMMAND_NOOP, &group->threads[i]);
+            if (err < 0)
+            {
+                ERROR_PRINT(Error communicating with threads);
+                destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups->tgroups);
+                goto main_out;
+            }
+        }
     }
 
     /*

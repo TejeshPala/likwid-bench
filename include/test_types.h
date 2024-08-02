@@ -31,6 +31,7 @@
 #define TEST_TYPES_H
 
 #include <stdbool.h>
+#include <pthread.h>
 #include "bstrlib.h"
 #include "map.h"
 #include "bitmap.h"
@@ -133,6 +134,21 @@ typedef struct {
     void* function;
 } RuntimeTestConfig;
 
+typedef enum {
+    LIKWID_THREAD_COMMAND_EXIT = 0,
+    LIKWID_THREAD_COMMAND_NOOP,
+} LikwidThreadCommand;
+
+typedef struct {
+    LikwidThreadCommand cmd;
+    union {
+        int (*exit)();
+    } cmdfunc;
+    int done;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+} RuntimeThreadCommand;
+
 typedef struct {
     pthread_barrier_t barrier;
     pthread_barrierattr_t b_attr;
@@ -164,6 +180,7 @@ typedef struct {
     uint64_t cycles;
     thread_barrier_t* barrier;
     thread_data_t data;
+    RuntimeThreadCommand* command;
 } RuntimeThreadConfig;
 
 typedef struct {
