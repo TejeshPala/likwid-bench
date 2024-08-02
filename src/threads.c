@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sched.h>
 #include <errno.h>
+#include <sys/time.h>
 
 #include "test_types.h"
 #include "thread_group.h"
@@ -34,6 +35,14 @@ int destroy_tgroups(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
                 DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying data for thread %d, group->threads[i].local_id);
                 free(group->threads[i].data);
                 group->threads[i].data = NULL;
+            }
+            if (group->threads[i].command)
+            {
+                pthread_mutex_destroy(&group->threads[i].command->mutex);
+                pthread_cond_destroy(&group->threads[i].command->cond);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying commands for thread %d, group->threads[i].local_id);
+                free(group->threads[i].command);
+                group->threads[i].command = NULL;
             }
         }
         free(group->threads);
@@ -95,9 +104,127 @@ void* _func_t(void* arg)
 {
     RuntimeThreadConfig* thread = (RuntimeThreadConfig*)arg;
     DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is running, thread->local_id, thread->global_id);
-    pthread_barrier_wait(&thread->barrier->barrier);
+    while (1)
+    {
+        pthread_mutex_lock(&thread->command->mutex);
+        while(thread->command->done)
+        {
+            struct timespec ts;
+            clock_gettime(CLOCK_REALTIME, &ts);
+            ts.tv_sec += TIMEOUT_SECONDS;
+            int err = pthread_cond_timedwait(&thread->command->cond, &thread->command->mutex, &ts);
+            if (err != 0)
+            {
+                if (thread->command->cmd != LIKWID_THREAD_COMMAND_NOOP && err == ETIMEDOUT)
+                {
+                    ERROR_PRINT(Thread %d timedout waiting for command, thread->local_id);
+                }
+                pthread_mutex_unlock(&thread->command->mutex);
+                goto exit_thread;
+            }
+            // pthread_cond_wait(&thread->command->cond, &thread->command->mutex);
+        }
+        LikwidThreadCommand c_cmd = thread->command->cmd;
+        pthread_mutex_unlock(&thread->command->mutex);
+
+        // DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d received cmd %d, thread->local_id, thread->global_id, c_cmd);
+
+        switch(c_cmd)
+        {
+            case LIKWID_THREAD_COMMAND_NOOP:
+                break;
+            case LIKWID_THREAD_COMMAND_EXIT:
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d exits, thread->local_id, thread->global_id);
+                goto exit_thread;
+                break;
+            default:
+                ERROR_PRINT(Invalid Command);
+                break;
+        }
+
+        /* signal for completion */
+        pthread_mutex_lock(&thread->command->mutex);
+        thread->command->done = 1;
+        pthread_cond_signal(&thread->command->cond);
+        pthread_mutex_unlock(&thread->command->mutex);
+        /* wait at the barrier */
+        pthread_barrier_wait(&thread->barrier->barrier);
+    }
+
+exit_thread:
+    pthread_mutex_lock(&thread->command->mutex);
+    thread->command->done = 1;
+    pthread_cond_signal(&thread->command->cond);
+    pthread_mutex_unlock(&thread->command->mutex);
     DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d has completed, thread->local_id, thread->global_id);
     pthread_exit(NULL);
+    return NULL;
+}
+
+int send_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread)
+{
+    int err = 0;
+    struct timespec ts;
+    int completed = 1;
+    if (thread == NULL)
+    {
+        return -1;
+    }
+
+    /* send command to specific thread in workgroups */
+    err = pthread_mutex_lock(&thread->command->mutex);
+    if (err != 0)
+    {
+        ERROR_PRINT(Failed to lock mutex for thread %d with error %s, thread->local_id, strerror(err));
+        return err;
+    }
+
+    thread->command->cmd = cmd;
+    thread->command->done = 0;
+    err = pthread_cond_signal(&thread->command->cond);
+    if (err != 0)
+    {
+        ERROR_PRINT(Failed to signal condition for thread %d with error %s, thread->local_id, strerror(err));
+        pthread_mutex_unlock(&thread->command->mutex);
+        return err;
+    }
+    pthread_mutex_unlock(&thread->command->mutex);
+
+    /* wait for all thread to complete the command */
+    if (cmd != LIKWID_THREAD_COMMAND_NOOP)
+    {
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_sec += TIMEOUT_SECONDS;
+        err = pthread_mutex_lock(&thread->command->mutex);
+        if (err != 0)
+        {
+            ERROR_PRINT(Failed to lock mutex for thread %d with error %s, thread->local_id, strerror(err));
+        }
+
+        while (!thread->command->done)
+        {
+            int err = pthread_cond_timedwait(&thread->command->cond, &thread->command->mutex, &ts);
+            if (err == ETIMEDOUT)
+            {
+                ERROR_PRINT(time out waiting for thread %d to complete command, thread->local_id);
+                completed = 0;
+                pthread_mutex_unlock(&thread->command->mutex);
+                return err;
+            }
+            else if (err != 0)
+            {
+                ERROR_PRINT(Waiting for thread %d with error %s, thread->local_id, strerror(err));
+                completed = 0;
+                pthread_mutex_unlock(&thread->command->mutex);
+                return err;
+            }
+            // pthread_cond_wait(&thread->command->cond, &thread->command->mutex);
+        }
+
+        pthread_mutex_unlock(&thread->command->mutex);
+    }
+
+    return completed ? 0 : -1;
 }
 
 int join_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
@@ -113,7 +240,7 @@ int join_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
         RuntimeThreadgroupConfig* group = &thread_groups[w];
         for (int i = 0; i < group->num_threads; i++)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Joining thread %d in workgroup %d with thread ID %d, group->threads[i].local_id, w, group->threads[i].thread);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Joining thread %d in workgroup %d with thread ID %ld, group->threads[i].local_id, w, group->threads[i].thread);
             err = pthread_join(group->threads[i].thread, NULL);
             if (err != 0)
             {
@@ -199,6 +326,18 @@ int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread
         for (int i = 0; i < group->num_threads; i++)
         {
             RuntimeThreadConfig* thread = &group->threads[i];
+            thread->command = (RuntimeThreadCommand*)malloc(sizeof(RuntimeThreadCommand));
+            if (!thread->command)
+            {
+                ERROR_PRINT(Failed to allocate memory for thread commands);
+                err = -ENOMEM;
+                goto free;
+            }
+
+            pthread_mutex_init(&thread->command->mutex, NULL);
+            pthread_cond_init(&thread->command->cond, NULL);
+            thread->command->done = 1;
+
             thread->local_id = group->hwthreads[i];
             thread->global_id = total_threads + i;
             thread->runtime = 0.0;
@@ -242,6 +381,13 @@ free:
                     if (group->threads[i].data)
                     {
                         free(group->threads[i].data);
+                    }
+
+                    if (group->threads[i].command)
+                    {
+                        pthread_mutex_destroy(&group->threads[i].command->mutex);
+                        pthread_cond_destroy(&group->threads[i].command->cond);
+                        free(group->threads[i].command);
                     }
                 }
                 free(group->threads);
