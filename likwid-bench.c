@@ -401,28 +401,13 @@ int main(int argc, char** argv)
     /*
      * Allocate arrays
      */
-        // move allocate stream per wg
         RuntimeWorkgroupConfig* wg = &runcfg->wgroups[i];
+        // move allocate stream per wg
         err = manage_streams(wg, runcfg);
         if (err < 0)
         {
             ERROR_PRINT(Error allocating streams);
             goto main_out;
-        }
-        // do if only global_initialization
-        if (runcfg->tcfg->initialization)
-        {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Global Initializing arrays);
-            for (int w = 0; w < wg->num_streams; w++)
-            {
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Working on stream %s, bdata(wg->streams[w].name));
-                err = initialize_arrays(wg->streams[w].ptr);
-                if (err < 0)
-                {
-                    ERROR_PRINT(Error Intializing threads);
-                    goto main_out;
-                }
-            }
         }
     }
 
@@ -470,7 +455,7 @@ int main(int argc, char** argv)
         RuntimeThreadgroupConfig* group = &runcfg->wgroups->tgroups[w];
         for (int i = 0; i < group->num_threads; i++)
         {
-            err = send_cmd(LIKWID_THREAD_COMMAND_NOOP, &group->threads[i]);
+            err = send_cmd(LIKWID_THREAD_COMMAND_INITIALIZE, &group->threads[i]);
             if (err < 0)
             {
                 ERROR_PRINT(Error communicating with threads);

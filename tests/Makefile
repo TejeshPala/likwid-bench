@@ -81,13 +81,16 @@ ALLOCATOR_HEADER := ../include/allocator.h ../include/test_types.h
 BITMAP_OBJ := ../src/bitmap.c
 BITMAP_HEADER := ../include/bitmap.h
 
+HELPER_OBJ := ../src/helper.c
+HELPER_HEADER := ../include/helper.h
+
 all: $(TESTS)
 
 test_read_yaml_ptt: test_read_yaml_ptt.c $(READ_YAML_OBJ) $(READ_YAML_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) -DWITH_BSTRING test_read_yaml_ptt.c $(READ_YAML_OBJ) $(BSTRLIB_OBJ) -o $@
 
-test_results: test_results.c ../src/results.c $(RESULTS_OBJ) $(RESULTS_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(MAP_OBJ) $(MAP_HEADER) $(CALCULATOR_OBJ) $(CALCULATOR_HEADER) $(CALCULATOR_STACK_OBJ) $(CALCULATOR_STACK_HEADER)
-	$(CC) $(INCLUDES) $(CFLAGS) -DWITH_BSTRING -DCALCULATOR_AS_LIB test_results.c $(RESULTS_OBJ) $(BSTRLIB_OBJ) $(MAP_OBJ) $(CALCULATOR_OBJ) $(CALCULATOR_STACK_OBJ) -o $@ -lm
+test_results: test_results.c ../src/results.c $(RESULTS_OBJ) $(RESULTS_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(MAP_OBJ) $(MAP_HEADER) $(CALCULATOR_OBJ) $(CALCULATOR_HEADER) $(CALCULATOR_STACK_OBJ) $(CALCULATOR_STACK_HEADER) $(HELPER_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) -DWITH_BSTRING -DCALCULATOR_AS_LIB test_results.c $(RESULTS_OBJ) $(BSTRLIB_OBJ) $(MAP_OBJ) $(CALCULATOR_OBJ) $(CALCULATOR_STACK_OBJ) $(HELPER_OBJ) -o $@ -lm
 
 test_topology: test_topology.c $(TOPOLOGY_OBJ) $(TOPOLOGY_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(BITMAP_OBJ) $(BITMAP_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) test_topology.c $(TOPOLOGY_OBJ) $(BSTRLIB_OBJ) $(BITMAP_OBJ) -o $@

@@ -12,6 +12,7 @@
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
 #include "error.h"
+#include "helper.h"
 
 
 static BenchResults* bench_results = NULL;
@@ -643,41 +644,6 @@ void destroy_result(RuntimeWorkgroupResult* result)
         destroy_bmap(result->variables);
         result->variables = NULL;
     }
-}
-
-long long convertToBytes(const_bstring input)
-{
-    long long value = atoi((char *)input->data);
-    bstring unit = bmidstr(input, blength(input) - 2, 2);
-
-    btoupper(unit);
-
-    struct tagbstring bkb = bsStatic("KB");
-    struct tagbstring bmb = bsStatic("MB");
-    struct tagbstring bgb = bsStatic("GB");
-
-    if (biseq(unit, &bkb))
-    {
-        bdestroy(unit);
-	    return value * 1024LL;
-    }
-    else if (biseq(unit, &bmb))
-    {
-        bdestroy(unit);
-        return value * 1024LL * 1024LL;
-    }
-    else if (biseq(unit, &bgb))
-    {
-        bdestroy(unit);
-        return value * 1024LL * 1024LL * 1024LL;
-    }
-    else
-    {
-        bdestroy(unit);
-        printf("Invalid unit. Valid array sizes are kB, MB, GB. Retry again with valid input!\n");
-        exit(EXIT_FAILURE);
-    }
-
 }
 
 int fill_results(RuntimeConfig* runcfg)

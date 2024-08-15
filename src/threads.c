@@ -19,28 +19,35 @@
 #include "error.h"
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
+#include "allocator.h"
 
 int destroy_tgroups(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
 {
     for (int w = 0; w < num_wgroups; w++)
     {
         RuntimeThreadgroupConfig* group = &thread_groups[w];
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread groups for workgroup %d, w);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread groups for workgroup %3d, w);
         pthread_barrier_destroy(&group->barrier.barrier);
         for (int i = 0; i < group->num_threads; i++)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread group %d for workgroup %d, i, w);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread group %3d for workgroup %3d, i, w);
             if (group->threads[i].data)
             {
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying data for thread %d, group->threads[i].local_id);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying data for thread %3d, group->threads[i].local_id);
                 free(group->threads[i].data);
                 group->threads[i].data = NULL;
             }
             if (group->threads[i].command)
             {
+                if (group->threads[i].command->init_val)
+                {
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying init_val for thread %3d, group->threads[i].local_id);
+                    free(group->threads[i].command->init_val);
+                    group->threads[i].command->init_val = NULL;
+                }
                 pthread_mutex_destroy(&group->threads[i].command->mutex);
                 pthread_cond_destroy(&group->threads[i].command->cond);
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying commands for thread %d, group->threads[i].local_id);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying commands for thread %3d, group->threads[i].local_id);
                 free(group->threads[i].command);
                 group->threads[i].command = NULL;
             }
@@ -81,13 +88,13 @@ void _print_aff(pthread_t thread)
         return;
     }
 
-    printf("Threadid %lu -> hwthread/affinity: ", thread);
+    printf("Threadid %16lu -> hwthread/affinity: ", thread);
 
     for (size_t t = 0; t < CPU_SETSIZE; t++)
     {
         if (CPU_ISSET(t, &cpuset))
         {
-            printf("%ld ", t);
+            printf("%3ld ", t);
         }
     }
     printf("\n");
@@ -98,6 +105,96 @@ double get_time_s()
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec + ts.tv_nsec * 1e-9;
+}
+
+int initialize_local(RuntimeThreadConfig* thread, int thread_id)
+{
+    int err = 0;
+    for (int s = 0; s < thread->command->num_streams; s++)
+    {
+        RuntimeStreamConfig* sdata = &thread->command->tstreams[s];
+        // DEBUG_PRINT(DEBUGLEV_DEVELOP, dims: %d, sdata->dims);
+        size_t elems = getstreamelems(sdata);
+        size_t chunk = elems / thread->num_threads;
+        size_t rem_chunk = elems % thread->num_threads;
+        // printf("num elems: %ld, num threads: %ld, chunk: %ld\n", getstreamelems(thread->command->tstreams), thread->num_threads, chunk);
+        size_t offset = thread_id * chunk + (thread_id < rem_chunk ? thread_id : rem_chunk);
+        size_t size = chunk + (thread_id < rem_chunk ? 1 : 0);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d initializing stream %d with total elements: %ld offset: %ld, thread_id, s, elems, offset);
+        sdata->init_val = thread->command->init_val;
+        RuntimeStreamConfig tmp = *sdata;
+
+        tmp.ptr = (char*)sdata->ptr + (offset * getsizeof(sdata->type));
+        tmp.dims = sdata->dims;
+        switch (sdata->dims)
+        {
+            case 1:
+                tmp.dimsizes[0] = size * getsizeof(sdata->type);
+                break;
+            case 2:
+                tmp.dimsizes[0] = (size / (sdata->dimsizes[1] / getsizeof(sdata->type))) * sdata->dimsizes[1];
+                tmp.dimsizes[1] = sdata->dimsizes[1];
+                break;
+            case 3:
+                tmp.dimsizes[0] = (size / ((sdata->dimsizes[1] / getsizeof(sdata->type)) * (sdata->dimsizes[2] / getsizeof(sdata->type)))) * sdata->dimsizes[1] * sdata->dimsizes[2];
+                tmp.dimsizes[1] = sdata->dimsizes[1];
+                tmp.dimsizes[2] = sdata->dimsizes[2];
+                break;
+        }
+        tmp.type = sdata->type;
+        tmp.init = init_function;
+        tmp.init_val = sdata->init_val;
+
+        err = initialize_arrays(&tmp);
+        if (err != 0)
+        {
+            ERROR_PRINT(Initialization failed for stream %d, s);
+        }
+        // print_arrays(sdata);
+    }
+
+    return err;
+}
+
+int initialize_global(RuntimeThreadConfig* thread)
+{
+    int err = 0;
+    for (int i = 0; i < thread->command->num_streams; i++)
+    {
+        RuntimeStreamConfig* sdata = &thread->command->tstreams[i];
+        sdata->init_val = thread->command->init_val;
+        RuntimeStreamConfig tmp = *sdata;
+        tmp.ptr = (char*)sdata->ptr;
+        tmp.dims = sdata->dims;
+        switch (sdata->dims)
+        {
+            case 1:
+                tmp.dimsizes[0] = sdata->dimsizes[0] * getsizeof(sdata->type);
+                break;
+            case 2:
+                tmp.dimsizes[0] = (sdata->dimsizes[0] / (sdata->dimsizes[1] / getsizeof(sdata->type))) * sdata->dimsizes[1];
+                tmp.dimsizes[1] = sdata->dimsizes[1];
+                break;
+            case 3:
+                tmp.dimsizes[0] = (sdata->dimsizes[0] / ((sdata->dimsizes[1] / getsizeof(sdata->type)) * (sdata->dimsizes[2] / getsizeof(sdata->type)))) * sdata->dimsizes[1] * sdata->dimsizes[2];
+                tmp.dimsizes[1] = sdata->dimsizes[1];
+                tmp.dimsizes[2] = sdata->dimsizes[2];
+                break;
+        }
+        tmp.type = sdata->type;
+        tmp.init = init_function;
+        tmp.init_val = thread->command->init_val;
+
+        err = initialize_arrays(&tmp);
+        if (err != 0)
+        {
+            ERROR_PRINT(Failed to initialize for stream %d, i);
+            return err;
+        }
+        // print_arrays(sdata);
+    }
+
+    return err;
 }
 
 void* _func_t(void* arg)
@@ -131,7 +228,28 @@ void* _func_t(void* arg)
 
         switch(c_cmd)
         {
+            case LIKWID_THREAD_COMMAND_INITIALIZE:
+                if (thread->global_id == 0 && !thread->command->initialization)
+                {
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Global Initialization on thread %d with global thread %d, thread->local_id, thread->global_id);
+                    int err = initialize_global(thread);
+                    if (err != 0)
+                    {
+                        ERROR_PRINT(Global Initialization failed for thread %d with global thread %d, thread->local_id, thread->global_id);
+                    }
+                }
+                else if (thread->command->initialization)
+                {
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Local Initialization on thread %d with global thread %d, thread->local_id, thread->global_id);
+                    int err = initialize_local(thread, thread->local_id);
+                    if (err != 0)
+                    {
+                        ERROR_PRINT(Local Initialization failed for thread %d with global thread %d, thread->local_id, thread->global_id);
+                    }
+                }
+                break;
             case LIKWID_THREAD_COMMAND_NOOP:
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is set with NOOP command, thread->local_id, thread->global_id);
                 break;
             case LIKWID_THREAD_COMMAND_EXIT:
                 DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d exits, thread->local_id, thread->global_id);
@@ -161,17 +279,14 @@ exit_thread:
     return NULL;
 }
 
-int send_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread)
+int _prepare_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread)
 {
     int err = 0;
-    struct timespec ts;
-    int completed = 1;
     if (thread == NULL)
-    {
-        return -1;
+    {   
+        return -EINVAL;
     }
-
-    /* send command to specific thread in workgroups */
+    
     err = pthread_mutex_lock(&thread->command->mutex);
     if (err != 0)
     {
@@ -180,6 +295,10 @@ int send_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread)
     }
 
     thread->command->cmd = cmd;
+    /* Initially when threads are created it is created with done status as 1
+     * once after creation, as we send the cmd - the status is set to 0
+     * later invocation chnages the status to 1
+     * */
     thread->command->done = 0;
     err = pthread_cond_signal(&thread->command->cond);
     if (err != 0)
@@ -189,42 +308,96 @@ int send_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread)
         return err;
     }
     pthread_mutex_unlock(&thread->command->mutex);
+    return err;
+}
 
-    /* wait for all thread to complete the command */
-    if (cmd != LIKWID_THREAD_COMMAND_NOOP)
+int _send_signal(RuntimeThreadConfig* thread)
+{
+    int err = 0;
+    if (thread == NULL)
+    {   
+        return -EINVAL;
+    }
+    
+    err = pthread_mutex_lock(&thread->command->mutex);
+    if (err != 0)
     {
-        clock_gettime(CLOCK_REALTIME, &ts);
-        ts.tv_sec += TIMEOUT_SECONDS;
-        err = pthread_mutex_lock(&thread->command->mutex);
-        if (err != 0)
-        {
-            ERROR_PRINT(Failed to lock mutex for thread %d with error %s, thread->local_id, strerror(err));
-        }
-
-        while (!thread->command->done)
-        {
-            int err = pthread_cond_timedwait(&thread->command->cond, &thread->command->mutex, &ts);
-            if (err == ETIMEDOUT)
-            {
-                ERROR_PRINT(time out waiting for thread %d to complete command, thread->local_id);
-                completed = 0;
-                pthread_mutex_unlock(&thread->command->mutex);
-                return err;
-            }
-            else if (err != 0)
-            {
-                ERROR_PRINT(Waiting for thread %d with error %s, thread->local_id, strerror(err));
-                completed = 0;
-                pthread_mutex_unlock(&thread->command->mutex);
-                return err;
-            }
-            // pthread_cond_wait(&thread->command->cond, &thread->command->mutex);
-        }
-
-        pthread_mutex_unlock(&thread->command->mutex);
+        ERROR_PRINT(Failed to lock mutex for thread %d with error %s, thread->local_id, strerror(err));
+        return err;
     }
 
-    return completed ? 0 : -1;
+    err = pthread_cond_signal(&thread->command->cond);
+    if (err != 0)
+    {
+        ERROR_PRINT(Failed to signal condition for thread %d with error %s, thread->local_id, strerror(err));
+        pthread_mutex_unlock(&thread->command->mutex);
+        return err;
+    }
+    pthread_mutex_unlock(&thread->command->mutex);
+    return err;
+}
+
+int _wait(RuntimeThreadConfig* thread)
+{
+    int err = 0;
+    struct timespec ts;
+    if (thread == NULL)
+    {   
+        return -EINVAL;
+    }
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += TIMEOUT_SECONDS;
+    err = pthread_mutex_lock(&thread->command->mutex);
+    if (err != 0)
+    {
+        ERROR_PRINT(Failed to lock mutex for thread %d with error %s, thread->local_id, strerror(err));
+    }
+
+    while (!thread->command->done)
+    {
+        int err = pthread_cond_timedwait(&thread->command->cond, &thread->command->mutex, &ts);
+        if (err == ETIMEDOUT)
+        {
+            ERROR_PRINT(time out waiting for thread %d to complete command, thread->local_id);
+            pthread_mutex_unlock(&thread->command->mutex);
+            return err;
+        }
+        else if (err != 0)
+        {
+            ERROR_PRINT(Waiting for thread %d with error %s, thread->local_id, strerror(err));
+            pthread_mutex_unlock(&thread->command->mutex);
+            return err;
+        }
+        // pthread_cond_wait(&thread->command->cond, &thread->command->mutex);
+    }
+
+    pthread_mutex_unlock(&thread->command->mutex);
+    return err;
+}
+
+int send_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread)
+{
+    int err = 0;
+
+    err = _prepare_cmd(cmd, thread);
+    if (err != 0)
+    {
+        return err;
+    }
+
+    err = _send_signal(thread);
+    if (err != 0)
+    {
+        return err;
+    }
+
+    if (cmd != LIKWID_THREAD_COMMAND_NOOP)
+    {
+        err = _wait(thread);
+    }
+
+    return err;
 }
 
 int join_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
@@ -240,11 +413,11 @@ int join_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
         RuntimeThreadgroupConfig* group = &thread_groups[w];
         for (int i = 0; i < group->num_threads; i++)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Joining thread %d in workgroup %d with thread ID %ld, group->threads[i].local_id, w, group->threads[i].thread);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Joining thread %3d in workgroup %3d with thread ID %16ld, group->threads[i].local_id, w, group->threads[i].thread);
             err = pthread_join(group->threads[i].thread, NULL);
             if (err != 0)
             {
-                ERROR_PRINT(Error joining thread %d in workgroup %d with error %s, group->threads[i].local_id, w, strerror(err));
+                ERROR_PRINT(Error joining thread %3d in workgroup %3d with error %s, group->threads[i].local_id, w, strerror(err));
                 return -1;
             }
         }
@@ -268,14 +441,14 @@ int create_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
             RuntimeThreadConfig* thread = &group->threads[i];
             if (pthread_create(&thread->thread, NULL, _func_t, thread))
             {
-                ERROR_PRINT(Error creating thread %d, thread->local_id);
+                ERROR_PRINT(Error creating thread %3d, thread->local_id);
                 err = -1;
                 return err;
             }
             err = _set_t_aff(thread->thread, thread->data->hwthread);
             if (err < 0)
             {
-                ERROR_PRINT(Failed to set thread affinity for group %d thread %d, w, thread->data->hwthread);
+                ERROR_PRINT(Failed to set thread affinity for group %3d thread %3d, w, thread->data->hwthread);
                 err = -1;
                 return err;
             }
@@ -337,7 +510,38 @@ int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread
             pthread_mutex_init(&thread->command->mutex, NULL);
             pthread_cond_init(&thread->command->cond, NULL);
             thread->command->done = 1;
+            thread->command->num_streams = wg->num_streams;
+            thread->command->tstreams = wg->streams;
+            /*
+             * printf("tstreams dims: %d\n", thread->command->tstreams->dims);
+             * for (int s = 0; s < thread->command->tstreams->dims; s++)
+             *     printf("tstreams dimsizes: %d\n", thread->command->tstreams->dimsizes[s]);
+             */
+            thread->command->initialization = runcfg->tcfg->initialization;
+            // printf("initialize bool: %d\n", runcfg->tcfg->initialization);
+            thread->command->init_val = malloc(getsizeof(thread->command->tstreams->type));
+            switch(thread->command->tstreams->type)
+            {
+                case TEST_STREAM_TYPE_SINGLE:
+                    *(float*)thread->command->init_val = thread->command->tstreams->data.fval;
+                    break;
+                case TEST_STREAM_TYPE_DOUBLE:
+                    *(double*)thread->command->init_val = thread->command->tstreams->data.dval;
+                    break;
+                case TEST_STREAM_TYPE_INT:
+                    *(int*)thread->command->init_val = thread->command->tstreams->data.ival;
+                    break;
+#ifdef WITH_HALF_PRECISION
+                case TEST_STREAM_TYPE_HALF:
+                    *(_Float16*)thread->command->init_val = thread->command->tstreams->data.f16val;
+                    break;
+#endif
+                case TEST_STREAM_TYPE_INT64:
+                    *(int64_t*)thread->command->init_val = thread->command->tstreams->data.i64val;
+                    break;
+            }
 
+            thread->num_threads = group->num_threads;
             thread->local_id = group->hwthreads[i];
             thread->global_id = total_threads + i;
             thread->runtime = 0.0;
