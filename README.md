@@ -20,17 +20,18 @@ $ ./likwid-bench -h
 ###########################################
 # likwid-bench - Micro-benchmarking suite #
 ###########################################
-
- -h/--help          : Print usage
- -t/--test <str>    : Name of testcase
- -f/--file <str>    : Filename for testcase
- -d/--kfolder <str> : Benchmark folder
+Option:
+ -h/--help              : Print usage
+ -V/--verbose           : Verbosity level (0 - 3)
+ -t/--test <str>        : Name of testcase
+ -f/--file <str>        : Filename for testcase
+ -K/--kfolder <str>     : Benchmark folder
+ -i/--iterations <str>  : Number of iterations for execution (either iterations/ runtime is allowed at a time)
+ -r/--runtime <time>    : Runtime of benchmark (default in s, accepts ms, s, m, h, automatically determines iterations)
 
 With the testcase name or the filename, the options might expand if the benchmark requires more input
 
  -w/--workgroup <str>  : A workgroup definition like S0:2 (multiple options allowed)
- -i/--iterations <str> : Number of iterations for execution
- -r/--runtime <time>   : Runtime of benchmark (default 1s, automatically determines iterations)
 
 likwid-bench automatically detects the number of iterations (if not given) for the given or default
 runtime.
@@ -48,18 +49,19 @@ $ ./likwid-bench -t <kernel> -h
 # likwid-bench - Micro-benchmarking suite #
 ###########################################
 
- -h/--help          : Print usage
- -t/--test <str>    : Name of testcase
- -f/--file <str>    : Filename for testcase
- -d/--kfolder <str> : Benchmark folder
- -w/--workgroup <str>  : A workgroup definition like S0:2 (multiple options allowed)
- -i/--iterations <str> : Number of iterations for execution
- -r/--runtime <time>   : Runtime of benchmark (default 1s, automatically determines iterations)
+ -h/--help              : Print usage
+ -V/--verbose           : Verbosity level (0 - 3)
+ -t/--test <str>        : Name of testcase
+ -f/--file <str>        : Filename for testcase
+ -K/--kfolder <str>     : Benchmark folder
+ -i/--iterations <str>  : Number of iterations for execution (either iterations/ runtime is allowed at a time)
+ -r/--runtime <time>    : Runtime of benchmark (default in s, accepts ms, s, m, h, automatically determines iterations)
 
 likwid-bench automatically detects the number of iterations (if not given) for the given or default
 runtime.
 
- -N <value> : Size of array that should be loaded (Options: bytes, required)
+ -w/--workgroup <str>   : A workgroup definition like S0:2 (multiple options allowed)
+ -N <value>             : Size of array that should be loaded (Options: kb, MB, GB, TB required)
 ```
 
 
@@ -67,9 +69,9 @@ runtime.
 ## Development plan
 
 - [x] Parsing of workgroup(s) `S0:2`
-- [ ] Compile assembly from YAML file to object code
-- [ ] Allocate streams with given sizes
-- [ ] Create threads according to workgroup(s)
+- [x] Compile assembly from YAML file to object code
+- [x] Allocate streams with given sizes
+- [x] Create threads according to workgroup(s)
 - [ ] Run benchmark (`dlopen`, etc.)
 - [ ] Evaluate given metrics using given variables and runtime measurements
 - [ ] Print out results in various formats
