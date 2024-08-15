@@ -10,16 +10,39 @@
 #include "allocator.h"
 #include "bitmap.h"
 
+int getsizeof(TestConfigStreamType type)
+{
+    switch(type)
+    {
+        case TEST_STREAM_TYPE_SINGLE:
+            return sizeof(float);
+        case TEST_STREAM_TYPE_DOUBLE:
+            return sizeof(double);
+        case TEST_STREAM_TYPE_INT:
+            return sizeof(int);
+        case TEST_STREAM_TYPE_INT64:
+            return sizeof(int64_t);
+#ifdef WITH_HALF_PRECISION
+        case TEST_STREAM_TYPE_HALF:
+            return sizeof(_Float16);
+#endif
+        default:
+            fprintf(stderr, "Unknown Datatype\n");
+            return -EINVAL;
+    }
+    return 0;
+}
+
 size_t getstreamelems(RuntimeStreamConfig *sdata)
 {
-    size_t total = 0;
+    size_t total = 1;
     if (sdata)
     {
         for (int i = 0; i < sdata->dims; i++)
         {
             if (sdata->dimsizes[i] > 0)
             {
-                total *= (size_t)sdata->dimsizes[i];
+                total *= ((size_t)sdata->dimsizes[i] / getsizeof(sdata->type));
             }
             else
             {
@@ -38,45 +61,23 @@ size_t getstreambytes(RuntimeStreamConfig *sdata)
         if (sdata->dims > 0)
         {
             for (int i = 0; i < sdata->dims; i++)
-            if (sdata->dimsizes[i] > 0)
             {
-                total *= (size_t)sdata->dimsizes[i];
-            }
-            else
-            {
-                return -EINVAL;
+                if (sdata->dimsizes[i] > 0)
+                {
+                    total *= ((size_t)sdata->dimsizes[i] / getsizeof(sdata->type));
+                }
+                else
+                {
+                    return -EINVAL;
+                }
             }
         }
         else
         {
             return -EINVAL;
         }
-        switch(sdata->type)
-        {
-            case TEST_STREAM_TYPE_SINGLE:
-                total *= sizeof(float);
-                break;
-            case TEST_STREAM_TYPE_DOUBLE:
-                total *= sizeof(double);
-                break;
-            case TEST_STREAM_TYPE_INT:
-                total *= sizeof(int);
-                break;
-            case TEST_STREAM_TYPE_INT64:
-                total *= sizeof(int64_t);
-                break;
-#ifdef WITH_HALF_PRECISION
-            case TEST_STREAM_TYPE_HALF:
-                total *= sizeof(_Float16);
-                break;
-#endif
-            default:
-                printf("Unknown Datatype\n");
-                return -EINVAL;
-                break;
-        }
     }
-    return total;
+    return total * getsizeof(sdata->type);
 }
 
 size_t getstreamdimbytes(RuntimeStreamConfig *sdata, int dim)
@@ -86,27 +87,7 @@ size_t getstreamdimbytes(RuntimeStreamConfig *sdata, int dim)
     {
         if (dim > 0 && dim < sdata->dims)
         {
-            total = sdata->dimsizes[dim];
-            switch(sdata->type)
-            {
-                case TEST_STREAM_TYPE_SINGLE:
-                    total *= sizeof(float);
-                    break;
-                case TEST_STREAM_TYPE_DOUBLE:
-                    total *= sizeof(double);
-                    break;
-                case TEST_STREAM_TYPE_INT:
-                    total *= sizeof(int);
-                    break;
-                case TEST_STREAM_TYPE_INT64:
-                    total *= sizeof(int64_t);
-                    break;
-#ifdef WITH_HALF_PRECISION
-                case TEST_STREAM_TYPE_HALF:
-                    total *= sizeof(_Float16);
-                    break;
-#endif
-            }
+            total = sdata->dimsizes[dim] * getsizeof(sdata->type);
         }
         else
         {
@@ -120,8 +101,9 @@ size_t getstreamdimbytes(RuntimeStreamConfig *sdata, int dim)
     case streamtype: \
         if (offset < 0 || (size_t)offset >= sdata->dimsizes[0]) return -EINVAL; \
         msize = (size + offset) * sizeof(datatype); \
-        datatype * p_##datatype = malloc(msize); \
-        if (!p_##datatype) return -ENOMEM; \
+        datatype * p_##datatype; \
+        if (posix_memalign((void*)&p_##datatype, CL_SIZE, msize) != 0) return -ENOMEM; \
+        sdata->base_ptr = p_##datatype; \
         sdata->ptr = (void*)((char*) p_##datatype + (offset * sizeof(datatype))); \
         break;
 
@@ -129,10 +111,10 @@ int _allocate_arrays_1dim(RuntimeStreamConfig *sdata)
 {
     if (sdata->dims != 1 || sdata->dimsizes[0] <= 0) return -EINVAL;
     
-    size_t size = getstreambytes(sdata);
+    size_t size = getstreamelems(sdata);
     size_t msize;
     if (msize < 0) return msize;
-    printf("_allocate_arrays_1dim %lu Bytes with stream name %s\n", size, bdata(sdata->name));
+    printf("_allocate_arrays_1dim %lu Bytes with stream name %s\n", getstreambytes(sdata), bdata(sdata->name));
     switch(sdata->type)
     {
         DEFINE_1DIM_TYPE_CASE_ALLOC(TEST_STREAM_TYPE_DOUBLE, double, sdata->offsets[0])
@@ -153,24 +135,16 @@ int _allocate_arrays_1dim(RuntimeStreamConfig *sdata)
     case streamtype: \
         if (offset1 < 0 || offset2 < 0 || (size_t)offset1 >= sdata->dimsizes[0] || (size_t)offset2 >= sdata->dimsizes[1]) return -EINVAL; \
         msize1 = (offset1 + size1) * sizeof(datatype*); \
-        msize2 = (offset2 + size2) * sizeof(datatype); \
-        datatype ** p_##datatype = malloc(msize1); \
-        if (!p_##datatype) return -ENOMEM; \
-        for (int i = 0; i < size1 + offset1; i++) \
+        msize2 = (offset2 + size2) * (offset1 + size1) * sizeof(datatype); \
+        datatype ** p_##datatype; \
+        if (posix_memalign((void**)&p_##datatype, CL_SIZE, msize1) != 0) return -ENOMEM; \
+        if (posix_memalign((void**)&p_##datatype[0], CL_SIZE, msize2) != 0) { free(p_##datatype); return -ENOMEM; } \
+        for (int i = 1; i < size1 + offset1; i++) \
         { \
-            p_##datatype[i] = malloc(msize2); \
-            if (!p_##datatype[i]) \
-            { \
-                for (int j = i - 1; j >= 0; j--) \
-                { \
-                    if (p_##datatype[i]) free(p_##datatype[i]); \
-                } \
-                free(p_##datatype); \
-                return -ENOMEM; \
-            } \
+            p_##datatype[i] = p_##datatype[0] + i * (size2 + offset2); \
         } \
+        sdata->base_ptr = p_##datatype; \
         sdata->ptr = (void*)((char**) p_##datatype + offset1); \
-        for (int i = 0; i < offset1; i++) p_##datatype[i] = NULL; \
         break;
 
 
@@ -178,8 +152,8 @@ static int _allocate_arrays_2dim(RuntimeStreamConfig *sdata)
 {
     if (sdata->dims != 2 || sdata->dimsizes[0] <= 0 || sdata->dimsizes[1] <= 0)
         return -EINVAL;
-    size_t size1 = sdata->dimsizes[0];
-    size_t size2 = sdata->dimsizes[1];
+    size_t size1 = sdata->dimsizes[0] / getsizeof(sdata->type);
+    size_t size2 = sdata->dimsizes[1] / getsizeof(sdata->type);
     size_t msize1, msize2;
     if (msize1 < 0)
     {
@@ -211,43 +185,24 @@ static int _allocate_arrays_2dim(RuntimeStreamConfig *sdata)
         if (offset1 < 0 || offset2 < 0 || offset3 < 0 || \
             (size_t)offset1 >= sdata->dimsizes[0] || \
             (size_t)offset2 >= sdata->dimsizes[1] || \
-            (size_t)offset3 >= sdata->dimsizes[2]) \
-            { \
-                return -EINVAL; \
-            } \
+            (size_t)offset3 >= sdata->dimsizes[2]) return -EINVAL; \
         msize1 = (size1 + offset1) * sizeof(datatype**); \
-        msize2 = (size2 + offset2) * sizeof(datatype*); \
-        msize3 = (size3 + offset3) * sizeof(datatype); \
-        datatype *** p_##datatype = malloc(msize1); \
-        if (!p_##datatype) return -ENOMEM; \
+        msize2 = (size1 + offset1) * (size2 + offset2) * sizeof(datatype*); \
+        msize3 = (size1 + offset1) * (size2 + offset2) * (size3 + offset3) * sizeof(datatype); \
+        datatype *** p_##datatype; \
+        if (posix_memalign((void**)&p_##datatype, CL_SIZE, msize1) != 0) return -ENOMEM; \
+        if (posix_memalign((void**)&p_##datatype[0], CL_SIZE, msize2) != 0) { free(p_##datatype); return -ENOMEM; } \
+        if (posix_memalign((void**)&p_##datatype[0][0], CL_SIZE, msize3) != 0) { free(p_##datatype[0]); free(p_##datatype); return -ENOMEM; } \
         for (int i = 0; i < size1 + offset1; i++) \
         { \
-            p_##datatype[i] = malloc(msize2); \
-            if (!p_##datatype[i]) \
+            p_##datatype[i] = p_##datatype[0] + i * (size2 + offset2); \
+            for (int j = 0; j < size2 + offset2; j++) \
             { \
-                for (int j = i-1; j >= 0; j--) free(p_##datatype[j]); \
-                free(p_##datatype); \
-                return -ENOMEM; \
-            } \
-            for (int j = 0; j < size2+ offset2; j++) \
-            { \
-                p_##datatype[i][j] = malloc(size3); \
-                if (!p_##datatype[i][j]) \
-                { \
-                    for (int k = j - 1; k >= 0; k--) free(p_##datatype[i][k]); \
-                    free(p_##datatype[i]); \
-                    for (int k = i - 1; k >= 0; k--) \
-                    { \
-                        for (int l = 0; l < size2 + offset2; l++) free(p_##datatype[k][l]); \
-                        free(p_##datatype[k]); \
-                    } \
-                    free(p_##datatype); \
-                    return -ENOMEM; \
-                } \
+                p_##datatype[i][j] = p_##datatype[0][0] + i * (size2 + offset2) * (size3 + offset3) + j * (size3 + offset3); \
             } \
         } \
+        sdata->base_ptr = p_##datatype; \
         sdata->ptr = (void*)((char***) p_##datatype + offset1); \
-        for (int i = 0; i < offset1; i++) p_##datatype[i] = NULL; \
         break;
 
 
@@ -255,9 +210,9 @@ static int _allocate_arrays_3dim(RuntimeStreamConfig *sdata)
 {
     if (sdata->dims != 3 || sdata->dimsizes[0] <= 0 || sdata->dimsizes[1] <= 0 || sdata->dimsizes[2] <= 0)
         return -EINVAL;
-    size_t size1 = sdata->dimsizes[0];
-    size_t size2 = sdata->dimsizes[1];
-    size_t size3 = sdata->dimsizes[2];
+    size_t size1 = sdata->dimsizes[0] / getsizeof(sdata->type);
+    size_t size2 = sdata->dimsizes[1] / getsizeof(sdata->type);
+    size_t size3 = sdata->dimsizes[2] / getsizeof(sdata->type);
     size_t msize1, msize2, msize3;
     if (msize1 < 0)
     {
@@ -358,24 +313,26 @@ int allocate_streams(RuntimeConfig* runcfg)
 
 void _release_arrays_1dim(RuntimeStreamConfig *sdata)
 {
-    if (sdata && sdata->ptr)
+    if (sdata && sdata->base_ptr)
     {
         printf("release str %d\n", sdata->id);
-        free(sdata->ptr);
+        free(sdata->base_ptr);
         sdata->ptr = NULL;
+        sdata->base_ptr = NULL;
     }
 }
 
 #define DEFINE_2DIM_TYPE_CASE_RELEASE(streamtype, datatype) \
     case streamtype: \
-        tmp = sdata->ptr; \
-        datatype** datatype##_ptr = (datatype **)tmp; \
-        for (int i = 0; i < size1; i++) \
+        tmp = sdata->base_ptr; \
+        datatype** datatype##_ptr = (datatype **)((char**)tmp); \
+        if (datatype##_ptr) \
         { \
-            if (datatype##_ptr[i]) free(datatype##_ptr[i]); \
+            if (datatype##_ptr[0]) free(datatype##_ptr[0]); \
         } \
-        free(sdata->ptr); \
+        free(datatype##_ptr); \
         sdata->ptr = NULL; \
+        sdata->base_ptr = NULL; \
         break;
 
 
@@ -383,7 +340,7 @@ void _release_arrays_1dim(RuntimeStreamConfig *sdata)
 void _release_arrays_2dim(RuntimeStreamConfig *sdata)
 {
     
-    if (sdata && sdata->ptr)
+    if (sdata && sdata->base_ptr)
     {
         size_t size1 = sdata->dimsizes[0];
         void* tmp = NULL;   
@@ -406,31 +363,27 @@ void _release_arrays_2dim(RuntimeStreamConfig *sdata)
 
 #define DEFINE_3DIM_TYPE_CASE_RELEASE(streamtype, datatype) \
     case streamtype: \
-        tmp = sdata->ptr; \
-        datatype*** datatype##_ptr = (datatype ***)tmp; \
-        for (int i = 0; i < size1; i++) \
+        tmp = sdata->base_ptr; \
+        datatype*** datatype##_ptr = (datatype ***)((char**)tmp); \
+        if (datatype##_ptr) \
         { \
-            if (datatype##_ptr[i]) \
+            if (datatype##_ptr[0][0] && datatype##_ptr[0]) \
             { \
-                for (int j = 0; j < size2; j++) \
-                { \
-                    if (datatype##_ptr[i][j]) \
-                    { \
-                        free(datatype##_ptr[i][j]); \
-                        datatype##_ptr[i][j] = NULL; \
-                    } \
-                } \
-                free(datatype##_ptr[i]); \
-                datatype##_ptr[i] = NULL; \
+                free(datatype##_ptr[0][0]); \
             } \
+            if (datatype##_ptr[0]) \
+            { \
+                free(datatype##_ptr[0]); \
+            } \
+            free(datatype##_ptr); \
         } \
-        free(sdata->ptr); \
         sdata->ptr = NULL; \
+        sdata->base_ptr = NULL; \
         break;
 
 void _release_arrays_3dim(RuntimeStreamConfig *sdata)
 {
-    if (sdata && sdata->ptr)
+    if (sdata && sdata->base_ptr)
     {
         size_t size1 = sdata->dimsizes[0];
         size_t size2 = sdata->dimsizes[1];
@@ -471,13 +424,60 @@ void release_arrays(RuntimeStreamConfig *sdata)
 }
 
 
+#define INIT_ARRAY(datatype) \
+    do { \
+        if (dims == 1) ((datatype*)ptr)[indices[0]] = *(datatype*)init_val; \
+        else if (dims == 2) ((datatype **)ptr)[indices[0]][indices[1]] = *(datatype*)init_val; \
+        else if (dims == 3) ((datatype ***)ptr)[indices[0]][indices[1]][indices[2]] = *(datatype*)init_val; \
+    } while (0)
+
+int init_function(void* ptr, int state, TestConfigStreamType type, int dims, int64_t* dimsizes, void* init_val, ...)
+{
+    va_list args;
+    va_start(args, init_val);
+    int indices[3] = {0};
+    for (int i = 0; i < dims; i++)
+    {
+        indices[i] = va_arg(args, int);
+    }
+    va_end(args);
+
+    if (ptr != NULL)
+    {
+        switch (type)
+        {
+            case TEST_STREAM_TYPE_SINGLE:
+                INIT_ARRAY(float);
+                break;
+            case TEST_STREAM_TYPE_DOUBLE:
+                INIT_ARRAY(double);
+                break;
+            case TEST_STREAM_TYPE_INT:
+                INIT_ARRAY(int);
+                break;
+            case TEST_STREAM_TYPE_INT64:
+                INIT_ARRAY(int64_t);
+                break;
+#ifdef WITH_HALF_PRECISION
+            case TEST_STREAM_TYPE_HALF:
+                INIT_ARRAY(_Float16);
+                break;
+#endif
+            default:
+                ERROR_PRINT(Invalid datatype);
+                return state;
+        }
+    }
+    return state + 1;
+}
+
 #define DEFINE_1D_TYPE_CASE_INIT(streamtype, datatype) \
     case streamtype: \
         tmp = sdata->ptr; \
         datatype* datatype##_ptr = (datatype *)tmp; \
-        for (int i = 0; i < elems; i++) \
+        for (size_t i = 0; i < elems; i++) \
         { \
-            state = sdata->init(datatype##_ptr, state, sdata->dims, i); \
+            state = sdata->init(datatype##_ptr, state, sdata->type, sdata->dims, sdata->dimsizes, sdata->init_val, i); \
         } \
         break;
 
@@ -509,12 +509,12 @@ int _initialize_arrays_1dim(RuntimeStreamConfig *sdata)
 #define DEFINE_2D_TYPE_CASE_INIT(streamtype, datatype) \
     case streamtype: \
         tmp = sdata->ptr; \
-        datatype** datatype##_ptr = (datatype **)tmp; \
-        for (int i = 0; i < sdata->dimsizes[0]; i++) \
+        datatype ** datatype##_ptr = (datatype **)tmp; \
+        for (size_t i = 0; i < size1; i++) \
         { \
-            for (int j = 0; j < sdata->dimsizes[1]; j++) \
+            for (size_t j = 0; j < size2; j++) \
             { \
-                state = sdata->init(datatype##_ptr, state, sdata->dims, i, j); \
+                state = sdata->init((void*)datatype##_ptr, state, sdata->type, sdata->dims, sdata->dimsizes, sdata->init_val, i, j); \
             } \
         } \
         break;
@@ -526,6 +526,8 @@ int _initialize_arrays_2dim(RuntimeStreamConfig *sdata)
         void* tmp = NULL;
         int state = 0;
         size_t elems = getstreamelems(sdata);
+        size_t size1 = sdata->dimsizes[0] / getsizeof(sdata->type);
+        size_t size2 = sdata->dimsizes[1] / getsizeof(sdata->type);
         printf("initialize str %d with %d dimensions and total %lu elements\n", sdata->id, sdata->dims, elems);
         switch(sdata->type)
         {
@@ -548,18 +550,17 @@ int _initialize_arrays_2dim(RuntimeStreamConfig *sdata)
     case streamtype: \
         tmp = sdata->ptr; \
         datatype*** datatype##_ptr = (datatype ***)tmp; \
-        for (int i = 0; i < sdata->dimsizes[0]; i++) \
+        for (size_t i = 0; i < size1; i++) \
         { \
-            for (int j = 0; j < sdata->dimsizes[1]; j++) \
+            for (size_t j = 0; j < size2; j++) \
             { \
-                for (int k = 0; k < sdata->dimsizes[2]; k++) \
+                for (size_t k = 0; k < size3; k++) \
                 { \
-                    state = sdata->init(datatype##_ptr, state, sdata->dims, i, j, k); \
+                    state = sdata->init(datatype##_ptr, state, sdata->type, sdata->dims, sdata->dimsizes, sdata->init_val, i, j, k); \
                 } \
             } \
         } \
         break;
-
 
 int _initialize_arrays_3dim(RuntimeStreamConfig *sdata)
 {
@@ -568,6 +569,9 @@ int _initialize_arrays_3dim(RuntimeStreamConfig *sdata)
         void* tmp = NULL;
         int state = 0;
         size_t elems = getstreamelems(sdata);
+        size_t size1 = sdata->dimsizes[0] / getsizeof(sdata->type);
+        size_t size2 = sdata->dimsizes[1] / getsizeof(sdata->type);
+        size_t size3 = sdata->dimsizes[2] / getsizeof(sdata->type);
         printf("initialize str %d with %d dimensions and total %lu elements\n", sdata->id, sdata->dims, elems);
         switch(sdata->type)
         {
@@ -599,6 +603,150 @@ int initialize_arrays(RuntimeStreamConfig *sdata)
     else if (sdata->dims == 3)
     {
         return _initialize_arrays_3dim(sdata);
+    }
+    return -EINVAL;
+}
+
+
+#define DEFINE_1D_TYPE_CASE_PRINT(streamtype, datatype, format) \
+    case streamtype: \
+        tmp = sdata->ptr; \
+        datatype* datatype##_ptr = (datatype *)tmp; \
+        for (int i = 0; i < elems; i++) \
+        { \
+            printf(format " ", datatype##_ptr[i]); \
+        } \
+        printf("\n"); \
+        break;
+
+int _print_arrays_1dim(RuntimeStreamConfig *sdata)
+{
+    if (sdata && sdata->ptr)
+    {
+        void* tmp = NULL;
+        size_t elems = getstreamelems(sdata);
+        double size = (double)getstreambytes(sdata) / 1024LL;
+        printf("printing 1 dimensional array of size %lfkb with %ld elements\n", size, elems);
+        switch(sdata->type)
+        {
+            DEFINE_1D_TYPE_CASE_PRINT(TEST_STREAM_TYPE_DOUBLE, double, "%lf")
+            DEFINE_1D_TYPE_CASE_PRINT(TEST_STREAM_TYPE_INT, int, "%d")
+            DEFINE_1D_TYPE_CASE_PRINT(TEST_STREAM_TYPE_SINGLE, float, "%f")
+            DEFINE_1D_TYPE_CASE_PRINT(TEST_STREAM_TYPE_INT64, int64_t, "%ld")
+#ifdef WITH_HALF_PRECISION
+            DEFINE_1D_TYPE_CASE_PRINT(TEST_STREAM_TYPE_HALF, _Float16, "%f")
+#endif
+            default:
+                fprintf(stderr, "Unknown stream type\n");
+                break;
+        }
+    }
+    return 0;
+}
+
+#define DEFINE_2D_TYPE_CASE_PRINT(streamtype, datatype, format) \
+    case streamtype: \
+        tmp = sdata->ptr; \
+        datatype** datatype##_ptr = (datatype **)tmp; \
+        for (int i = 0; i < size1; i++) \
+        { \
+            for (int j = 0; j < size2; j++) \
+            { \
+                printf(format " ", datatype##_ptr[i][j]); \
+            } \
+            printf("\n"); \
+        } \
+        break;
+
+int _print_arrays_2dim(RuntimeStreamConfig *sdata)
+{
+    if (sdata && sdata->ptr)
+    {
+        void* tmp = NULL;
+        size_t elems = getstreamelems(sdata);
+        size_t size1 = sdata->dimsizes[0] / getsizeof(sdata->type);
+        size_t size2 = sdata->dimsizes[1] / getsizeof(sdata->type);
+        double size = (double)getstreambytes(sdata) / 1024LL;
+        printf("printing 2 dimensional array of size %lfkb with %ld elements\n", size, elems);
+        switch(sdata->type)
+        {
+            DEFINE_2D_TYPE_CASE_PRINT(TEST_STREAM_TYPE_DOUBLE, double, "%lf")
+            DEFINE_2D_TYPE_CASE_PRINT(TEST_STREAM_TYPE_INT, int, "%d")
+            DEFINE_2D_TYPE_CASE_PRINT(TEST_STREAM_TYPE_SINGLE, float, "%f")
+            DEFINE_2D_TYPE_CASE_PRINT(TEST_STREAM_TYPE_INT64, int64_t, "%ld")
+#ifdef WITH_HALF_PRECISION
+            DEFINE_2D_TYPE_CASE_PRINT(TEST_STREAM_TYPE_HALF, _Float16, "%f")
+#endif
+            default:
+                fprintf(stderr, "Unknown stream type\n");
+                break;
+        }
+    }
+    return 0;
+}
+
+#define DEFINE_3D_TYPE_CASE_PRINT(streamtype, datatype, format) \
+    case streamtype: \
+        tmp = sdata->ptr; \
+        datatype*** datatype##_ptr = (datatype ***)tmp; \
+        for (int i = 0; i < size1; i++) \
+        { \
+            for (int j = 0; j < size2; j++) \
+            { \
+                for (int k = 0; k < size3; k++) \
+                { \
+                    printf(format " ", datatype##_ptr[i][j][k]); \
+                } \
+                printf("\n"); \
+            } \
+            printf("\n"); \
+        } \
+        break;
+
+int _print_arrays_3dim(RuntimeStreamConfig *sdata)
+{
+    if (sdata && sdata->ptr)
+    {
+        void* tmp = NULL;
+        size_t elems = getstreamelems(sdata);
+        size_t size1 = sdata->dimsizes[0] / getsizeof(sdata->type);
+        size_t size2 = sdata->dimsizes[1] / getsizeof(sdata->type);
+        size_t size3 = sdata->dimsizes[2] / getsizeof(sdata->type);
+        double size = (double)getstreambytes(sdata) / 1024LL;
+        printf("printing 3 dimensional array of size %lfkb with %ld elements\n", size, elems);
+        switch(sdata->type)
+        {
+            DEFINE_3D_TYPE_CASE_PRINT(TEST_STREAM_TYPE_DOUBLE, double, "%lf")
+            DEFINE_3D_TYPE_CASE_PRINT(TEST_STREAM_TYPE_INT, int, "%d")
+            DEFINE_3D_TYPE_CASE_PRINT(TEST_STREAM_TYPE_SINGLE, float, "%f")
+            DEFINE_3D_TYPE_CASE_PRINT(TEST_STREAM_TYPE_INT64, int64_t, "%ld")
+#ifdef WITH_HALF_PRECISION
+            DEFINE_3D_TYPE_CASE_PRINT(TEST_STREAM_TYPE_HALF, _Float16, "%f")
+#endif
+            default:
+                fprintf(stderr, "Unknown stream type\n");
+                break;
+        }
+    }
+    return 0;
+}
+
+int print_arrays(RuntimeStreamConfig *sdata)
+{
+    if (sdata && sdata->ptr)
+    {
+        if (sdata->dims == 1)
+        {
+            return _print_arrays_1dim(sdata);
+        }
+        else if (sdata->dims == 2)
+        {
+            return _print_arrays_2dim(sdata);
+        }
+        else if (sdata->dims == 3)
+        {
+            return _print_arrays_3dim(sdata);
+        }
     }
     return -EINVAL;
 }

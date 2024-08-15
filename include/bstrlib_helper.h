@@ -26,6 +26,7 @@ int bisnumber(bstring b);
 bstring read_file(char *filename);
 
 int batoi(bstring b, int* value);
+int batoi64(bstring b, int64_t* value);
 int batof(bstring b, float* value);
 int batod(bstring b, double* value);
 

@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <time.h>
 
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
@@ -237,6 +238,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
     struct tagbstring bstrdimensions = bsStatic("dimensions");
     struct tagbstring bstrdimsizes = bsStatic("dimsizes");
     struct tagbstring bstropts = bsStatic("options");
+    struct tagbstring bstrinit = bsStatic("initialization");
     struct tagbstring bname = bsStatic("Name");
     struct tagbstring bdesc = bsStatic("Description");
     struct tagbstring blang = bsStatic("Language");
@@ -254,6 +256,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
     struct tagbstring brequirewg = bsStatic("RequireWorkgroup");
     struct tagbstring btrue = bsStatic("true");
     struct tagbstring bperthread = bsStatic("perthread");
+    struct tagbstring brand = bsStatic("rand");
     bstring bptt = read_file(filename);
     if (blength(bptt) == 0)
     {
@@ -268,7 +271,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
     conf->code = NULL;
     conf->flags = bstrListCreate();
     conf->requirewg = false;
-    conf->initialization = true;
+    conf->initialization = false;
     read_obj(bptt, &objs);
     for (i = 0; i < objs->qty; i++)
     {
@@ -333,6 +336,72 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                                             printf("Unknown stream type '%s'\n", bdata(vv));
                                         }
                                     }
+                                    else if (bstrnicmp(vk, &bstrinit, blength(&bstrinit)) == BSTR_OK)
+                                    {
+                                        btrimws(vv);
+                                        srand(time(NULL));
+                                        if (s->type = TEST_STREAM_TYPE_SINGLE)
+                                        {
+                                            if (bstrnicmp(vv, &brand, blength(&brand)) == BSTR_OK && blength(vv) == blength(&brand))
+                                            {
+                                                s->data.fval = (float)rand() / (float)RAND_MAX;
+                                            }
+                                            else
+                                            {
+                                                batof(vv, &s->data.fval);
+                                            }
+                                        }
+                                        else if (s->type = TEST_STREAM_TYPE_DOUBLE)
+                                        {
+                                            if (bstrnicmp(vv, &brand, blength(&brand)) == BSTR_OK && blength(vv) == blength(&brand))
+                                            {
+                                                s->data.dval = (double)rand() / (double)RAND_MAX;
+                                            }
+                                            else
+                                            {
+                                                batod(vv, &s->data.dval);
+                                            }
+                                        }
+                                        else if (s->type = TEST_STREAM_TYPE_INT)
+                                        {
+                                            if (bstrnicmp(vv, &brand, blength(&brand)) == BSTR_OK && blength(vv) == blength(&brand))
+                                            {
+                                                s->data.ival = rand();
+                                            }
+                                            else
+                                            {
+                                                batoi(vv, &s->data.ival);
+                                            }
+                                        }
+#ifdef WITH_HALF_PRECISION
+                                        else if (s->type = TEST_STREAM_TYPE_HALF)
+                                        {
+                                            if (bstrnicmp(vv, &brand, blength(&brand)) == BSTR_OK && blength(vv) == blength(&brand))
+                                            {
+                                                s->data.f16val = (_Float16)((float)rand() / (float)RAND_MAX);
+                                            }
+                                            else
+                                            {
+                                                float tmp;
+                                                if (batof(vv, &tmp) == 0)
+                                                {
+                                                    s->data.f16val = (_Float16)tmp;
+                                                }
+                                            }
+                                        }
+#endif
+                                        else if (s->type = TEST_STREAM_TYPE_INT64)
+                                        {
+                                            if (bstrnicmp(vv, &brand, blength(&brand)) == BSTR_OK && blength(vv) == blength(&brand))
+                                            {
+                                                s->data.i64val = ((int64_t)rand() << 32) | (int64_t)rand();
+                                            }
+                                            else
+                                            {
+                                                batoi64(vv, &s->data.i64val);
+                                            }
+                                        }
+                                    }
                                     if (bstrnicmp(vk, &bstrdimsizes, 8) == BSTR_OK)
                                     {
                                         read_yaml_ptt_list(vv, &s->dims);
@@ -343,9 +412,9 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                                         read_yaml_ptt_list(vv, &tmpl);
                                         // printf("Options: %s\n", bdata(tmpl->entry[0]));
                                         // bstrListPrint(tmpl);
-                                        if (bstrnicmp(tmpl->entry[0], &bperthread, blength(&bperthread)) == BSTR_OK)
+                                        if (bstrnicmp(tmpl->entry[0], &bperthread, blength(&bperthread)) == BSTR_OK && blength(&bperthread) == blength(tmpl->entry[0]))
                                         {
-                                            conf->initialization = false;
+                                            conf->initialization = true;
                                         }
                                         bstrListDestroy(tmpl);
                                     }

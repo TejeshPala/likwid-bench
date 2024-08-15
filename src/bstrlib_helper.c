@@ -204,6 +204,29 @@ int batoi(bstring b, int* value)
     return BSTR_OK;
 }
 
+int batoi64(bstring b, int64_t* value)
+{
+    if (b == NULL || value == NULL || b->data == NULL || blength(b) == 0) return BSTR_ERR;
+
+    char* endptr = NULL;
+    errno = 0;
+    long long int(*mystrtoll)(const char *nptr, char **endptr, int base) = strtoll;
+    long long int result = mystrtoll(bdata(b), &endptr, 10);
+
+    if (endptr == bdata(b))
+    {
+        b = NULL;
+        result = 0;
+        *value = 0;
+        return BSTR_ERR;
+    }
+
+    if ((errno == ERANGE && (result > ULLONG_MAX || result < LLONG_MIN)) || (errno != 0 && result == 0)) return BSTR_ERR;
+
+    *value = (int64_t)result;
+    return BSTR_OK;
+}
+
 int batof(bstring b, float* value)
 {
     if (b == NULL || value == NULL || bdata(b) == NULL || blength(b) == 0) return BSTR_ERR;

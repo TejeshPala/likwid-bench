@@ -176,6 +176,7 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
         {
             ostream->name = bstrcpy(istream->name);
             ostream->type = istream->type;
+            ostream->data = istream->data;
             ostream->dims = 0;
             for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
             {
@@ -235,7 +236,7 @@ void print_workgroup(RuntimeWorkgroupConfig* wg)
     print_result(wg->group_results);
     for (int i = 0; i < wg->num_threads; i++)
     {
-        printf("Results for Thread %d (HWThread %d)\n", i, wg->hwthreads[i]);
+        printf("Results for Thread %3d (HWThread %3d)\n", i, wg->hwthreads[i]);
         print_result(&wg->results[i]);
     }
 }

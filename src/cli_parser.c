@@ -11,6 +11,7 @@
 #include "bstrlib_helper.h"
 #include "test_types.h"
 #include "error.h"
+#include "helper.h"
 
 static int copy_cli(int argc, char** argv, char*** copy)
 {
@@ -394,51 +395,6 @@ void cliOptionsEpilog(CliOptions* options, bstring epilog)
             btrunc(options->epilog, 0);
             bconcat(options->epilog, epilog);
         }
-    }
-}
-
-double convertToSeconds(const_bstring input)
-{
-    double value = atof((char *)input->data);
-    int len = blength(input);
-    bstring unit;
-    if (len >= 2 && input->data[len-2] == 'm' && input->data[len-1] == 's')
-    {
-        unit = bmidstr(input, blength(input) - 2, 2); // for 'ms'
-    }
-    else
-    {
-        unit = bmidstr(input, blength(input) - 1, 1); // for 's', 'm' and 'h'
-    }
-    struct tagbstring bms = bsStatic("ms");
-    struct tagbstring bs = bsStatic("s");
-    struct tagbstring bm = bsStatic("m");
-    struct tagbstring bh = bsStatic("h");
-
-    if (biseq(unit, &bms))
-    {
-        bdestroy(unit);
-        return value * 0.001;
-    }
-    else if (biseq(unit, &bs))
-    {
-        bdestroy(unit);
-        return value;
-    }
-    else if (biseq(unit, &bm))
-    {
-        bdestroy(unit);
-        return value * 60;
-    }
-    else if (biseq(unit, &bh))
-    {
-        bdestroy(unit);
-        return value * 3600;
-    }
-    else
-    {
-        bdestroy(unit);
-        return value; // default to use 's' when no unit is mentioned for --runtime/-r 
     }
 }
 

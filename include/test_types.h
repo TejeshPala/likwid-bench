@@ -60,14 +60,24 @@ typedef enum {
 } TestConfigStreamFlag;
 #define MIN_STREAM_TYPE 0
 
+typedef union {
+    float       fval;
+    double      dval;
+    int         ival;
+#ifdef WITH_HALF_PRECISION
+    _Float16    f16val;
+#endif
+    int64_t     i64val;
+} TestConfigStreamData;
+
 typedef struct {
     bstring                 name;
     int                     num_dims;
     TestConfigStreamType    type;
     bstring                 btype;
     struct bstrList*        dims;
+    TestConfigStreamData    data;
 } TestConfigStream;
-
 
 typedef struct {
     bstring                 name;
@@ -105,13 +115,16 @@ typedef TestConfig* TestConfig_t;
 typedef struct {
     bstring name;
     void* ptr;
+    void* base_ptr;
     int64_t dimsizes[3];
     off_t offsets[3];
     int dims;
     Bitmap flags;
     int id;
-    int (*init)(void* ptr, int state, int dims, ...);
+    int (*init)(void* ptr, int state, TestConfigStreamType type, int dims, int64_t* dimsizes, void* init_val, ...);
     TestConfigStreamType type;
+    TestConfigStreamData data;
+    void* init_val;
 } RuntimeStreamConfig;
 
 typedef struct {
@@ -137,6 +150,9 @@ typedef struct {
 typedef enum {
     LIKWID_THREAD_COMMAND_EXIT = 0,
     LIKWID_THREAD_COMMAND_NOOP,
+    LIKWID_THREAD_COMMAND_INITIALIZE,
+    LIKWID_THREAD_COMMAND_RUN,
+    LIKWID_THREAD_COMMAND_VERIFY,
 } LikwidThreadCommand;
 
 typedef struct {
@@ -147,6 +163,10 @@ typedef struct {
     int done;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
+    bool initialization;
+    int num_streams;
+    RuntimeStreamConfig* tstreams;
+    void* init_val;
 } RuntimeThreadCommand;
 
 typedef struct {
@@ -181,6 +201,7 @@ typedef struct {
     thread_barrier_t* barrier;
     thread_data_t data;
     RuntimeThreadCommand* command;
+    int num_threads;
 } RuntimeThreadConfig;
 
 typedef struct {
