@@ -159,12 +159,16 @@ void free_runtime_config(RuntimeConfig* runcfg)
             runcfg->codelines = NULL;
         }
 
-        if (runcfg->global_results->variables)
+        if (runcfg->global_results)
         {
-            destroy_result(runcfg->global_results);
-            free(runcfg->global_results);
-            runcfg->global_results = NULL;
+            if (runcfg->global_results->variables)
+            {
+                destroy_result(runcfg->global_results);
+                free(runcfg->global_results);
+                runcfg->global_results = NULL;
+            }
         }
+
         free(runcfg);
     }
 }
