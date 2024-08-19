@@ -487,6 +487,7 @@ int main(int argc, char** argv)
         goto main_out;
     }
 
+    update_results(runcfg->num_wgroups, runcfg->wgroups);
     /*
      * Free arrays
      */

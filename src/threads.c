@@ -123,22 +123,33 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
         DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d initializing stream %d with total elements: %ld offset: %ld, thread_id, s, elems, offset);
         sdata->init_val = thread->command->init_val;
         RuntimeStreamConfig tmp = *sdata;
-
-        tmp.ptr = (char*)sdata->ptr + (offset * getsizeof(sdata->type));
         tmp.dims = sdata->dims;
         switch (sdata->dims)
         {
             case 1:
+                tmp.ptr = (char*)sdata->ptr + (offset * getsizeof(sdata->type));
                 tmp.dimsizes[0] = size * getsizeof(sdata->type);
                 break;
             case 2:
-                tmp.dimsizes[0] = (size / (sdata->dimsizes[1] / getsizeof(sdata->type))) * sdata->dimsizes[1];
-                tmp.dimsizes[1] = sdata->dimsizes[1];
+                size_t rows = sdata->dimsizes[0] / getsizeof(sdata->type);
+                size_t cols = sdata->dimsizes[1] / getsizeof(sdata->type);
+                size_t start_rows = offset / cols;
+                size_t end_rows = (offset + size - 1) / cols;
+                tmp.ptr = (char*)sdata->ptr + start_rows;
+                tmp.dimsizes[0] = (end_rows - start_rows + 1) * getsizeof(sdata->type);
+                tmp.dimsizes[1] = cols * getsizeof(sdata->type);
                 break;
             case 3:
-                tmp.dimsizes[0] = (size / ((sdata->dimsizes[1] / getsizeof(sdata->type)) * (sdata->dimsizes[2] / getsizeof(sdata->type)))) * sdata->dimsizes[1] * sdata->dimsizes[2];
-                tmp.dimsizes[1] = sdata->dimsizes[1];
-                tmp.dimsizes[2] = sdata->dimsizes[2];
+                size_t dim1 = sdata->dimsizes[0] / getsizeof(sdata->type);
+                size_t dim2 = sdata->dimsizes[1] / getsizeof(sdata->type);
+                size_t dim3 = sdata->dimsizes[2] / getsizeof(sdata->type);
+                size_t slice = dim2 * dim3;
+                size_t start = offset / slice;
+                size_t end = (offset + size - 1) / slice;
+                tmp.ptr = (char*)sdata->ptr + start;
+                tmp.dimsizes[0] = (end - start + 1) * getsizeof(sdata->type);
+                tmp.dimsizes[1] = dim2 * getsizeof(sdata->type);
+                tmp.dimsizes[2] = dim3 * getsizeof(sdata->type);
                 break;
         }
         tmp.type = sdata->type;
@@ -169,14 +180,14 @@ int initialize_global(RuntimeThreadConfig* thread)
         switch (sdata->dims)
         {
             case 1:
-                tmp.dimsizes[0] = sdata->dimsizes[0] * getsizeof(sdata->type);
+                tmp.dimsizes[0] = sdata->dimsizes[0];
                 break;
             case 2:
-                tmp.dimsizes[0] = (sdata->dimsizes[0] / (sdata->dimsizes[1] / getsizeof(sdata->type))) * sdata->dimsizes[1];
+                tmp.dimsizes[0] = sdata->dimsizes[0];
                 tmp.dimsizes[1] = sdata->dimsizes[1];
                 break;
             case 3:
-                tmp.dimsizes[0] = (sdata->dimsizes[0] / ((sdata->dimsizes[1] / getsizeof(sdata->type)) * (sdata->dimsizes[2] / getsizeof(sdata->type)))) * sdata->dimsizes[1] * sdata->dimsizes[2];
+                tmp.dimsizes[0] = sdata->dimsizes[0];
                 tmp.dimsizes[1] = sdata->dimsizes[1];
                 tmp.dimsizes[2] = sdata->dimsizes[2];
                 break;

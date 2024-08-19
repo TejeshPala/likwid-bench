@@ -12,6 +12,7 @@
 #include "topology.h"
 #include "results.h"
 #include "allocator.h"
+#include "map.h"
 
 void delete_workgroup(RuntimeWorkgroupConfig* wg)
 {
@@ -213,6 +214,73 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
         }
     }
     return 0;
+}
+
+void update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
+{
+    struct tagbstring biters = bsStatic("iters");
+    struct tagbstring bcycles = bsStatic("cycles");
+    struct tagbstring btime = bsStatic("time");
+    struct tagbstring bmin_iters = bsStatic("min_iters");
+    struct tagbstring bmin_cycles = bsStatic("min_cycles");
+    struct tagbstring bmin_time = bsStatic("min_time");
+    struct tagbstring bmax_iters = bsStatic("max_iters");
+    struct tagbstring bmax_cycles = bsStatic("max_cycles");
+    struct tagbstring bmax_time = bsStatic("max_time");
+    struct tagbstring bavg_iters = bsStatic("avg_iters");
+    struct tagbstring bavg_cycles = bsStatic("avg_cycles");
+    struct tagbstring bavg_time = bsStatic("avg_time");
+    for (int w = 0; w < num_wgroups; w++)
+    {
+        RuntimeWorkgroupConfig* wg = &wgroups[w];
+        uint64_t total_iters = 0, min_iters = UINT64_MAX, max_iters = 0;
+        uint64_t total_cycles = 0, min_cycles = UINT64_MAX, max_cycles = 0;
+        uint64_t total_time = 0, min_time = UINT64_MAX, max_time = 0;
+        int active_threads = 0;
+        for (int t = 0; t < wg->num_threads; t++)
+        {
+            RuntimeThreadConfig* thread = &wg->tgroups->threads[t];
+            RuntimeWorkgroupResult* result = &wg->results[t];
+            if (t == thread->data->hwthread)
+            {
+                uint64_t iters = thread->data->iters;
+                uint64_t cycles = thread->data->cycles;
+                uint64_t time = thread->data->min_runtime;
+                add_value(result, &biters, iters);
+                add_value(result, &bcycles, cycles);
+                add_value(result, &btime, time);
+                total_iters += iters;
+                total_cycles += cycles;
+                total_time += time;
+                min_iters = (iters < min_iters) ? iters : min_iters;
+                min_cycles = (cycles < min_cycles) ? cycles : min_cycles;
+                min_time = (time < min_time) ? time : min_time;
+                max_iters = (iters > max_iters) ? iters : max_iters;
+                max_cycles = (cycles > max_cycles) ? cycles : max_cycles;
+                max_time = (time > max_time) ? time : max_time;
+                active_threads++;
+            }
+        }
+        add_value(wg->group_results, &biters, total_iters);
+        add_value(wg->group_results, &bcycles, total_cycles);
+        add_value(wg->group_results, &btime, total_time);
+        add_value(wg->group_results, &bmin_iters, min_iters);
+        add_value(wg->group_results, &bmin_cycles, min_cycles);
+        add_value(wg->group_results, &bmin_time, min_time);
+        add_value(wg->group_results, &bmax_iters, max_iters);
+        add_value(wg->group_results, &bmax_cycles, max_cycles);
+        add_value(wg->group_results, &bmax_time, max_time);
+        if (active_threads > 0)
+        {
+            uint64_t avg_iters = total_iters / active_threads;
+            uint64_t avg_cycles = total_cycles / active_threads;
+            uint64_t avg_time = total_time / active_threads;
+            add_value(wg->group_results, &bavg_iters, avg_iters);
+            add_value(wg->group_results, &bavg_cycles, avg_cycles);
+            add_value(wg->group_results, &bavg_time, avg_time);
+        }
+        print_workgroup(wg);
+    }
 }
 
 void _print_workgroup_cb(mpointer key, mpointer val, mpointer user_data)

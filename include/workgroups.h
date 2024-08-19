@@ -38,6 +38,7 @@ int resolve_workgroup(RuntimeWorkgroupConfig* wg, int maxThreads);
 int resolve_workgroups(int num_wgroups, RuntimeWorkgroupConfig* wgroups);
 int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg);
 void print_workgroup(RuntimeWorkgroupConfig* wgroup);
+void update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups);
 
 
 #endif /* WORKGROUP_H */
