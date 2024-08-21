@@ -233,15 +233,16 @@ void update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
     for (int w = 0; w < num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &wgroups[w];
+        RuntimeThreadgroupConfig* tgroup = &wgroups->tgroups[w];
         uint64_t total_iters = 0, min_iters = UINT64_MAX, max_iters = 0;
         uint64_t total_cycles = 0, min_cycles = UINT64_MAX, max_cycles = 0;
         uint64_t total_time = 0, min_time = UINT64_MAX, max_time = 0;
         int active_threads = 0;
-        for (int t = 0; t < wg->num_threads; t++)
+        for (int t = 0; t < tgroup->num_threads; t++)
         {
-            RuntimeThreadConfig* thread = &wg->tgroups->threads[t];
+            RuntimeThreadConfig* thread = &tgroup->threads[t];
             RuntimeWorkgroupResult* result = &wg->results[t];
-            if (t == thread->data->hwthread)
+            if (wg->hwthreads[t] == thread->data->hwthread)
             {
                 uint64_t iters = thread->data->iters;
                 uint64_t cycles = thread->data->cycles;

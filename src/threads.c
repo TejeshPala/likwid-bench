@@ -115,11 +115,17 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
         RuntimeStreamConfig* sdata = &thread->command->tstreams[s];
         // DEBUG_PRINT(DEBUGLEV_DEVELOP, dims: %d, sdata->dims);
         size_t elems = getstreamelems(sdata);
-        size_t chunk = elems / thread->num_threads;
-        size_t rem_chunk = elems % thread->num_threads;
-        // printf("num elems: %ld, num threads: %ld, chunk: %ld\n", getstreamelems(thread->command->tstreams), thread->num_threads, chunk);
-        size_t offset = thread_id * chunk + (thread_id < rem_chunk ? thread_id : rem_chunk);
-        size_t size = chunk + (thread_id < rem_chunk ? 1 : 0);
+        size_t offset = 0;
+        size_t size = elems;
+        if (thread->num_threads > 1)
+        {
+            size_t chunk = elems / thread->num_threads;
+            size_t rem_chunk = elems % thread->num_threads;
+            // printf("num elems: %ld, num threads: %ld, chunk: %ld\n", getstreamelems(thread->command->tstreams), thread->num_threads, chunk);
+            int local_id = thread_id % thread->num_threads;
+            offset = local_id * chunk + (local_id < rem_chunk ? local_id : rem_chunk);
+            size = chunk + (local_id < rem_chunk ? 1 : 0);
+        }
         DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d initializing stream %d with total elements: %ld offset: %ld, thread_id, s, elems, offset);
         sdata->init_val = thread->command->init_val;
         RuntimeStreamConfig tmp = *sdata;
@@ -135,7 +141,7 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
                 size_t cols = sdata->dimsizes[1] / getsizeof(sdata->type);
                 size_t start_rows = offset / cols;
                 size_t end_rows = (offset + size - 1) / cols;
-                tmp.ptr = (char*)sdata->ptr + start_rows;
+                tmp.ptr = (char*)sdata->ptr + (start_rows * cols);
                 tmp.dimsizes[0] = (end_rows - start_rows + 1) * getsizeof(sdata->type);
                 tmp.dimsizes[1] = cols * getsizeof(sdata->type);
                 break;
@@ -146,7 +152,7 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
                 size_t slice = dim2 * dim3;
                 size_t start = offset / slice;
                 size_t end = (offset + size - 1) / slice;
-                tmp.ptr = (char*)sdata->ptr + start;
+                tmp.ptr = (char*)sdata->ptr + (start * slice);
                 tmp.dimsizes[0] = (end - start + 1) * getsizeof(sdata->type);
                 tmp.dimsizes[1] = dim2 * getsizeof(sdata->type);
                 tmp.dimsizes[2] = dim3 * getsizeof(sdata->type);
