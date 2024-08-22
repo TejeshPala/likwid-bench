@@ -128,6 +128,13 @@ typedef struct {
 } RuntimeStreamConfig;
 
 typedef struct {
+    uint64_t min;
+    uint64_t max;
+    uint64_t total;
+    bstring name;
+} Stat;
+
+typedef struct {
     Map_t values;
     Map_t variables;
 } RuntimeWorkgroupResult;
