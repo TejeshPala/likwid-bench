@@ -130,13 +130,13 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
         sdata->init_val = thread->command->init_val;
         RuntimeStreamConfig tmp = *sdata;
         tmp.dims = sdata->dims;
-        switch (sdata->dims)
+        switch ((StreamDimension)sdata->dims)
         {
-            case 1:
+            case STREAM_DIM_1D:
                 tmp.ptr = (char*)sdata->ptr + (offset * getsizeof(sdata->type));
                 tmp.dimsizes[0] = size * getsizeof(sdata->type);
                 break;
-            case 2:
+            case STREAM_DIM_2D:
                 size_t rows = sdata->dimsizes[0] / getsizeof(sdata->type);
                 size_t cols = sdata->dimsizes[1] / getsizeof(sdata->type);
                 size_t start_rows = offset / cols;
@@ -145,7 +145,7 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
                 tmp.dimsizes[0] = (end_rows - start_rows + 1) * getsizeof(sdata->type);
                 tmp.dimsizes[1] = cols * getsizeof(sdata->type);
                 break;
-            case 3:
+            case STREAM_DIM_3D:
                 size_t dim1 = sdata->dimsizes[0] / getsizeof(sdata->type);
                 size_t dim2 = sdata->dimsizes[1] / getsizeof(sdata->type);
                 size_t dim3 = sdata->dimsizes[2] / getsizeof(sdata->type);
@@ -183,16 +183,16 @@ int initialize_global(RuntimeThreadConfig* thread)
         RuntimeStreamConfig tmp = *sdata;
         tmp.ptr = (char*)sdata->ptr;
         tmp.dims = sdata->dims;
-        switch (sdata->dims)
+        switch ((StreamDimension)sdata->dims)
         {
-            case 1:
+            case STREAM_DIM_1D:
                 tmp.dimsizes[0] = sdata->dimsizes[0];
                 break;
-            case 2:
+            case STREAM_DIM_2D:
                 tmp.dimsizes[0] = sdata->dimsizes[0];
                 tmp.dimsizes[1] = sdata->dimsizes[1];
                 break;
-            case 3:
+            case STREAM_DIM_3D:
                 tmp.dimsizes[0] = sdata->dimsizes[0];
                 tmp.dimsizes[1] = sdata->dimsizes[1];
                 tmp.dimsizes[2] = sdata->dimsizes[2];

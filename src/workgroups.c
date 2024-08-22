@@ -270,6 +270,7 @@ void update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
         for (int s = 0; s < sizeof(stats) / sizeof(stats[0]); s++)
         {
             add_stat_to_result(&stats[s], active_threads, wg->group_results);
+            // reset stats after result update
             stats[s].min = UINT64_MAX;
             stats[s].max = 0;
             stats[s].total = 0;

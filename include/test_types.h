@@ -112,6 +112,12 @@ typedef struct {
 } TestConfig;
 typedef TestConfig* TestConfig_t;
 
+typedef enum {
+    STREAM_DIM_1D = 1,
+    STREAM_DIM_2D = 2,
+    STREAM_DIM_3D = 3
+} StreamDimension;
+
 typedef struct {
     bstring name;
     void* ptr;
