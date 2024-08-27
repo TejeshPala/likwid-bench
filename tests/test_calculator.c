@@ -128,7 +128,8 @@ int main(int argc, char* argv[])
 
 	while (cur->formula)
 	{
-		result = NAN;
+		printf("formula: %s\n", cur->formula);
+        result = NAN;
 		int ret = calculator_calc(cur->formula, &result);
 		if (ret < 0)
 		{
@@ -167,6 +168,7 @@ int main(int argc, char* argv[])
 		else
 		{
 			success++;
+            printf("\tresult: %*f\n", precision, result);
 		}
 		all++;
 		cur++;
