@@ -932,7 +932,7 @@ int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
     }
 
     int outcount = 0;
-    for (int i = 0; i < idxLen && i < length; i++)
+    for (int i = 0; i < looplength && outcount < length; i++)
     {
         list[outcount++] = tmpList[idxList[i]];
     }
