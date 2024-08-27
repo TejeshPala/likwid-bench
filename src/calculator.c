@@ -139,6 +139,22 @@ int doFunc(Stack *s, token function)
 		stackPush(s, num2Str(NAN));
 		return -1;
 	}
+	else if (stackSize(s) > 2)
+	{
+	    if  (!(  (strncmp(function, "min", 3) == 0)
+	        || (strncmp(function, "max", 3) == 0)
+	        || (strncmp(function, "sum", 3) == 0)
+	        || (strncmp(function, "avg", 3) == 0)
+	        || (strncmp(function, "mean", 4) == 0)
+	        || (strncmp(function, "median", 6) == 0)
+	        || (strncmp(function, "var", 3) == 0)))
+	    {
+	        while (stackSize(s) > 0) stackPop(s);
+	        raise(inputMissing);
+		    stackPush(s, num2Str(NAN));
+		    return -1;
+	    }
+	}
 	token input = (token)stackPop(s);
 	number num = buildNumber(input);
 	number result = num;
@@ -504,34 +520,34 @@ Symbol type(char ch)
 
 bool isFunction(token tk)
 {
-	return (strncmp(tk, "abs", 3) == 0
-		|| strncmp(tk, "floor", 5) == 0
-		|| strncmp(tk, "ceil", 4) == 0
-		|| strncmp(tk, "sin", 3) == 0
-		|| strncmp(tk, "cos", 3) == 0
-		|| strncmp(tk, "tan", 3) == 0
-		|| strncmp(tk, "arcsin", 6) == 0
-		|| strncmp(tk, "arccos", 6) == 0
-		|| strncmp(tk, "arctan", 6) == 0
-		|| strncmp(tk, "asin", 4) == 0
-		|| strncmp(tk, "acos", 4) == 0
-		|| strncmp(tk, "atan", 4) == 0
-		|| strncmp(tk, "sqrt", 4) == 0
-		|| strncmp(tk, "cbrt", 4) == 0
-		|| strncmp(tk, "log", 3) == 0
-		|| strncmp(tk, "min", 3) == 0
-		|| strncmp(tk, "max", 3) == 0
-		|| strncmp(tk, "sum", 3) == 0
-		|| strncmp(tk, "avg", 3) == 0
-		|| strncmp(tk, "mean", 4) == 0
-		|| strncmp(tk, "median", 6) == 0
-		|| strncmp(tk, "var", 3) == 0
-		|| strncmp(tk, "exp", 3) == 0);
+	return ((strncmp(tk, "abs", 3) == 0 && strlen(tk) == 3)
+		|| (strncmp(tk, "floor", 5) == 0 && strlen(tk) == 5)
+		|| (strncmp(tk, "ceil", 4) == 0 && strlen(tk) == 4)
+		|| (strncmp(tk, "sin", 3) == 0 && strlen(tk) == 3)
+		|| (strncmp(tk, "cos", 3) == 0 && strlen(tk) == 3)
+		|| (strncmp(tk, "tan", 3) == 0 && strlen(tk) == 3)
+		|| (strncmp(tk, "arcsin", 6) == 0 && strlen(tk) == 6)
+		|| (strncmp(tk, "arccos", 6) == 0 && strlen(tk) == 6)
+		|| (strncmp(tk, "arctan", 6) == 0 && strlen(tk) == 6)
+		|| (strncmp(tk, "asin", 4) == 0 && strlen(tk) == 4)
+		|| (strncmp(tk, "acos", 4) == 0 && strlen(tk) == 4)
+		|| (strncmp(tk, "atan", 4) == 0 && strlen(tk) == 4)
+		|| (strncmp(tk, "sqrt", 4) == 0 && strlen(tk) == 4)
+		|| (strncmp(tk, "cbrt", 4) == 0 && strlen(tk) == 4)
+		|| (strncmp(tk, "log", 3) == 0 && strlen(tk) == 3)
+		|| (strncmp(tk, "min", 3) == 0 && strlen(tk) == 3)
+		|| (strncmp(tk, "max", 3) == 0 && strlen(tk) == 3)
+		|| (strncmp(tk, "sum", 3) == 0 && strlen(tk) == 3)
+		|| (strncmp(tk, "avg", 3) == 0 && strlen(tk) == 3)
+		|| (strncmp(tk, "mean", 4) == 0 && strlen(tk) == 4)
+		|| (strncmp(tk, "median", 6) == 0 && strlen(tk) == 6)
+		|| (strncmp(tk, "var", 3) == 0 && strlen(tk) == 3)
+		|| (strncmp(tk, "exp", 3) == 0 && strlen(tk) == 3));
 }
 
 bool isSpecialValue(token tk)
 {
-	return (strncmp(tk, "nan", 3) == 0 || strncmp(tk, "inf", 3) == 0);
+	return ((strncmp(tk, "nan", 3) == 0 && strlen(tk) == 3) || (strncmp(tk, "inf", 3) == 0 && strlen(tk) == 3));
 }
 
 Symbol tokenType(token tk)
