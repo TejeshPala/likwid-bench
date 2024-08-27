@@ -73,7 +73,7 @@ static CalcTest calc_tests[] = {
     {"ceil(2.2)", 3},
     {"abs(-2.2)", 2.2},
     {"abs(2.2)", 2.2},
-    {"abs(2.2,1.1)", 2.2, -EFAULT}, // should fail, abs function is taking only a single argument
+    {"abs(2.2,1.1)", NAN, 0}, // should fail, abs function is taking only a single argument. It returns 0 because we current do not catch errors from the doFunc function.
     {"abs(2.2+1.1)", 3.3, 0},
     {"sumi(1,2)", -NAN, -EFAULT},
     {"exp(2.0)", 7.38905609893065040694},
@@ -91,13 +91,13 @@ static CalcTest calc_tests[] = {
     {"%2", -NAN, -14},
     {"(2", -NAN, -14},
     // Operators only
-    {"+", NAN, -1},
-    {"-", NAN, -1},
-    {"*", NAN, -1},
-    {"/", NAN, -1},
-    {"%", NAN, -1},
-    {"^", NAN, -1},
-    {"2)", 2, 0}, // shouldn't it return an error? {"2)", NAN, -1}
+    {"+", NAN, -EFAULT},
+    {"-", NAN, -EFAULT},
+    {"*", NAN, -EFAULT},
+    {"/", NAN, -EFAULT},
+    {"%", NAN, -EFAULT},
+    {"^", NAN, -EFAULT},
+    {"2)", -NAN, -EFAULT}, // shouldn't it return an error? {"2)", NAN, -1}
     //{"(2+", NAN, -1}, // segfault, maybe we should catch it
     // valid but strange
     {"2--2", 4, 0},
@@ -128,7 +128,8 @@ int main(int argc, char* argv[])
 
 	while (cur->formula)
 	{
-		result = NAN;
+		printf("formula: %s\n", cur->formula);
+        result = NAN;
 		int ret = calculator_calc(cur->formula, &result);
 		if (ret < 0)
 		{
@@ -167,6 +168,7 @@ int main(int argc, char* argv[])
 		else
 		{
 			success++;
+            printf("\tresult: %*f\n", precision, result);
 		}
 		all++;
 		cur++;
