@@ -39,6 +39,7 @@ TESTS = test_read_yaml_ptt \
 	test_map \
 	test_allocator \
 	test_bitmap \
+	test_calculator \
 	test_bstrlib_helper
 
 # External stuff
