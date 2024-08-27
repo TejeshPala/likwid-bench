@@ -13,6 +13,7 @@
 #include "results.h"
 #include "allocator.h"
 #include "map.h"
+#include "calculator.h"
 
 void delete_workgroup(RuntimeWorkgroupConfig* wg)
 {
@@ -216,64 +217,62 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
     return 0;
 }
 
-void update_stat(Stat* stat, uint64_t value)
-{
-    stat->total += value;
-    stat->min = (value < stat->min) ? value : stat->min;
-    stat->max = (value > stat->max) ? value : stat->max;
-}
-
-void add_stat_to_result(Stat* stat, int active_threads, RuntimeWorkgroupResult* result)
-{
-    const char* suffixes[] = {"min_", "max_", "avg_", "total_"};
-    uint64_t values[] = {stat->min, stat->max, stat->total, active_threads > 0 ? (stat->total / active_threads) : 0};
-    for (int s = 0; s < sizeof(suffixes) / sizeof(suffixes[0]); s++)
-    {
-        bstring key = bformat("%s%s", suffixes[s], bdata(stat->name));
-        add_value(result, key, values[s]);
-        bdestroy(key);
-    }
-}
-
 void update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
 {
-    struct tagbstring biters = bsStatic("iters");
-    struct tagbstring bcycles = bsStatic("cycles");
-    struct tagbstring btime = bsStatic("time");
+    const char* stats[] = {"iters", "cycles", "time"};
+    const char* aggregations[] = {"min", "max", "sum", "avg"};
     for (int w = 0; w < num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &wgroups[w];
         RuntimeThreadgroupConfig* tgroup = &wgroups->tgroups[w];
-        Stat stats[] =
-        {
-            {UINT64_MAX, 0, 0, &biters},
-            {UINT64_MAX, 0, 0, &bcycles},
-            {UINT64_MAX, 0, 0, &btime}
-        };
         int active_threads = 0;
-        for (int t = 0; t < tgroup->num_threads; t++)
-        {
-            RuntimeThreadConfig* thread = &tgroup->threads[t];
-            RuntimeWorkgroupResult* result = &wg->results[t];
-            if (wg->hwthreads[t] == thread->data->hwthread)
-            {
-                uint64_t values[] = {thread->data->iters, thread->data->cycles, thread->data->min_runtime};
-                for (int s = 0; s < sizeof(stats) / sizeof(stats[0]); s++)
-                {
-                    update_stat(&stats[s], values[s]);
-                    add_value(result, stats[s].name, values[s]);
-                }
-                active_threads++;
-            }
-        }
-
         for (int s = 0; s < sizeof(stats) / sizeof(stats[0]); s++)
         {
-            add_stat_to_result(&stats[s], active_threads, wg->group_results);
-            // reset stats after result update
-            stats[s].min = UINT64_MAX;
-            stats[s].max = 0;
-            stats[s].total = 0;
+            bstring formula = bfromcstr("");
+            for (int t = 0; t < tgroup->num_threads; t++)
+            {
+                RuntimeThreadConfig* thread = &tgroup->threads[t];
+                RuntimeWorkgroupResult* result = &wg->results[t];
+                if (wg->hwthreads[t] == thread->data->hwthread)
+                {
+                    uint64_t values[] = {thread->data->iters, thread->data->cycles, thread->data->min_runtime};
+                    bstring t_key = bformat("thread %2d %6s", wg->hwthreads[t], stats[s]);
+                    add_value(result, t_key, values[s]);
+                    bdestroy(t_key);
+                    if (bdata(formula)[0] != '\0')
+                    {
+                        bcatcstr(formula, ",");
+                    }
+                    bstring bval = bformat("%lu", values[s]);
+                    bcatcstr(formula, bdata(bval));
+                    bdestroy(bval);
+                    printf("formula: %s\n", bdata(formula));
+                    if (s == 0)
+                    {
+                        active_threads++;
+                    }
+                }
+            }
+
+            for (int a = 0; a < sizeof(aggregations) / sizeof(aggregations[0]); a++)
+            {
+                bstring full_formula = bformat("%s(%s)", aggregations[a], bdata(formula));
+                printf("f formula: %s\n", bdata(full_formula));
+                bstring key = bformat("%s %6s", aggregations[a], stats[s]);
+                double result;
+                if (calculator_calc(bdata(full_formula), &result) == 0)
+                {
+                    printf("calc result: %f\n", result);
+                    add_value(wg->group_results, key, result);
+                }
+                else
+                {
+                    ERROR_PRINT(Error calculating %s, bdata(full_formula));
+                }
+                bdestroy(full_formula);
+                bdestroy(key);
+            }
+            bdestroy(formula);
         }
         print_workgroup(wg);
     }
