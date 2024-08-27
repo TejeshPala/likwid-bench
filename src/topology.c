@@ -579,12 +579,12 @@ int _hwthread_list_for_numa_domain(int numa_id, int* numEntries, int** hwthreadL
         }
     }
     int count = 0;
-    int* list = malloc(avail_hwthreads * sizeof(int));
+    int* list = malloc(_num_hwthreads * sizeof(int));
     if (!list)
     {
         return -ENOMEM;
     }
-    memset(list, 0, avail_hwthreads * sizeof(int));
+    memset(list, 0, _num_hwthreads * sizeof(int));
 
     for (int i = 0; i < _num_hwthreads; i++)
     {
