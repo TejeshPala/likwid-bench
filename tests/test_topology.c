@@ -28,13 +28,12 @@ void print_list(int length, int* list)
 
 int main(int argc, char* argv[])
 {
-    
-    int* list = malloc(100 * sizeof(int));
+    int length = sysconf(_SC_NPROCESSORS_CONF);
+    int* list = malloc(length * sizeof(int));
     if (!list)
     {
         return -ENOMEM;
     }
-    int length = 100;
     int newlen = 0;
     struct tagbstring cpustr1 = bsStatic("M0:0-4");
     struct tagbstring cpustr2 = bsStatic("N:0,4");
