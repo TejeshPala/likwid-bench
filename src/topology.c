@@ -729,7 +729,6 @@ int cpustr_to_cpulist_physical(bstring cpustr, int* list, int length)
         else if (c == 2)
         {
             if (s < e)
-<<<<<<< Updated upstream
             {
                 for (int j = s; j <= e; j++)
                 {
@@ -742,28 +741,11 @@ int cpustr_to_cpulist_physical(bstring cpustr, int* list, int length)
             else
             {
                 for (int j = s; j >= e; j--)
-=======
-            {
-                for (int j = s; j <= e; j++)
->>>>>>> Stashed changes
                 {
                     if (getHwThread(j) != NULL && idx < length)
                     {
                         list[idx++] = j;
                     }
-<<<<<<< Updated upstream
-=======
-                }
-            }
-            else if (s >= e)
-            {
-                for (int j = s; j >= e; j--)
-                {
-                    if (getHwThread(j) != NULL && idx < length)
-                    {
-                        list[idx++] = j;
-                    }
->>>>>>> Stashed changes
                 }
             }
         }
@@ -904,10 +886,7 @@ int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
                     {
                         free(idxList);
                         idxList = NULL;
-<<<<<<< Updated upstream
                         idxLen = 0;
-=======
->>>>>>> Stashed changes
                     }
                     return ret;
                 }
@@ -923,10 +902,7 @@ int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
                     {
                         free(idxList);
                         idxList = NULL;
-<<<<<<< Updated upstream
                         idxLen = 0;
-=======
->>>>>>> Stashed changes
                     }
                     return ret;
                 }
@@ -942,10 +918,7 @@ int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
                     {
                         free(idxList);
                         idxList = NULL;
-<<<<<<< Updated upstream
                         idxLen = 0;
-=======
->>>>>>> Stashed changes
                     }
                     return ret;
                 }
