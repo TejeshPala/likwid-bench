@@ -60,7 +60,7 @@ static CalcTest calc_tests[] = {
     {"1.0E-6*nan*64.0/0.111", NAN},
     //{"1.0E-6*NAN*64.0/0.111", NAN}, // if error, special numbers are case-sensitive
     // Testing functions
-    /*{"sum(1,2,3,4,5,6,7,8,9,10)", 55},
+    {"sum(1,2,3,4,5,6,7,8,9,10)", 55},
     {"2.0*sum(1,2,3,4,5,6,7,8,9,10)", 110},
     {"(sum(1,2,3,4,5,6,7,8,9,10))", 55},
     {"sum(1.1+2.2,3.3+4.4)", 11},
@@ -76,7 +76,7 @@ static CalcTest calc_tests[] = {
     {"abs(2.2,1.1)", 2.2, -1}, // should fail, abs function is taking only a single argument
     {"abs(2.2+1.1)", 3.3, 0},
     {"sumi(1,2)", 3}, // shouldn't it return an error? {"sumi(1,2)", NAN, -1}
-    {"exp(2.0)", 7.38905609893065040694},*/
+    {"exp(2.0)", 7.38905609893065040694},
     // Incomplete formulas
     {"2+", -NAN, -14},
     {"2-", -NAN, -14},
