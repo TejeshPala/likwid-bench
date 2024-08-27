@@ -43,6 +43,7 @@ struct Preferences
 	} mode;
 	int precision;
 	int maxtokenlength;
+	bool allow_commands;
 } prefs;
 
 typedef enum
@@ -1282,6 +1283,7 @@ int calculator_init()
 {
 	prefs.precision = DEFAULTPRECISION;
 	prefs.maxtokenlength = MAXTOKENLENGTH;
+	prefs.allow_commands = DEFAULTALLOWCOMMANDS;
 	return 0;
 }
 
@@ -1315,6 +1317,16 @@ int calculator_settokenlength(int tokenlength)
 	return -EINVAL;
 }
 
+int calculator_setallowcommands(int flag)
+{
+    if (flag >= 0 && flag <= 1)
+	{
+		prefs.allow_commands = flag;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 int calculator_calc(const char* formula, double* result)
 {
 	int i = 0;
@@ -1327,7 +1339,7 @@ int calculator_calc(const char* formula, double* result)
 	{
 		return -1;
 	}
-	if (type(*formula) == text)
+	if (prefs.allow_commands && type(*formula) == text)
 	{
 		err = execCommand((char*)formula);
 		return err;
@@ -1387,6 +1399,7 @@ int main(int argc, char *argv[])
 	int ch, rflag = 0;
 	prefs.precision = DEFAULTPRECISION;
 	prefs.maxtokenlength = MAXTOKENLENGTH;
+	prefs.allow_commands = DEFAULTALLOWCOMMANDS;
 
 	while ((ch = getopt(argc, argv, "rm:")) != -1) {
 		switch (ch) {

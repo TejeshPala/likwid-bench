@@ -26,13 +26,15 @@
 #define DEFAULTPRECISION 5
 #define AUTOPRECISION -1
 #define FUNCTIONSEPARATOR "|"
+#define DEFAULTALLOWCOMMANDS 0
 
 
 #ifdef CALCULATOR_AS_LIB
 int calculator_init();
-int calculator_setprecision();
-int calculator_settokenlength();
-int calculator_setprefix();
+int calculator_setprecision(int precision);
+int calculator_settokenlength(int tokenlength);
+int calculator_setpostfix(int flag);
+int calculator_setallowcommands(int flag);
 int calculator_calc(const char* formula, double* result);
 #endif
 
