@@ -595,6 +595,7 @@ int tokenize(char *str, char *(**tokensRef))
 	int numTokens = 0;
 	int lparen_count = 0;
 	int rparen_count = 0;
+	int ops_count = 0;
 	if ((!str) || (!tokensRef))
 	{
 		return -EINVAL;
@@ -632,47 +633,47 @@ int tokenize(char *str, char *(**tokensRef))
 								|| tokenType(tokens[numTokens-1]) == argsep)))
 					{
 						// Assemble an n-character (plus null-terminator) number token
+						int len = 1;
+						bool hasDecimal = false;
+						bool hasExponent = false;
+						if(type(ch) == decimal) // Allow numbers to start with decimal
 						{
-							int len = 1;
-							bool hasDecimal = false;
-							bool hasExponent = false;
-
-							if(type(ch) == decimal) // Allow numbers to start with decimal
-							{
-								//printf("Decimal\n");
-								hasDecimal = true;
-								len++;
-								tmpToken[0] = '0';
-								tmpToken[1] = '.';
-							}
-							else // Numbers that do not start with decimal
-							{
-								tmpToken[len-1] = ch;
-							}
-
-							// Assemble rest of number
-							for(; // Don't change len
-								*ptr // There is a next character and it is not null
-								&& len <= prefs.maxtokenlength
-								&& (type(*ptr) == digit // The next character is a digit
-								 	|| ((type(*ptr) == decimal // Or the next character is a decimal
-								 		&& hasDecimal == 0)) // But we have not added a decimal
-								 	|| ((*ptr == 'E' || *ptr == 'e') // Or the next character is an exponent
-								 		&& hasExponent == false) // But we have not added an exponent yet
-								|| ((*ptr == '+' || *ptr == '-') && hasExponent == true)); // Exponent with sign
-								++len)
-							{
-								if(type(*ptr) == decimal)
-									hasDecimal = true;
-								else if(*ptr == 'E' || *ptr == 'e')
-									hasExponent = true;
-								tmpToken[len] = *ptr++;
-							}
-
-							// Append null-terminator
-							tmpToken[len] = '\0';
+							//printf("Decimal\n");
+							hasDecimal = true;
+							len++;
+							tmpToken[0] = '0';
+							tmpToken[1] = '.';
 						}
-						break;
+						else // Numbers that do not start with decimal
+						{
+							tmpToken[len-1] = ch;
+						}
+
+						// Assemble rest of number
+						for(; // Don't change len
+							*ptr // There is a next character and it is not null
+							&& len <= prefs.maxtokenlength
+							&& (type(*ptr) == digit // The next character is a digit
+							 	|| ((type(*ptr) == decimal // Or the next character is a decimal
+							 		&& hasDecimal == 0)) // But we have not added a decimal
+							 	|| ((*ptr == 'E' || *ptr == 'e') // Or the next character is an exponent
+							 		&& hasExponent == false) // But we have not added an exponent yet
+							|| ((*ptr == '+' || *ptr == '-') && hasExponent == true)); // Exponent with sign
+							++len)
+						{
+							if(type(*ptr) == decimal)
+								hasDecimal = true;
+							else if(*ptr == 'E' || *ptr == 'e')
+								hasExponent = true;
+							tmpToken[len] = *ptr++;
+						}
+
+						// Append null-terminator
+						tmpToken[len] = '\0';
+						if (len > 1)
+						{
+							break;
+						}
 					}
 					// If it's not part of a number, it's an op - fall through
 				}
@@ -687,6 +688,7 @@ int tokenize(char *str, char *(**tokensRef))
 					tmpToken[1] = '\0';
 					if (sym == lparen) lparen_count++;
 					else if (sym == rparen) rparen_count++;
+					else if (sym == multop || sym == expop || sym == addop) ops_count++;
 				}
 				break;
 			case digit:
@@ -795,7 +797,7 @@ int tokenize(char *str, char *(**tokensRef))
 		raise(parenMismatch);
 		return -EFAULT;
 	}
-	if (numTokens == lparen_count + rparen_count)
+	if (numTokens == lparen_count + rparen_count + ops_count)
 	{
 		for (int i = 0; i < numTokens; i++) free(tokens[i]);
 		free(tokens);
