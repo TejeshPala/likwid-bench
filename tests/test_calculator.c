@@ -43,10 +43,10 @@ static CalcTest calc_tests[] = {
     {"1.0E+06*2", 2E6},
     {"1E+006*2", 2E6},
     {"1.0E+006*2", 2E6},
-    {"1E-6*2", -2E6},
-    {"1E-06*2", -2E6},
-    {"1E-006*2", -2E6},
-    {"1.0E-006*2", -2E6},
+    {"1E-6*2", 2E-6},
+    {"1E-06*2", 2E-6},
+    {"1E-006*2", 2E-6},
+    {"1.0E-006*2", 2E-6},
     // Testing some forumlas
     {"1E-06*(((256*512.0)/128.0)+14)/0.000006", 172.99999999999997},
     {"1E-06*(((0*512.0)/128.0)+14)/0.000006", 2.333333333333333},
@@ -73,9 +73,9 @@ static CalcTest calc_tests[] = {
     {"ceil(2.2)", 3},
     {"abs(-2.2)", 2.2},
     {"abs(2.2)", 2.2},
-    {"abs(2.2,1.1)", 2.2, -1}, // should fail, abs function is taking only a single argument
+    {"abs(2.2,1.1)", 2.2, -EFAULT}, // should fail, abs function is taking only a single argument
     {"abs(2.2+1.1)", 3.3, 0},
-    {"sumi(1,2)", 3}, // shouldn't it return an error? {"sumi(1,2)", NAN, -1}
+    {"sumi(1,2)", -NAN, -EFAULT},
     {"exp(2.0)", 7.38905609893065040694},
     // Incomplete formulas
     {"2+", -NAN, -14},
