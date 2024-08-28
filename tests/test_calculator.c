@@ -65,6 +65,9 @@ static CalcTest calc_tests[] = {
     {"(sum(1,2,3,4,5,6,7,8,9,10))", 55},
     {"sum(1.1+2.2,3.3+4.4)", 11},
     {"min(1,2,3,4,5,6,7,8,9,10)", 1},
+    {"min(0,0)", 0, 0},
+    {"min(0)", 0, 0},
+    {"min()", NAN, 0/*-EFAULT*/}, //should fail, min function requires at least one argument. It returns 0 because we current do not catch errors from the doFunc function.
     {"max(1,2,3,4,5,6,7,8,9,10)", 10},
     {"avg(1,2,3,4,5,6,7,8,9,10)", 5.5},
     {"mean(1,2,3,4,5,6,7,8,9,10)", 5.5},
@@ -73,7 +76,7 @@ static CalcTest calc_tests[] = {
     {"ceil(2.2)", 3},
     {"abs(-2.2)", 2.2},
     {"abs(2.2)", 2.2},
-    {"abs(2.2,1.1)", NAN, 0}, // should fail, abs function is taking only a single argument. It returns 0 because we current do not catch errors from the doFunc function.
+    {"abs(2.2,1.1)", NAN, 0/*-EFAULT*/}, // should fail, abs function is taking only a single argument. It returns 0 because we current do not catch errors from the doFunc function.
     {"abs(2.2+1.1)", 3.3, 0},
     {"sumi(1,2)", -NAN, -EFAULT},
     {"exp(2.0)", 7.38905609893065040694},
@@ -97,7 +100,7 @@ static CalcTest calc_tests[] = {
     {"/", NAN, -EFAULT},
     {"%", NAN, -EFAULT},
     {"^", NAN, -EFAULT},
-    {"2)", -NAN, -EFAULT}, // shouldn't it return an error? {"2)", NAN, -1}
+    {"2)", -NAN, -EFAULT},
     //{"(2+", NAN, -1}, // segfault, maybe we should catch it
     // valid but strange
     {"2--2", 4, 0},
