@@ -40,6 +40,8 @@ TESTS = test_read_yaml_ptt \
 	test_allocator \
 	test_bitmap \
 	test_calculator \
+	test_mempool \
+	test_calculator_mempool \
 	test_bstrlib_helper
 
 # External stuff
@@ -55,6 +57,12 @@ CALCULATOR_STACK_HEADER := ../include/stack.h
 
 CALCULATOR_OBJ := ../src/calculator.c
 CALCULATOR_HEADER := ../include/calculator.h
+
+CALCULATOR_STACK_MEMPOOL_OBJ := ../src/stack_mempool.c
+CALCULATOR_STACK_MEMPOOL_HEADER := ../include/stack_mempool.h
+
+CALCULATOR_MEMPOOL_OBJ := ../src/calculator_mempool.c
+CALCULATOR_MEMPOOL_HEADER := ../include/calculator_mempool.h
 
 # Internal stuff
 TOPOLOGY_OBJ := ../src/topology.c
@@ -85,6 +93,9 @@ BITMAP_HEADER := ../include/bitmap.h
 HELPER_OBJ := ../src/helper.c
 HELPER_HEADER := ../include/helper.h
 
+MEMPOOL_OBJ := ../src/mempool.c
+MEMPOOL_HEADER := ../include/mempool.h
+
 all: $(TESTS)
 
 test_read_yaml_ptt: test_read_yaml_ptt.c $(READ_YAML_OBJ) $(READ_YAML_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
@@ -114,6 +125,9 @@ test_stack: test_stack.c $(CALCULATOR_STACK_OBJ) $(CALCULATOR_STACK_HEADER)
 test_calculator: test_calculator.c $(CALCULATOR_OBJ) $(CALCULATOR_HEADER) $(CALCULATOR_STACK_OBJ) $(CALCULATOR_STACK_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) -DCALCULATOR_AS_LIB test_calculator.c $(CALCULATOR_OBJ) $(CALCULATOR_STACK_OBJ) -o $@ -lm
 
+test_calculator_mempool: test_calculator_mempool.c $(CALCULATOR_MEMPOOL_OBJ) $(CALCULATOR_MEMPOOL_HEADER) $(CALCULATOR_STACK_MEMPOOL_OBJ) $(CALCULATOR_STACK_MEMPOOL_HEADER) $(MEMPOOL_OBJ) $(MEMPOOL_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) -DCALCULATOR_AS_LIB -DWITH_MEMPOOL test_calculator_mempool.c $(CALCULATOR_MEMPOOL_OBJ) $(CALCULATOR_STACK_MEMPOOL_OBJ) $(MEMPOOL_OBJ) -o $@ -lm
+
 test_allocator: test_allocator.c $(ALLOCATOR_OBJ) $(ALLOCATOR_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(BITMAP_HEADER) $(BITMAP_OBJ)
 	$(CC) $(INCLUDES) $(CFLAGS) -DWITH_BSTRING test_allocator.c $(ALLOCATOR_OBJ) $(BSTRLIB_OBJ) $(BITMAP_OBJ) -o $@
 
@@ -122,6 +136,9 @@ test_bitmap: test_bitmap.c $(BITMAP_OBJ) $(BITMAP_HEADER)
 
 test_bstrlib_helper: test_bstrlib_helper.c $(BSTRLIB_HEADER) $(BSTRLIB_OBJ)
 	$(CC) $(INCLUDES) $(CFLAGS) test_bstrlib_helper.c $(BSTRLIB_OBJ) -o $@
+
+test_mempool: test_mempool.c $(MEMPOOL_OBJ) $(MEMPOOL_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) test_mempool.c $(MEMPOOL_OBJ) -o $@
 
 run: $(TESTS)
 	@for T in $(TESTS); do echo "#### Running $$T ####"; ./$$T; done
