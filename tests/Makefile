@@ -29,6 +29,7 @@
 CFLAGS ?= -g -fsanitize=address -fsanitize=leak
 INCLUDES = -I../include
 MAKE_DIR = ../make
+include ../config.mk
 include $(MAKE_DIR)/test-float16.mk
 
 TESTS = test_read_yaml_ptt \
@@ -39,10 +40,13 @@ TESTS = test_read_yaml_ptt \
 	test_map \
 	test_allocator \
 	test_bitmap \
-	test_calculator \
 	test_mempool \
-	test_calculator_mempool \
 	test_bstrlib_helper
+ifeq ($(strip $(WITH_MEMPOOL)),true)
+TESTS += test_calculator_mempool
+else
+TESTS += test_calculator
+endif
 
 # External stuff
 BSTRLIB_OBJ := ../src/bstrlib.c ../src/bstrlib_helper.c
