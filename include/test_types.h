@@ -159,6 +159,7 @@ typedef struct {
     LikwidThreadCommand cmd;
     union {
         int (*exit)();
+        void (*run)();
     } cmdfunc;
     int done;
     pthread_mutex_t mutex;
