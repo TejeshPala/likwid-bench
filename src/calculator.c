@@ -1387,6 +1387,11 @@ error_or_out:
 	return err;
 }
 
+int calculator_calc_pool(MemPool_t pool, const char* formula, double* result)
+{
+    return calculator_calc(formula, result);
+}
+
 
 #else
 int main(int argc, char *argv[])

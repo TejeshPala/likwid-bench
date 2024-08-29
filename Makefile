@@ -19,6 +19,14 @@ DEFINES   += -DWITH_BSTRING -DCALCULATOR_AS_LIB -DLIKWIDBENCH_KERNEL_FOLDER=$(LI
 VPATH     = $(SRC_DIR)
 ASM       = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.s,$(wildcard $(SRC_DIR)/*.c))
 OBJ       = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o,$(wildcard $(SRC_DIR)/*.c))
+ifeq ($(strip $(WITH_MEMPOOL)), true)
+OBJ := $(filter-out $(BUILD_DIR)/calculator.o,$(OBJ))
+OBJ := $(filter-out $(BUILD_DIR)/stack.o,$(OBJ))
+CFLAGS += -DWITH_MEMPOOL
+else
+OBJ := $(filter-out $(BUILD_DIR)/calculator_mempool.o,$(OBJ))
+OBJ := $(filter-out $(BUILD_DIR)/stack_mempool.o,$(OBJ))
+endif
 
 
 CPPFLAGS := $(CPPFLAGS) $(DEFINES) $(INCLUDES)

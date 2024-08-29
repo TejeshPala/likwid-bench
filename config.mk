@@ -12,6 +12,8 @@ COMPILER = GCC#NO SPACE
 # Path were to install likwid
 PREFIX ?= /usr/local#NO SPACE
 
+WITH_MEMPOOL ?= true
+
 # LIKWID configuration
 LIKWID_LIBPATH=/usr/local/lib
 LIKWID_INCPATH=/usr/local/inc

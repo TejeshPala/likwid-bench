@@ -36,6 +36,13 @@ int calculator_settokenlength(int tokenlength);
 int calculator_setpostfix(int flag);
 int calculator_setallowcommands(int flag);
 int calculator_calc(const char* formula, double* result);
+#ifdef WITH_MEMPOOL
+#include <mempool.h>
+int calculator_calc_pool(MemPool_t pool, const char* formula, double* result);
+#else
+typedef void* MemPool_t;
+int calculator_calc_pool(MemPool_t pool, const char* formula, double* result);
+#endif
 #endif
 
 
