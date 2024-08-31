@@ -3,6 +3,7 @@
 #include <string.h>
 #include <errno.h>
 #include <mempool.h>
+#include <time.h>
 
 typedef struct {
     char* name;
@@ -157,7 +158,205 @@ static TestMemPoolConfig test_config[] = {
     {NULL, NULL},
 };
 
-int main(int argc, char* argv[])
+
+
+int benchmark_mempool_only_alloc()
+{
+    size_t alloc_size = 512*sizeof(char);
+    int num_allocs = 10000;
+    struct timespec start = {0, 0}, stop = {0, 0};
+    printf("benchmark_mempool_only_alloc\n");
+    void** allocs = malloc(num_allocs * sizeof(void*));
+    if (!allocs)
+    {
+        return -ENOMEM;
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < num_allocs; i++)
+    {
+        allocs[i] = malloc(alloc_size);
+        if (!allocs[i])
+        {
+            for (int j = 0; j < i; j++)
+            {
+                free(allocs[j]);
+            }
+            free(allocs);
+            return -ENOMEM;
+        }
+    }
+    clock_gettime(CLOCK_MONOTONIC, &stop);
+    double malloc_time = (double)(((double)(stop.tv_sec - start.tv_sec)) + (((double)(stop.tv_nsec - start.tv_nsec))*1E-9));
+
+    for (int i = 0; i < num_allocs; i++)
+    {
+        free(allocs[i]);
+    }
+
+    MemPool_t pool = NULL;
+    int err = mempool_init(&pool);
+    if (err < 0)
+    {
+        free(allocs);
+        return err;
+    }
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < num_allocs; i++)
+    {
+        err = mempool_alloc(pool, alloc_size, &allocs[i]);
+        if (err < 0)
+        {
+            for (int j = 0; j < i; j++)
+            {
+                mempool_free(pool, allocs[j]);
+            }
+            free(allocs);
+            return -ENOMEM;
+        }
+    }
+    clock_gettime(CLOCK_MONOTONIC, &stop);
+    double mempool_time = (double)(((double)(stop.tv_sec - start.tv_sec)) + (((double)(stop.tv_nsec - start.tv_nsec))*1E-9));
+    printf("%d allocations of size %ld bytes: malloc %f mempool %f\n", num_allocs, alloc_size, malloc_time, mempool_time);
+    mempool_close(pool);
+    free(allocs);
+    return 0;
+}
+
+int benchmark_mempool_alloc_free()
+{
+    int num_allocs = 10000;
+    size_t alloc_size = 512*sizeof(char);
+    struct timespec start = {0, 0}, stop = {0, 0};
+    void* alloc = NULL;
+    printf("benchmark_mempool_alloc_free\n");
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < num_allocs; i++)
+    {
+        alloc = malloc(alloc_size);
+        if (!alloc)
+        {
+            printf("malloc failed\n");
+            return -ENOMEM;
+        }
+        free(alloc);
+        alloc = NULL;
+    }
+    clock_gettime(CLOCK_MONOTONIC, &stop);
+    double malloc_time = (double)(((double)(stop.tv_sec - start.tv_sec)) + (((double)(stop.tv_nsec - start.tv_nsec))*1E-9));
+
+
+    MemPool_t pool = NULL;
+    int err = mempool_init(&pool);
+    if (err < 0)
+    {
+        return err;
+    }
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < num_allocs; i++)
+    {
+        err = mempool_alloc(pool, alloc_size, &alloc);
+        if (err < 0)
+        {
+            printf("mempool_alloc failed\n");
+            return err;
+        }
+        mempool_free(pool, alloc);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &stop);
+    double mempool_time = (double)(((double)(stop.tv_sec - start.tv_sec)) + (((double)(stop.tv_nsec - start.tv_nsec))*1E-9));
+    printf("%d allocations/frees of size %ld bytes: malloc %f mempool %f\n", num_allocs, alloc_size, malloc_time, mempool_time);
+    mempool_close(pool);
+    return 0;
+}
+
+int benchmark_mempool_random()
+{
+    int max_size = 1000000;
+    int num_randoms = 1000;
+    struct timespec start = {0, 0}, stop = {0, 0}, for_rand = {0, 0};
+    void* alloc = NULL;
+    clock_gettime(CLOCK_MONOTONIC, &for_rand);
+    srandom(max_size * num_randoms * for_rand.tv_sec);
+    printf("benchmark_mempool_random\n");
+    size_t  *sizes = malloc(num_randoms * sizeof(size_t));
+    if (!sizes)
+    {
+        return -ENOMEM;
+    }
+    for (int i = 0; i < num_randoms; i++)
+    {
+        sizes[i] = random() % (max_size+1);
+        if (sizes[i] > max_size)
+        {
+            sizes[i] = max_size;
+        }
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < num_randoms; i++)
+    {
+        alloc = malloc(sizes[i] * sizeof(char));
+        if (!alloc)
+        {
+            printf("malloc failed\n");
+            return -ENOMEM;
+        }
+        free(alloc);
+        alloc = NULL;
+    }
+    clock_gettime(CLOCK_MONOTONIC, &stop);
+    double malloc_time = (double)(((double)(stop.tv_sec - start.tv_sec)) + (((double)(stop.tv_nsec - start.tv_nsec))*1E-9));
+    start.tv_sec = 0;
+    start.tv_nsec = 0;
+    stop.tv_sec = 0;
+    stop.tv_nsec = 0;
+    MemPool_t pool = NULL;
+    int err = mempool_init(&pool);
+    if (err < 0)
+    {
+        return err;
+    }
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < num_randoms; i++)
+    {
+        err = mempool_alloc(pool, sizes[i], &alloc);
+        if (err < 0)
+        {
+            printf("mempool_alloc failed\n");
+            return err;
+        }
+        mempool_free(pool, alloc);
+    }
+    clock_gettime(CLOCK_MONOTONIC, &stop);
+    double mempool_time = (double)(((double)(stop.tv_sec - start.tv_sec)) + (((double)(stop.tv_nsec - start.tv_nsec))*1E-9));
+    printf("%d allocations/frees of random size: malloc %f mempool %f\n", num_randoms, malloc_time, mempool_time);
+    mempool_close(pool);
+    free(sizes);
+    return 0;
+}
+
+int benchmark_mempool()
+{
+    int err = benchmark_mempool_only_alloc();
+    if (err < 0)
+    {
+        return err;
+    }
+    err = benchmark_mempool_alloc_free();
+    if (err < 0)
+    {
+        return err;
+    }
+    err = benchmark_mempool_random();
+    if (err < 0)
+    {
+        return err;
+    }
+    return 0;
+}
+
+int test_mempool()
 {
     int err = 0;
     int idx = 0;
@@ -186,5 +385,27 @@ int main(int argc, char* argv[])
         idx++;
     }
     printf("mempool test: all %d success %d shouldfail %d failed %d\n", all, success, shouldfail, all-success-shouldfail);
+    return 0;
+}
+
+int main(int argc, char* argv[])
+{
+    int err = 0;
+    int all = 0;
+    int failed = 0;
+    
+    all++;
+    err = test_mempool();
+    if (err < 0)
+    {
+        failed++;
+    }
+    all++;
+    err = benchmark_mempool();
+    if (err < 0)
+    {
+        failed++;
+    }
+    printf("mempool suites: all %d failed %d\n", all, failed);
     return 0;
 }
