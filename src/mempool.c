@@ -36,7 +36,6 @@ int mempool_init_opts(MemPool_t* pool, int max_buffers, int alloc_inc_factor)
     p->num_allocs = 0;
     p->max_allocs = 0;
     p->num_buffers = 0;
-    mempool_debug = 0;
     p->max_buffers = max_buffers;
     if (mempool_debug) printf("mempool: max_buffers %d\n", p->max_buffers);
     p->inc_factor = alloc_inc_factor;
