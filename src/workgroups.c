@@ -74,6 +74,14 @@ int allocate_workgroup_stuff(RuntimeWorkgroupConfig* wg)
     {
         return -EINVAL;
     }
+    static struct tagbstring bstats[] =
+    {
+        bsStatic("iters"),
+        bsStatic("cycles"),
+        bsStatic("time"),
+    };
+    int num_stats = 3;
+    double value = 0.0;
     wg->results = malloc(wg->num_threads * sizeof(RuntimeWorkgroupResult));
     if (!wg->results)
     {
@@ -93,6 +101,10 @@ int allocate_workgroup_stuff(RuntimeWorkgroupConfig* wg)
             free(wg->results);
             wg->results = NULL;
             return err;
+        }
+        for (int s = 0; s < num_stats; s++)
+        {
+            add_value(&wg->results[j], &bstats[s], value);
         }
     }
     wg->group_results = malloc(sizeof(RuntimeWorkgroupResult));
@@ -217,76 +229,81 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
     return 0;
 }
 
+void collect_keys_func(mpointer key, mpointer value, mpointer user_data)
+{
+    bstring bkey = (bstring) key;
+    struct bstrList* keys = (struct bstrList*) user_data;
+    bstrListAdd(keys, bkey);
+}
+
+void collect_keys(RuntimeWorkgroupResult* result, struct bstrList* sl)
+{
+    foreach_in_bmap(result->values, collect_keys_func, sl);
+}
+
 void update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
 {
-    static struct tagbstring bcomma = bsStatic(",");
-    static struct tagbstring baggregations[] =
-    {
-        bsStatic("min"),
-        bsStatic("max"),
-        bsStatic("sum"),
-        bsStatic("avg"),
-    };
-    static const int num_aggregations = 4;
-
     for (int w = 0; w < num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &wgroups[w];
         RuntimeThreadgroupConfig* tgroup = &wgroups->tgroups[w];
         struct bstrList* bkeys = bstrListCreate();
         struct bstrList** bvalues = NULL;
-        int num_keys = 0;
+        if (bkeys->qty == 0)
+        {
+            collect_keys(&wg->results[0], bkeys);
+            bvalues = calloc(bkeys->qty, sizeof(struct bstrList*));
+            for (int id = 0; id < bkeys->qty; id++)
+            {
+                bvalues[id] = bstrListCreate();
+            }
+        }
         for (int t = 0; t < tgroup->num_threads; t++)
         {
             RuntimeThreadConfig* thread = &tgroup->threads[t];
             RuntimeWorkgroupResult* result = &wg->results[t];
             if (wg->hwthreads[t] == thread->data->hwthread)
             {
-                uint64_t* data_ptr = (uint64_t*)thread->data;
-                for (size_t d = 0; d < 3; d++) // the _thread_data struct has first 3 uint64_t fields
+                uint64_t values[] = {thread->data->iters, thread->data->cycles, thread->data->min_runtime};
+                for (int id = 0; id < bkeys->qty; id ++)
                 {
-                    bstring bkey = bformat("data %lu", d);
-                    int key_index = -1;
-                    for (int i = 0; i < bkeys->qty; i++)
+                    double value = (double)values[id];
+                    bstring t_value = bformat("%lf", value);
+                    // printf("t_value: %s\n", bdata(t_value));
+                    if (update_bmap(result->values, bkeys->entry[id], &value, NULL) != 0)
                     {
-                        if (biseq(bkeys->entry[i], bkey))
-                        {
-                            key_index = i;
-                            break;
-                        }
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Value update for thread %d: %s with %lf, thread->data->hwthread, bdata(bkeys->entry[id]), value);
                     }
-                    if (key_index == -1)
-                    {
-                        bstrListAdd(bkeys, bkey);
-                        num_keys++;
-                        bvalues = realloc(bvalues, num_keys * sizeof(struct bstrList*));
-                        bvalues[num_keys - 1] = bstrListCreate();
-                        key_index = num_keys - 1;
-                    }
-                    bstring t_key = bformat("thread %d %s", wg->hwthreads[t], bdata(bkey));
-                    bstring t_value = bformat("%lu", data_ptr[d]);
-                    bstrListAdd(bvalues[key_index], t_value);
-                    add_value(result, t_key, data_ptr[d]);
-                    bdestroy(bkey);
-                    bdestroy(t_key);
+                    bstrListAdd(bvalues[id], t_value);
                     bdestroy(t_value);
                 }
             }
         }
 
-        for (int k = 0; k < bkeys->qty; k++)
+        static struct tagbstring bcomma = bsStatic(",");
+        static const int num_aggregations = 4;
+        static struct tagbstring baggregations[] =
         {
-            bstring formula = bjoin(bvalues[k], &bcomma);
+            bsStatic("min"),
+            bsStatic("max"),
+            bsStatic("sum"),
+            bsStatic("avg"),
+        };
+        // printf("key: %s\n", bdata(bkey));
+        for (int id = 0; id < bkeys->qty; id++)
+        {
+            bstring key = bstrcpy(bkeys->entry[id]);
+            bstring formula = bjoin(bvalues[id], &bcomma);
             for (int a = 0; a < num_aggregations; a++)
             {
-                bstring bkey = bformat("%s %s", bdata(&baggregations[a]), bdata(bkeys->entry[k]));
+                bstring bkey = bformat("%s %s", bdata(&baggregations[a]), bdata(key));
                 bstring full_formula = bformat("%s(%s)", bdata(&baggregations[a]), bdata(formula));
-                printf("full formula: %s, len: %d\n", bdata(full_formula), blength(full_formula));
+                // printf("key: %s, full formula: %s, len: %d\n", bdata(bkey), bdata(full_formula), blength(full_formula));
                 double calc_result;
                 int result = calculator_calc(bdata(full_formula), &calc_result);
                 if (result == 0)
                 {
-                    printf("calc result: %f\n", calc_result);
+                    // printf("calc result: %f\n", calc_result);
                     add_value(wg->group_results, bkey, calc_result);
                 }
                 else
@@ -297,13 +314,11 @@ void update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
                 bdestroy(bkey);
             }
             bdestroy(formula);
-        }
-        bstrListDestroy(bkeys);
-        for (int i = 0; i < num_keys; i++)
-        {
-            bstrListDestroy(bvalues[i]);
+            bdestroy(key);
+            bstrListDestroy(bvalues[id]);
         }
         free(bvalues);
+        bstrListDestroy(bkeys);
         print_workgroup(wg);
     }
 }

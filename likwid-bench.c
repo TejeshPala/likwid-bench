@@ -8,9 +8,7 @@
 #include "error.h"
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
-
-
-
+#include "calculator.h"
 #include "test_types.h"
 #include "read_yaml_ptt.h"
 #include "cli_parser.h"
@@ -193,6 +191,7 @@ int main(int argc, char** argv)
     addConstCliOptions(&baseopts, &basecliopts);
 /*    bstring bccflags = bfromcstr("-fPIC -shared");*/
 
+    calculator_init();
     bstring arch = get_architecture();
 #ifdef LIKWIDBENCH_KERNEL_FOLDER
     bstring kernelfolder = bformat("%s/%s/", TOSTRING(LIKWIDBENCH_KERNEL_FOLDER), bdata(arch));
