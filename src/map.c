@@ -296,13 +296,10 @@ int update_##name##map(Map_t map, type key, void* val, void** old) \
 { \
     MapValue *mval = NULL; \
     gpointer gval = g_hash_table_lookup(map->ghash, (keyaccess)); \
-    if (map->num_values < map->size) \
+    int idx; \
+    if (map->num_values == map->size && gval) \
     { \
-        int idx = map->size-1; \
-        while (idx >= 0 && map->values[idx].value != NULL) \
-        { \
-            idx--; \
-        } \
+        idx = *(int*)gval; \
         if (old) \
         { \
             *old = map->values[idx].value; \

@@ -496,6 +496,40 @@ int add_value(RuntimeWorkgroupResult* result, bstring name, double value)
     return 0;
 }
 
+int update_value(RuntimeWorkgroupResult* result, bstring name, double value)
+{
+    int err = 0;
+    bstring v = NULL;
+    if ((!result) || (!result->values) || (!name))
+    {
+        return -EINVAL;
+    }
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Searching for value %s, bdata(name));
+    bstring old_v = NULL;
+    err = get_bmap_by_key(result->values, name, (void**)&old_v);
+    if (err == 0)
+    {
+        v = bformat("%f", value);
+        if (v)
+        {
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Updating value %s -> %s, bdata(name), bdata(v));
+            err = update_bmap(result->values, name, (void*)v, (void**)&old_v);
+            bdestroy(old_v);
+            if (err < 0)
+            {
+                ERROR_PRINT(Failed updating value %s = %s, bdata(name), bdata(v));
+                return 0;
+            }
+        }
+    }
+    else
+    {
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Unable to update %s, bdata(name));
+        return -ENOENT;
+    }
+    return 0;
+}
+
 int add_variable(RuntimeWorkgroupResult* result, bstring name, bstring value)
 {
     int err = 0;

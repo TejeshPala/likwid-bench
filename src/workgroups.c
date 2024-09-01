@@ -270,9 +270,10 @@ void update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
                     double value = (double)values[id];
                     bstring t_value = bformat("%lf", value);
                     // printf("t_value: %s\n", bdata(t_value));
-                    if (update_bmap(result->values, bkeys->entry[id], &value, NULL) != 0)
+                    // if (update_bmap(result->values, bkeys->entry[id], &value, NULL) != 0)
+                    if (update_value(result, bkeys->entry[id], value) == 0)
                     {
-                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Value update for thread %d: %s with %lf, thread->data->hwthread, bdata(bkeys->entry[id]), value);
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Value updated for thread %d for key %s with value %lf, thread->data->hwthread, bdata(bkeys->entry[id]), value);
                     }
                     bstrListAdd(bvalues[id], t_value);
                     bdestroy(t_value);
