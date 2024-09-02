@@ -689,6 +689,7 @@ int fill_results(RuntimeConfig* runcfg)
     struct tagbstring bgroupid = bsStatic("GROUP_ID");
     struct tagbstring bthreadid = bsStatic("THREAD_ID");
     struct tagbstring bthreadcpu = bsStatic("THREAD_CPU"); 
+    struct tagbstring bglobalid = bsStatic("GLOBAL_ID");
 
     for (int i = 0; i < runcfg->num_params; i++)
     {
@@ -734,22 +735,27 @@ int fill_results(RuntimeConfig* runcfg)
     {
         RuntimeWorkgroupConfig *wgroup = &runcfg->wgroups[i];
 
-        bstring x = bformat("%d", wgroup->num_threads);
-        add_variable(wgroup->group_results, &bnumthreads, x);
-        bdestroy(x);
-
-        x = bformat("%d", i);
-        add_variable(wgroup->group_results, &bgroupid, x);
-        bdestroy(x);
-
         for (int j = 0; j < wgroup->num_threads; j++)
         {
+            bstring x = bformat("%d", wgroup->num_threads);
+            add_variable(&wgroup->results[j], &bnumthreads, x);
+            bdestroy(x);
+
+            x = bformat("%d", i);
+            add_variable(&wgroup->results[j], &bgroupid, x);
+            bdestroy(x);
+
+            int global_id = total_threads + j;
+            x = bformat("%d", global_id);
+            add_variable(&wgroup->results[j], &bglobalid, x);
+            bdestroy(x);
+
             x = bformat("%d", j);
-            add_variable(wgroup->group_results, &bthreadid, x);
+            add_variable(&wgroup->results[j], &bthreadid, x);
             bdestroy(x);
 
             x = bformat("%d", wgroup->hwthreads[j]);
-            add_variable(wgroup->group_results, &bthreadcpu, x);
+            add_variable(&wgroup->results[j], &bthreadcpu, x);
             bdestroy(x);
         }
     }
