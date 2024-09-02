@@ -297,7 +297,7 @@ void update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
             bstring formula = bjoin(bvalues[id], &bcomma);
             for (int a = 0; a < num_aggregations; a++)
             {
-                bstring bkey = bformat("%s %s", bdata(&baggregations[a]), bdata(key));
+                bstring bkey = bformat("%s[%s]", bdata(key), bdata(&baggregations[a]));
                 bstring full_formula = bformat("%s(%s)", bdata(&baggregations[a]), bdata(formula));
                 // printf("key: %s, full formula: %s, len: %d\n", bdata(bkey), bdata(full_formula), blength(full_formula));
                 double calc_result;
