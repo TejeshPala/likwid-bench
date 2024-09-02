@@ -758,6 +758,7 @@ int fill_results(RuntimeConfig* runcfg)
             add_variable(&wgroup->results[j], &bthreadcpu, x);
             bdestroy(x);
         }
+        total_threads += wgroup->num_threads;
     }
     return 0;
 }
