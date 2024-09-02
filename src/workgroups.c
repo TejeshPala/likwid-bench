@@ -42,6 +42,29 @@ void delete_workgroup(RuntimeWorkgroupConfig* wg)
     }
 }
 
+void release_streams(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
+{
+    if (wgroups && num_wgroups > 0)
+    {
+        for (int w = 0; w < num_wgroups; w++)
+        {
+            RuntimeWorkgroupConfig* wg = &wgroups[w];
+            if (wg->streams && wg->num_streams > 0)
+            {
+                for (int s = 0; s < wg->num_streams; s++)
+                {
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Releasing workgroup %d %dd arrays for stream %s, w, wg->streams[s].dims, bdata(wg->streams[s].name));
+                    release_arrays(&wg->streams[s]);
+                    bdestroy(wg->streams[s].name);
+                }
+                free(wg->streams);
+                wg->streams = NULL;
+                wg->num_streams = 0;
+            }
+        }
+    }
+}
+
 int resolve_workgroup(RuntimeWorkgroupConfig* wg, int maxThreads)
 {
     int err = 0;

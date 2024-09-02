@@ -490,6 +490,7 @@ int main(int argc, char** argv)
     /*
      * Free arrays
      */
+    release_streams(runcfg->num_wgroups, runcfg->wgroups);
 
     /*
      * Destroy threads
