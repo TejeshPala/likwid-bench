@@ -1,0 +1,74 @@
+---
+Name: stream_mem_avx
+Description: Double-precision stream triad A(i) = B(i)*c + C(i), uses AVX and non-temporal
+  stores
+RequireWorkGroup: true
+FeatureFlag:
+- avx
+Parameters:
+  N:
+    description: 'Size of array that should be loaded, Possible Values: kB, MB, GB'
+    options:
+    - bytes
+    - required
+Streams:
+  STR0:
+    datatype: double
+    dimension: 1
+    dimsizes:
+    - N
+  STR1:
+    datatype: double
+    dimension: 1
+    dimsizes:
+    - N
+  STR2:
+    datatype: double
+    dimension: 1
+    dimsizes:
+    - N
+Variables:
+  BYTES_PER_ELEM: 8
+  BYTES_PER_ITER: 96
+  FLOPS_PER_ITER: 8
+  LOADS_PER_ITER: 8
+  STORES_PER_ITER: 4
+  INST_PER_ITER: 4
+  UPOS_PER_ITER: 6
+  UNROLL_FACTOR: 4
+Metrics:
+  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+  Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+  Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+  Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+  Total uops: UPOS_PER_ITER * ITER
+  Total instructions: INST_PER_ITER * ITER
+Theads:
+  offsets: Thread_ID * N / NUM_THREADS
+  sizes: N / NUM_THREADS
+Language: asm
+#---
+LOOP(loop, rax=0, <, rdi=N, 4)
+vmovaps    ymm1, [STR2 + rax*8]
+vmulpd     ymm1, ymm1, ymm5
+vaddpd     ymm1, ymm1, [STR1 + rax*8]
+vmovntpd   [STR0 + rax*8], ymm1
+LOOPEND(loop)
+# ptt for comparision [Will be removed soon]
+STREAMS 3
+TYPE DOUBLE
+FLOPS 2
+BYTES 24
+DESC Double-precision stream triad A(i) = B(i)*c + C(i), uses AVX and non-temporal stores
+LOADS 2
+STORES 1
+INSTR_CONST 17
+INSTR_LOOP 7
+UOPS 8
+vmovaps ymm5, [rip+SCALAR]
+LOOP 4
+vmovaps    ymm1, [STR2 + GPR1*8]
+vmulpd     ymm1, ymm1, ymm5
+vaddpd     ymm1, ymm1, [STR1 + GPR1*8]
+vmovntpd   [STR0 + GPR1*8], ymm1
+

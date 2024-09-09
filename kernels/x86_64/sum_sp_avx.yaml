@@ -1,0 +1,66 @@
+---
+Name: sum_sp_avx
+Description: Single-precision sum of a vector, optimized for AVX
+RequireWorkGroup: true
+FeatureFlag:
+- avx
+Parameters:
+  N:
+    description: 'Size of array that should be loaded, Possible Values: kB, MB, GB'
+    options:
+    - bytes
+    - required
+Streams:
+  STR0:
+    datatype: single
+    dimension: 1
+    dimsizes:
+    - N
+Variables:
+  BYTES_PER_ELEM: 4
+  FLOPS_PER_ELEM: 1
+  LOADS_PER_ELEM: 1
+  BYTES_PER_ITER: 128
+  FLOPS_PER_ITER: 32
+  LOADS_PER_ITER: 32
+  INST_PER_ITER: 4
+  UPOS_PER_ITER: 8
+  UNROLL_FACTOR: 32
+Metrics:
+  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+  Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+  Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+  Total uops: UPOS_PER_ITER * ITER
+  Total instructions: INST_PER_ITER * ITER
+Theads:
+  offsets: Thread_ID * N / NUM_THREADS
+  sizes: N / NUM_THREADS
+Language: asm
+#---
+LOOP(loop, rax=0, <, rdi=N, 32)
+vaddps     ymm1, ymm1, [STR0 + rax*4]
+vaddps     ymm2, ymm2, [STR0 + rax*4+32]
+vaddps     ymm3, ymm3, [STR0 + rax*4+64]
+vaddps     ymm4, ymm4, [STR0 + rax*4+96]
+LOOPEND(loop)
+# ptt for comparision [Will be removed soon]
+STREAMS 1
+TYPE SINGLE
+FLOPS 1
+BYTES 4
+DESC Single-precision sum of a vector, optimized for AVX
+LOADS 1
+STORES 0
+INSTR_CONST 20
+INSTR_LOOP 7
+UOPS 10
+vxorps  ymm1, ymm1, ymm1
+vmovaps ymm2, ymm1
+vmovaps ymm3, ymm1
+vmovaps ymm4, ymm1
+LOOP 32
+vaddps     ymm1, ymm1, [STR0 + GPR1*4]
+vaddps     ymm2, ymm2, [STR0 + GPR1*4+32]
+vaddps     ymm3, ymm3, [STR0 + GPR1*4+64]
+vaddps     ymm4, ymm4, [STR0 + GPR1*4+96]
+

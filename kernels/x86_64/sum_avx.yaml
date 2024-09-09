@@ -1,0 +1,79 @@
+---
+Name: sum_avx
+Description: Double-precision sum of a vector, optimized for AVX
+RequireWorkGroup: true
+FeatureFlag:
+- avx
+Parameters:
+  N:
+    description: 'Size of array that should be loaded, Possible Values: kB, MB, GB'
+    options:
+    - bytes
+    - required
+Streams:
+  STR0:
+    datatype: double
+    dimension: 1
+    dimsizes:
+    - N
+Variables:
+  BYTES_PER_ELEM: 8
+  FLOPS_PER_ELEM: 1
+  LOADS_PER_ELEM: 1
+  BYTES_PER_ITER: 256
+  FLOPS_PER_ITER: 32
+  LOADS_PER_ITER: 32
+  INST_PER_ITER: 8
+  UPOS_PER_ITER: 16
+  UNROLL_FACTOR: 32
+Metrics:
+  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+  Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+  Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+  Total uops: UPOS_PER_ITER * ITER
+  Total instructions: INST_PER_ITER * ITER
+Theads:
+  offsets: Thread_ID * N / NUM_THREADS
+  sizes: N / NUM_THREADS
+Language: asm
+#---
+LOOP(loop, rax=0, <, rdi=N, 32)
+vaddpd    ymm1, ymm1, [STR0 + rax * 8]
+vaddpd    ymm2, ymm2, [STR0 + rax * 8 + 32]
+vaddpd    ymm3, ymm3, [STR0 + rax * 8 + 64]
+vaddpd    ymm4, ymm4, [STR0 + rax * 8 + 96]
+vaddpd    ymm5, ymm5, [STR0 + rax * 8 + 128]
+vaddpd    ymm6, ymm6, [STR0 + rax * 8 + 160]
+vaddpd    ymm7, ymm7, [STR0 + rax * 8 + 192]
+vaddpd    ymm8, ymm8, [STR0 + rax * 8 + 224]
+LOOPEND(loop)
+# ptt for comparision [Will be removed soon]
+STREAMS 1
+TYPE DOUBLE
+FLOPS 1
+BYTES 8
+DESC Double-precision sum of a vector, optimized for AVX
+LOADS 1
+STORES 0
+INSTR_CONST 24
+INSTR_LOOP 11
+UOPS 18
+vxorpd ymm1, ymm1, ymm1
+vmovapd ymm2, ymm1
+vmovapd ymm3, ymm1
+vmovapd ymm4, ymm1
+vmovapd ymm5, ymm1
+vmovapd ymm6, ymm1
+vmovapd ymm7, ymm1
+vmovapd ymm8, ymm1
+LOOP 32
+vaddpd    ymm1, ymm1, [STR0 + GPR1 * 8]
+vaddpd    ymm2, ymm2, [STR0 + GPR1 * 8 + 32]
+vaddpd    ymm3, ymm3, [STR0 + GPR1 * 8 + 64]
+vaddpd    ymm4, ymm4, [STR0 + GPR1 * 8 + 96]
+vaddpd    ymm5, ymm5, [STR0 + GPR1 * 8 + 128]
+vaddpd    ymm6, ymm6, [STR0 + GPR1 * 8 + 160]
+vaddpd    ymm7, ymm7, [STR0 + GPR1 * 8 + 192]
+vaddpd    ymm8, ymm8, [STR0 + GPR1 * 8 + 224]
+
+

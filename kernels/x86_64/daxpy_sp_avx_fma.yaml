@@ -1,0 +1,85 @@
+---
+Name: daxpy_sp_avx_fma
+Description: Single-precision linear combination of two vectors, optimized for AVX
+  FMAs
+RequireWorkGroup: true
+FeatureFlag:
+- avx
+Parameters:
+  N:
+    description: 'Size of array that should be loaded, Possible Values: kB, MB, GB'
+    options:
+    - bytes
+    - required
+Streams:
+  STR0:
+    datatype: single
+    dimension: 1
+    dimsizes:
+    - N
+  STR1:
+    datatype: single
+    dimension: 1
+    dimsizes:
+    - N
+Variables:
+  BYTES_PER_ELEM: 4
+  BYTES_PER_ITER: 384
+  FLOPS_PER_ITER: 64
+  LOADS_PER_ITER: 64
+  STORES_PER_ITER: 32
+  INST_PER_ITER: 12
+  UPOS_PER_ITER: 20
+  UNROLL_FACTOR: 32
+Metrics:
+  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+  Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+  Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+  Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+  Total uops: UPOS_PER_ITER * ITER
+  Total instructions: INST_PER_ITER * ITER
+Theads:
+  offsets: Thread_ID * N / NUM_THREADS
+  sizes: N / NUM_THREADS
+Language: asm
+#---
+LOOP(loop, rax=0, <, rdi=N, 32)
+vmovaps   ymm1, [STR0 + rax*4]
+vmovaps   ymm2, [STR0 + rax*4+32]
+vmovaps   ymm3, [STR0 + rax*4+64]
+vmovaps   ymm4, [STR0 + rax*4+96]
+vfmadd213ps ymm1, ymm7, [STR1 + rax*4]
+vfmadd213ps ymm2, ymm7, [STR1 + rax*4+32]
+vfmadd213ps ymm3, ymm7, [STR1 + rax*4+64]
+vfmadd213ps ymm4, ymm7, [STR1 + rax*4+96]
+vmovaps    [STR1 + rax*4], ymm1
+vmovaps    [STR1 + rax*4+32], ymm2
+vmovaps    [STR1 + rax*4+64], ymm3
+vmovaps    [STR1 + rax*4+96], ymm4
+LOOPEND(loop)
+# ptt for comparision [Will be removed soon]
+STREAMS 2
+TYPE SINGLE
+FLOPS 2
+BYTES 12
+DESC Single-precision linear combination of two vectors, optimized for AVX FMAs
+LOADS 2
+STORES 1
+INSTR_CONST 17
+INSTR_LOOP 15
+UOPS 22
+vmovaps ymm7, [rip+SCALAR]
+LOOP 32
+vmovaps   ymm1, [STR0 + GPR1*4]
+vmovaps   ymm2, [STR0 + GPR1*4+32]
+vmovaps   ymm3, [STR0 + GPR1*4+64]
+vmovaps   ymm4, [STR0 + GPR1*4+96]
+vfmadd213ps ymm1, ymm7, [STR1 + GPR1*4]
+vfmadd213ps ymm2, ymm7, [STR1 + GPR1*4+32]
+vfmadd213ps ymm3, ymm7, [STR1 + GPR1*4+64]
+vfmadd213ps ymm4, ymm7, [STR1 + GPR1*4+96]
+vmovaps    [STR1 + GPR1*4], ymm1
+vmovaps    [STR1 + GPR1*4+32], ymm2
+vmovaps    [STR1 + GPR1*4+64], ymm3
+vmovaps    [STR1 + GPR1*4+96], ymm4
+

@@ -1,0 +1,86 @@
+---
+Name: triad_mem_avx_fma
+Description: Double-precision triad A(i) = B(i) * C(i) + D(i), optimized for AVX FMAs
+  and non-temporal stores
+RequireWorkGroup: true
+FeatureFlag:
+- avx
+Parameters:
+  N:
+    description: 'Size of array that should be loaded, Possible Values: kB, MB, GB'
+    options:
+    - bytes
+    - required
+Streams:
+  STR0:
+    datatype: double
+    dimension: 1
+    dimsizes:
+    - N
+  STR1:
+    datatype: double
+    dimension: 1
+    dimsizes:
+    - N
+  STR2:
+    datatype: double
+    dimension: 1
+    dimsizes:
+    - N
+  STR3:
+    datatype: double
+    dimension: 1
+    dimsizes:
+    - N
+Variables:
+  BYTES_PER_ELEM: 8
+  BYTES_PER_ITER: 256
+  FLOPS_PER_ITER: 16
+  LOADS_PER_ITER: 24
+  STORES_PER_ITER: 8
+  INST_PER_ITER: 8
+  UPOS_PER_ITER: 12
+  UNROLL_FACTOR: 8
+Metrics:
+  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+  Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+  Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+  Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+  Total uops: UPOS_PER_ITER * ITER
+  Total instructions: INST_PER_ITER * ITER
+Theads:
+  offsets: Thread_ID * N / NUM_THREADS
+  sizes: N / NUM_THREADS
+Language: asm
+#---
+LOOP(loop, rax=0, <, rdi=N, 8)
+vmovaps ymm1, [STR1 + rax*8]
+vmovaps ymm2, [STR2 + rax*8]
+vmovaps ymm3, [STR1 + rax*8+32]
+vmovaps ymm4, [STR2 + rax*8+32]
+vfmadd213pd ymm1, ymm2, [STR3 + rax*8]
+vfmadd213pd ymm3, ymm4, [STR3 + rax*8+32]
+vmovntpd [STR0 + rax*8], ymm1
+vmovntpd [STR0 + rax*8+32], ymm3
+LOOPEND(loop)
+# ptt for comparision [Will be removed soon]
+STREAMS 4
+TYPE DOUBLE
+FLOPS 2
+BYTES 32
+DESC Double-precision triad A(i) = B(i) * C(i) + D(i), optimized for AVX FMAs and non-temporal stores
+LOADS 3
+STORES 1
+INSTR_CONST 16
+INSTR_LOOP 11
+UOPS 14
+LOOP 8
+vmovaps ymm1, [STR1 + GPR1*8]
+vmovaps ymm2, [STR2 + GPR1*8]
+vmovaps ymm3, [STR1 + GPR1*8+32]
+vmovaps ymm4, [STR2 + GPR1*8+32]
+vfmadd213pd ymm1, ymm2, [STR3 + GPR1*8]
+vfmadd213pd ymm3, ymm4, [STR3 + GPR1*8+32]
+vmovntpd [STR0 + GPR1*8], ymm1
+vmovntpd [STR0 + GPR1*8+32], ymm3
+

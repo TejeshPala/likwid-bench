@@ -1,0 +1,101 @@
+---
+Name: triad_avx512_fma
+Description: Double-precision triad A(i) = B(i) * C(i) + D(i), optimized for AVX-512
+  FMAs
+RequireWorkGroup: true
+FeatureFlag:
+- avx512
+Parameters:
+  N:
+    description: 'Size of array that should be loaded, Possible Values: kB, MB, GB'
+    options:
+    - bytes
+    - required
+Streams:
+  STR0:
+    datatype: double
+    dimension: 1
+    dimsizes:
+    - N
+  STR1:
+    datatype: double
+    dimension: 1
+    dimsizes:
+    - N
+  STR2:
+    datatype: double
+    dimension: 1
+    dimsizes:
+    - N
+  STR3:
+    datatype: double
+    dimension: 1
+    dimsizes:
+    - N
+Variables:
+  BYTES_PER_ELEM: 8
+  BYTES_PER_ITER: 1024
+  FLOPS_PER_ITER: 64
+  LOADS_PER_ITER: 96
+  STORES_PER_ITER: 32
+  INST_PER_ITER: 16
+  UPOS_PER_ITER: 24
+  UNROLL_FACTOR: 32
+Metrics:
+  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+  Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+  Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+  Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+  Total uops: UPOS_PER_ITER * ITER
+  Total instructions: INST_PER_ITER * ITER
+Theads:
+  offsets: Thread_ID * N / NUM_THREADS
+  sizes: N / NUM_THREADS
+Language: asm
+#---
+LOOP(loop, rax=0, <, rdi=N, 32)
+vmovaps    zmm1, [STR1 + rax*8]
+vmovaps    zmm2, [STR1 + rax*8+64]
+vmovaps    zmm3, [STR1 + rax*8+128]
+vmovaps    zmm4, [STR1 + rax*8+192]
+vmovaps    zmm5, [STR2 + rax*8]
+vmovaps    zmm6, [STR2 + rax*8+64]
+vmovaps    zmm7, [STR2 + rax*8+128]
+vmovaps    zmm8, [STR2 + rax*8+192]
+vfmadd213pd zmm1, zmm5, [STR3 + rax*8]
+vfmadd213pd zmm2, zmm6, [STR3 + rax*8+64]
+vfmadd213pd zmm3, zmm7, [STR3 + rax*8+128]
+vfmadd213pd zmm4, zmm8, [STR3 + rax*8+192]
+vmovaps [STR0 + rax*8], zmm1
+vmovaps [STR0 + rax*8+64], zmm2
+vmovaps [STR0 + rax*8+128], zmm3
+vmovaps [STR0 + rax*8+192], zmm4
+LOOPEND(loop)
+# ptt for comparision [Will be removed soon]
+STREAMS 4
+TYPE DOUBLE
+FLOPS 2
+BYTES 32
+DESC Double-precision triad A(i) = B(i) * C(i) + D(i), optimized for AVX-512 FMAs
+LOADS 3
+STORES 1
+INSTR_CONST 16
+INSTR_LOOP 19
+UOPS 26
+LOOP 32
+vmovaps    zmm1, [STR1 + GPR1*8]
+vmovaps    zmm2, [STR1 + GPR1*8+64]
+vmovaps    zmm3, [STR1 + GPR1*8+128]
+vmovaps    zmm4, [STR1 + GPR1*8+192]
+vmovaps    zmm5, [STR2 + GPR1*8]
+vmovaps    zmm6, [STR2 + GPR1*8+64]
+vmovaps    zmm7, [STR2 + GPR1*8+128]
+vmovaps    zmm8, [STR2 + GPR1*8+192]
+vfmadd213pd zmm1, zmm5, [STR3 + GPR1*8]
+vfmadd213pd zmm2, zmm6, [STR3 + GPR1*8+64]
+vfmadd213pd zmm3, zmm7, [STR3 + GPR1*8+128]
+vfmadd213pd zmm4, zmm8, [STR3 + GPR1*8+192]
+vmovaps [STR0 + GPR1*8], zmm1
+vmovaps [STR0 + GPR1*8+64], zmm2
+vmovaps [STR0 + GPR1*8+128], zmm3
+vmovaps [STR0 + GPR1*8+192], zmm4

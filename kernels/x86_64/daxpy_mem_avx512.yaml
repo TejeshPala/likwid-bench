@@ -1,0 +1,84 @@
+---
+Name: daxpy_mem_avx512
+Description: Double-precision linear combination of two vectors, optimized for AVX-512
+  and non-temporal stores
+RequireWorkGroup: true
+FeatureFlag:
+- avx512
+Parameters:
+  N:
+    description: 'Size of array that should be loaded, Possible Values: kB, MB, GB'
+    options:
+    - bytes
+    - required
+Streams:
+  STR0:
+    datatype: double
+    dimension: 1
+    dimsizes:
+    - N
+  STR1:
+    datatype: double
+    dimension: 1
+    dimsizes:
+    - N
+Variables:
+  BYTES_PER_ELEM: 8
+  BYTES_PER_ITER: 768
+  FLOPS_PER_ITER: 64
+  LOADS_PER_ITER: 64
+  STORES_PER_ITER: 32
+  INST_PER_ITER: 12
+  UPOS_PER_ITER: 20
+  UNROLL_FACTOR: 32
+Metrics:
+  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+  Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+  Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+  Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+  Total uops: UPOS_PER_ITER * ITER
+  Total instructions: INST_PER_ITER * ITER
+Theads:
+  offsets: Thread_ID * N / NUM_THREADS
+  sizes: N / NUM_THREADS
+Language: asm
+#---
+LOOP(loop, rax=0, <, rdi=N, 32)
+vmulpd    zmm1, zmm7, [STR0 + rax*8]
+vaddpd    zmm1, zmm1, [STR1 + rax*8]
+vmulpd    zmm2, zmm7, [STR0 + rax*8+64]
+vaddpd    zmm2, zmm2, [STR1 + rax*8+64]
+vmovntps    [STR1 + rax*8], zmm1
+vmovntps    [STR1 + rax*8+64], zmm2
+vmulpd    zmm3, zmm7, [STR0 + rax*8+128]
+vaddpd    zmm3, zmm3, [STR1 + rax*8+128]
+vmulpd    zmm4, zmm7, [STR0 + rax*8+192]
+vaddpd    zmm4, zmm4, [STR1 + rax*8+192]
+vmovntps    [STR1 + rax*8+128], zmm3
+vmovntps    [STR1 + rax*8+192], zmm4
+LOOPEND(loop)
+# ptt for comparision [Will be removed soon]
+STREAMS 2
+TYPE DOUBLE
+FLOPS 2
+BYTES 24
+DESC Double-precision linear combination of two vectors, optimized for AVX-512 and non-temporal stores
+LOADS 2
+STORES 1
+INSTR_CONST 17
+INSTR_LOOP 14
+UOPS 22
+vmovaps zmm7, [rip+SCALAR]
+LOOP 32
+vmulpd    zmm1, zmm7, [STR0 + GPR1*8]
+vaddpd    zmm1, zmm1, [STR1 + GPR1*8]
+vmulpd    zmm2, zmm7, [STR0 + GPR1*8+64]
+vaddpd    zmm2, zmm2, [STR1 + GPR1*8+64]
+vmovntps    [STR1 + GPR1*8], zmm1
+vmovntps    [STR1 + GPR1*8+64], zmm2
+vmulpd    zmm3, zmm7, [STR0 + GPR1*8+128]
+vaddpd    zmm3, zmm3, [STR1 + GPR1*8+128]
+vmulpd    zmm4, zmm7, [STR0 + GPR1*8+192]
+vaddpd    zmm4, zmm4, [STR1 + GPR1*8+192]
+vmovntps    [STR1 + GPR1*8+128], zmm3
+vmovntps    [STR1 + GPR1*8+192], zmm4

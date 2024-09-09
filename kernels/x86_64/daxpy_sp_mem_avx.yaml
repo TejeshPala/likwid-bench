@@ -1,0 +1,73 @@
+---
+Name: daxpy_sp_mem_avx
+Description: Single-precision linear combination of two vectors, optimized for AVX
+  and non-temporal stores (Just for architectural research)
+RequireWorkGroup: true
+FeatureFlag:
+- avx
+Parameters:
+  N:
+    description: 'Size of array that should be loaded, Possible Values: kB, MB, GB'
+    options:
+    - bytes
+    - required
+Streams:
+  STR0:
+    datatype: single
+    dimension: 1
+    dimsizes:
+    - N
+  STR1:
+    datatype: single
+    dimension: 1
+    dimsizes:
+    - N
+Variables:
+  BYTES_PER_ELEM: 4
+  BYTES_PER_ITER: 192
+  FLOPS_PER_ITER: 32
+  LOADS_PER_ITER: 32
+  STORES_PER_ITER: 16
+  INST_PER_ITER: 6
+  UPOS_PER_ITER: 12
+  UNROLL_FACTOR: 16
+Metrics:
+  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+  Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+  Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+  Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+  Total uops: UPOS_PER_ITER * ITER
+  Total instructions: INST_PER_ITER * ITER
+Theads:
+  offsets: Thread_ID * N / NUM_THREADS
+  sizes: N / NUM_THREADS
+Language: asm
+#---
+LOOP(loop, rax=0, <, rdi=N, 16)
+vmulps    ymm1, ymm7, [STR0 + rax*4]
+vaddps    ymm1, ymm1, [STR1 + rax*4]
+vmovntps    [STR1 + rax*4], ymm1
+vmulps    ymm2, ymm7, [STR0 + rax*4+32]
+vaddps    ymm2, ymm2, [STR1 + rax*4+32]
+vmovntps    [STR1 + rax*4+32], ymm2
+LOOPEND(loop)
+# ptt for comparision [Will be removed soon]
+STREAMS 2
+TYPE SINGLE
+FLOPS 2
+BYTES 12
+DESC Single-precision linear combination of two vectors, optimized for AVX and non-temporal stores (Just for architectural research)
+LOADS 2
+STORES 1
+INSTR_CONST 17
+INSTR_LOOP 9
+UOPS 14
+vmovaps ymm7, [rip+SCALAR]
+LOOP 16
+vmulps    ymm1, ymm7, [STR0 + GPR1*4]
+vaddps    ymm1, ymm1, [STR1 + GPR1*4]
+vmovntps    [STR1 + GPR1*4], ymm1
+vmulps    ymm2, ymm7, [STR0 + GPR1*4+32]
+vaddps    ymm2, ymm2, [STR1 + GPR1*4+32]
+vmovntps    [STR1 + GPR1*4+32], ymm2
+
