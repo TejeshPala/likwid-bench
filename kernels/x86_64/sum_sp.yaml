@@ -1,41 +1,42 @@
 ---
-Name: sum_sp
-Description: Single-precision sum of a vector, only scalar operations
-RequireWorkGroup: true
-FeatureFlag: []
-Parameters:
-  N:
-    description: 'Size of array that should be loaded, Possible Values: kB, MB, GB'
-    options:
-    - bytes
-    - required
-Streams:
-  STR0:
-    datatype: single
-    dimension: 1
-    dimsizes:
-    - N
-Variables:
-  BYTES_PER_ELEM: 4
-  FLOPS_PER_ELEM: 1
-  LOADS_PER_ELEM: 1
-  BYTES_PER_ITER: 16
-  FLOPS_PER_ITER: 4
-  LOADS_PER_ITER: 4
-  INST_PER_ITER: 4
-  UPOS_PER_ITER: 8
-  UNROLL_FACTOR: 4
-Metrics:
-  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
-  Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
-  Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
-  Total uops: UPOS_PER_ITER * ITER
-  Total instructions: INST_PER_ITER * ITER
-Theads:
-  offsets: Thread_ID * N / NUM_THREADS
-  sizes: N / NUM_THREADS
-Language: asm
-#---
+- Name: sum_sp
+- Description: Single-precision sum of a vector, only scalar operations
+- RequireWorkGroup: true
+- FeatureFlag: []
+- Parameters:
+  - N:
+      description: 'Size of array that should be loaded, Possible Values: kB, MB,
+        GB'
+      options:
+      - bytes
+      - required
+- Streams:
+  - STR0:
+      datatype: single
+      dimension: 1
+      dimsizes:
+      - N
+- Variables:
+    BYTES_PER_ELEM: 4
+    FLOPS_PER_ELEM: 1
+    LOADS_PER_ELEM: 1
+    BYTES_PER_ITER: 16
+    FLOPS_PER_ITER: 4
+    LOADS_PER_ITER: 4
+    INST_PER_ITER: 4
+    UPOS_PER_ITER: 8
+    UNROLL_FACTOR: 4
+- Metrics:
+    Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+    Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+    Total uops: UPOS_PER_ITER * ITER
+    Total instructions: INST_PER_ITER * ITER
+- Theads:
+    offsets: Thread_ID * N / NUM_THREADS
+    sizes: N / NUM_THREADS
+- Language: asm
+...
 LOOP(loop, rax=0, <, rdi=N, 4)
 addss    FPR1, [STR0 + rax * 4]
 addss    FPR2, [STR0 + rax * 4 + 4]

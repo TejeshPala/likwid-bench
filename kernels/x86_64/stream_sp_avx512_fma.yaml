@@ -1,53 +1,54 @@
 ---
-Name: stream_sp_avx512_fma
-Description: Single-precision stream triad A(i) = B(i)*c + C(i), optimized for AVX-512
-  FMAs
-RequireWorkGroup: true
-FeatureFlag:
-- avx512
-Parameters:
-  N:
-    description: 'Size of array that should be loaded, Possible Values: kB, MB, GB'
-    options:
-    - bytes
-    - required
-Streams:
-  STR0:
-    datatype: single
-    dimension: 1
-    dimsizes:
-    - N
-  STR1:
-    datatype: single
-    dimension: 1
-    dimsizes:
-    - N
-  STR2:
-    datatype: single
-    dimension: 1
-    dimsizes:
-    - N
-Variables:
-  BYTES_PER_ELEM: 4
-  BYTES_PER_ITER: 768
-  FLOPS_PER_ITER: 128
-  LOADS_PER_ITER: 128
-  STORES_PER_ITER: 64
-  INST_PER_ITER: 12
-  UPOS_PER_ITER: 20
-  UNROLL_FACTOR: 64
-Metrics:
-  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
-  Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
-  Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
-  Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
-  Total uops: UPOS_PER_ITER * ITER
-  Total instructions: INST_PER_ITER * ITER
-Theads:
-  offsets: Thread_ID * N / NUM_THREADS
-  sizes: N / NUM_THREADS
-Language: asm
-#---
+- Name: stream_sp_avx512_fma
+- Description: Single-precision stream triad A(i) = B(i)*c + C(i), optimized for AVX-512
+    FMAs
+- RequireWorkGroup: true
+- FeatureFlag:
+  - avx512
+- Parameters:
+  - N:
+      description: 'Size of array that should be loaded, Possible Values: kB, MB,
+        GB'
+      options:
+      - bytes
+      - required
+- Streams:
+  - STR0:
+      datatype: single
+      dimension: 1
+      dimsizes:
+      - N
+  - STR1:
+      datatype: single
+      dimension: 1
+      dimsizes:
+      - N
+  - STR2:
+      datatype: single
+      dimension: 1
+      dimsizes:
+      - N
+- Variables:
+    BYTES_PER_ELEM: 4
+    BYTES_PER_ITER: 768
+    FLOPS_PER_ITER: 128
+    LOADS_PER_ITER: 128
+    STORES_PER_ITER: 64
+    INST_PER_ITER: 12
+    UPOS_PER_ITER: 20
+    UNROLL_FACTOR: 64
+- Metrics:
+    Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+    Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+    Total uops: UPOS_PER_ITER * ITER
+    Total instructions: INST_PER_ITER * ITER
+- Theads:
+    offsets: Thread_ID * N / NUM_THREADS
+    sizes: N / NUM_THREADS
+- Language: asm
+...
 LOOP(loop, rax=0, <, rdi=N, 64)
 vmovaps   zmm2, [STR1 + rax*4]
 vmovaps   zmm3, [STR1 + rax*4+64]

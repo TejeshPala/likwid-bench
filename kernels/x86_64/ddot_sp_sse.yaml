@@ -1,45 +1,46 @@
 ---
-Name: ddot_sp_sse
-Description: Single-precision dot product of two vectors, optimized for SSE
-RequireWorkGroup: true
-FeatureFlag:
-- sse
-Parameters:
-  N:
-    description: 'Size of array that should be loaded, Possible Values: kB, MB, GB'
-    options:
-    - bytes
-    - required
-Streams:
-  STR0:
-    datatype: single
-    dimension: 1
-    dimsizes:
-    - N
-  STR1:
-    datatype: single
-    dimension: 1
-    dimsizes:
-    - N
-Variables:
-  BYTES_PER_ELEM: 4
-  BYTES_PER_ITER: 64
-  FLOPS_PER_ITER: 16
-  LOADS_PER_ITER: 16
-  INST_PER_ITER: 6
-  UPOS_PER_ITER: 8
-  UNROLL_FACTOR: 8
-Metrics:
-  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
-  Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
-  Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
-  Total uops: UPOS_PER_ITER * ITER
-  Total instructions: INST_PER_ITER * ITER
-Theads:
-  offsets: Thread_ID * N / NUM_THREADS
-  sizes: N / NUM_THREADS
-Language: asm
-#---
+- Name: ddot_sp_sse
+- Description: Single-precision dot product of two vectors, optimized for SSE
+- RequireWorkGroup: true
+- FeatureFlag:
+  - sse
+- Parameters:
+  - N:
+      description: 'Size of array that should be loaded, Possible Values: kB, MB,
+        GB'
+      options:
+      - bytes
+      - required
+- Streams:
+  - STR0:
+      datatype: single
+      dimension: 1
+      dimsizes:
+      - N
+  - STR1:
+      datatype: single
+      dimension: 1
+      dimsizes:
+      - N
+- Variables:
+    BYTES_PER_ELEM: 4
+    BYTES_PER_ITER: 64
+    FLOPS_PER_ITER: 16
+    LOADS_PER_ITER: 16
+    INST_PER_ITER: 6
+    UPOS_PER_ITER: 8
+    UNROLL_FACTOR: 8
+- Metrics:
+    Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+    Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+    Total uops: UPOS_PER_ITER * ITER
+    Total instructions: INST_PER_ITER * ITER
+- Theads:
+    offsets: Thread_ID * N / NUM_THREADS
+    sizes: N / NUM_THREADS
+- Language: asm
+...
 LOOP(loop, rax=0, <, rdi=N, 8)
 movaps FPR2, [STR0 + rax * 4]
 mulps  FPR2, [STR1 + rax * 4]

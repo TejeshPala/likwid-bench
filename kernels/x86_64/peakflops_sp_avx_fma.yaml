@@ -1,28 +1,28 @@
 ---
-Name: peakflops_sp_avx_fma
-Description: Single-precision multiplications and additions with a single load, optimized
-  for AVX FMAs
-RequireWorkGroup: false
-FeatureFlag:
-- avx
-Parameters:
-  N:
-    description: Number of Loop Iterations
-    options:
-    - uint
-    - required
-Variables:
-  FLOPS_PER_ELEM: 30
-  FLOPS_PER_ITER: 240
-  INST_PER_ITER: 15
-  UPOS_PER_ITER: 15
-  UNROLL_FACTOR: 8
-Metrics:
-  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
-  Total uops: UPOS_PER_ITER * ITER
-  Total instructions: INST_PER_ITER * ITER
-Language: asm
-#---
+- Name: peakflops_sp_avx_fma
+- Description: Single-precision multiplications and additions with a single load,
+    optimized for AVX FMAs
+- RequireWorkGroup: false
+- FeatureFlag:
+  - avx
+- Parameters:
+  - N:
+      description: Number of Loop Iterations
+      options:
+      - uint
+      - required
+- Variables:
+    FLOPS_PER_ELEM: 30
+    FLOPS_PER_ITER: 240
+    INST_PER_ITER: 15
+    UPOS_PER_ITER: 15
+    UNROLL_FACTOR: 8
+- Metrics:
+    Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+    Total uops: UPOS_PER_ITER * ITER
+    Total instructions: INST_PER_ITER * ITER
+- Language: asm
+...
 LOOP(loop, rax=0, <, rdi=N, 1)
 vfmadd213ps     ymm0, ymm0, ymm1
 vfmadd213ps     ymm2, ymm2, ymm1

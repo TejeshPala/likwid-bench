@@ -1,45 +1,46 @@
 ---
-Name: copy_mem
-Description: Double-precision vector copy, only scalar operations but with non-temporal
-  stores
-RequireWorkGroup: true
-FeatureFlag: []
-Parameters:
-  N:
-    description: 'Size of array that should be loaded, Possible Values: kB, MB, GB'
-    options:
-    - bytes
-    - required
-Streams:
-  STR0:
-    datatype: double
-    dimension: 1
-    dimsizes:
-    - N
-  STR1:
-    datatype: double
-    dimension: 1
-    dimsizes:
-    - N
-Variables:
-  BYTES_PER_ELEM: 8
-  BYTES_PER_ITER: 64
-  LOADS_PER_ITER: 4
-  STORES_PER_ITER: 4
-  INST_PER_ITER: 8
-  UPOS_PER_ITER: 12
-  UNROLL_FACTOR: 4
-Metrics:
-  Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
-  Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
-  Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
-  Total uops: UPOS_PER_ITER * ITER
-  Total instructions: INST_PER_ITER * ITER
-Theads:
-  offsets: Thread_ID * N / NUM_THREADS
-  sizes: N / NUM_THREADS
-Language: asm
-#---
+- Name: copy_mem
+- Description: Double-precision vector copy, only scalar operations but with non-temporal
+    stores
+- RequireWorkGroup: true
+- FeatureFlag: []
+- Parameters:
+  - N:
+      description: 'Size of array that should be loaded, Possible Values: kB, MB,
+        GB'
+      options:
+      - bytes
+      - required
+- Streams:
+  - STR0:
+      datatype: double
+      dimension: 1
+      dimsizes:
+      - N
+  - STR1:
+      datatype: double
+      dimension: 1
+      dimsizes:
+      - N
+- Variables:
+    BYTES_PER_ELEM: 8
+    BYTES_PER_ITER: 64
+    LOADS_PER_ITER: 4
+    STORES_PER_ITER: 4
+    INST_PER_ITER: 8
+    UPOS_PER_ITER: 12
+    UNROLL_FACTOR: 4
+- Metrics:
+    Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+    Total uops: UPOS_PER_ITER * ITER
+    Total instructions: INST_PER_ITER * ITER
+- Theads:
+    offsets: Thread_ID * N / NUM_THREADS
+    sizes: N / NUM_THREADS
+- Language: asm
+...
 LOOP(loop, rax=0, <, rdi=N, 4)
 movq    mm0, [STR0 + rax * 8]
 movq    mm1, [STR0 + rax * 8 + 8]

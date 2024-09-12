@@ -1,27 +1,27 @@
 ---
-Name: peakflops_avx
-Description: Double-precision multiplications and additions with a single load, optimized
-  for AVX
-RequireWorkGroup: false
-FeatureFlag:
-- avx
-Parameters:
-  N:
-    description: Number of Loop Iterations
-    options:
-    - uint
-    - required
-Variables:
-  FLOPS_PER_ITER: 60
-  INST_PER_ITER: 15
-  UPOS_PER_ITER: 15
-  UNROLL_FACTOR: 4
-Metrics:
-  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
-  Total uops: UPOS_PER_ITER * ITER
-  Total instructions: INST_PER_ITER * ITER
-Language: asm
-#---
+- Name: peakflops_avx
+- Description: Double-precision multiplications and additions with a single load,
+    optimized for AVX
+- RequireWorkGroup: false
+- FeatureFlag:
+  - avx
+- Parameters:
+  - N:
+      description: Number of Loop Iterations
+      options:
+      - uint
+      - required
+- Variables:
+    FLOPS_PER_ITER: 60
+    INST_PER_ITER: 15
+    UPOS_PER_ITER: 15
+    UNROLL_FACTOR: 4
+- Metrics:
+    Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+    Total uops: UPOS_PER_ITER * ITER
+    Total instructions: INST_PER_ITER * ITER
+- Language: asm
+...
 LOOP(loop, rax=0, <, rdi=N, 1)
 vmulpd     ymm0, ymm0, ymm1
 vaddpd     ymm2, ymm2, ymm1

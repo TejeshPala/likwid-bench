@@ -1,52 +1,53 @@
 ---
-Name: stream_avx
-Description: Double-precision stream triad A(i) = B(i)*c + C(i), optimized for AVX
-RequireWorkGroup: true
-FeatureFlag:
-- avx
-Parameters:
-  N:
-    description: 'Size of array that should be loaded, Possible Values: kB, MB, GB'
-    options:
-    - bytes
-    - required
-Streams:
-  STR0:
-    datatype: double
-    dimension: 1
-    dimsizes:
-    - N
-  STR1:
-    datatype: double
-    dimension: 1
-    dimsizes:
-    - N
-  STR2:
-    datatype: double
-    dimension: 1
-    dimsizes:
-    - N
-Variables:
-  BYTES_PER_ELEM: 8
-  BYTES_PER_ITER: 384
-  FLOPS_PER_ITER: 32
-  LOADS_PER_ITER: 32
-  STORES_PER_ITER: 16
-  INST_PER_ITER: 16
-  UPOS_PER_ITER: 24
-  UNROLL_FACTOR: 16
-Metrics:
-  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
-  Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
-  Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
-  Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
-  Total uops: UPOS_PER_ITER * ITER
-  Total instructions: INST_PER_ITER * ITER
-Theads:
-  offsets: Thread_ID * N / NUM_THREADS
-  sizes: N / NUM_THREADS
-Language: asm
-#---
+- Name: stream_avx
+- Description: Double-precision stream triad A(i) = B(i)*c + C(i), optimized for AVX
+- RequireWorkGroup: true
+- FeatureFlag:
+  - avx
+- Parameters:
+  - N:
+      description: 'Size of array that should be loaded, Possible Values: kB, MB,
+        GB'
+      options:
+      - bytes
+      - required
+- Streams:
+  - STR0:
+      datatype: double
+      dimension: 1
+      dimsizes:
+      - N
+  - STR1:
+      datatype: double
+      dimension: 1
+      dimsizes:
+      - N
+  - STR2:
+      datatype: double
+      dimension: 1
+      dimsizes:
+      - N
+- Variables:
+    BYTES_PER_ELEM: 8
+    BYTES_PER_ITER: 384
+    FLOPS_PER_ITER: 32
+    LOADS_PER_ITER: 32
+    STORES_PER_ITER: 16
+    INST_PER_ITER: 16
+    UPOS_PER_ITER: 24
+    UNROLL_FACTOR: 16
+- Metrics:
+    Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+    Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+    Total uops: UPOS_PER_ITER * ITER
+    Total instructions: INST_PER_ITER * ITER
+- Theads:
+    offsets: Thread_ID * N / NUM_THREADS
+    sizes: N / NUM_THREADS
+- Language: asm
+...
 LOOP(loop, rax=0, <, rdi=N, 16)
 vmovaps    ymm1, [STR1 + rax*8]
 vmovaps    ymm2, [STR1 + rax*8+32]

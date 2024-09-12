@@ -1,47 +1,48 @@
 ---
-Name: daxpy_avx512
-Description: Double-precision linear combination of two vectors, optimized for AVX-512
-RequireWorkGroup: true
-FeatureFlag:
-- avx512
-Parameters:
-  N:
-    description: 'Size of array that should be loaded, Possible Values: kB, MB, GB'
-    options:
-    - bytes
-    - required
-Streams:
-  STR0:
-    datatype: double
-    dimension: 1
-    dimsizes:
-    - N
-  STR1:
-    datatype: double
-    dimension: 1
-    dimsizes:
-    - N
-Variables:
-  BYTES_PER_ELEM: 8
-  BYTES_PER_ITER: 768
-  FLOPS_PER_ITER: 64
-  LOADS_PER_ITER: 64
-  STORES_PER_ITER: 32
-  INST_PER_ITER: 12
-  UPOS_PER_ITER: 36
-  UNROLL_FACTOR: 32
-Metrics:
-  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
-  Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
-  Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
-  Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
-  Total uops: UPOS_PER_ITER * ITER
-  Total instructions: INST_PER_ITER * ITER
-Theads:
-  offsets: Thread_ID * N / NUM_THREADS
-  sizes: N / NUM_THREADS
-Language: asm
-#---
+- Name: daxpy_avx512
+- Description: Double-precision linear combination of two vectors, optimized for AVX-512
+- RequireWorkGroup: true
+- FeatureFlag:
+  - avx512
+- Parameters:
+  - N:
+      description: 'Size of array that should be loaded, Possible Values: kB, MB,
+        GB'
+      options:
+      - bytes
+      - required
+- Streams:
+  - STR0:
+      datatype: double
+      dimension: 1
+      dimsizes:
+      - N
+  - STR1:
+      datatype: double
+      dimension: 1
+      dimsizes:
+      - N
+- Variables:
+    BYTES_PER_ELEM: 8
+    BYTES_PER_ITER: 768
+    FLOPS_PER_ITER: 64
+    LOADS_PER_ITER: 64
+    STORES_PER_ITER: 32
+    INST_PER_ITER: 12
+    UPOS_PER_ITER: 36
+    UNROLL_FACTOR: 32
+- Metrics:
+    Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+    Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+    Total uops: UPOS_PER_ITER * ITER
+    Total instructions: INST_PER_ITER * ITER
+- Theads:
+    offsets: Thread_ID * N / NUM_THREADS
+    sizes: N / NUM_THREADS
+- Language: asm
+...
 LOOP(loop, rax=0, <, rdi=N, 32)
 vmulpd    zmm1, zmm7, [STR0 + rax*8]
 vaddpd    zmm1, zmm1, [STR1 + rax*8]

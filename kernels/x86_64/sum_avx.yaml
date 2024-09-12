@@ -1,42 +1,43 @@
 ---
-Name: sum_avx
-Description: Double-precision sum of a vector, optimized for AVX
-RequireWorkGroup: true
-FeatureFlag:
-- avx
-Parameters:
-  N:
-    description: 'Size of array that should be loaded, Possible Values: kB, MB, GB'
-    options:
-    - bytes
-    - required
-Streams:
-  STR0:
-    datatype: double
-    dimension: 1
-    dimsizes:
-    - N
-Variables:
-  BYTES_PER_ELEM: 8
-  FLOPS_PER_ELEM: 1
-  LOADS_PER_ELEM: 1
-  BYTES_PER_ITER: 256
-  FLOPS_PER_ITER: 32
-  LOADS_PER_ITER: 32
-  INST_PER_ITER: 8
-  UPOS_PER_ITER: 16
-  UNROLL_FACTOR: 32
-Metrics:
-  Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
-  Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
-  Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
-  Total uops: UPOS_PER_ITER * ITER
-  Total instructions: INST_PER_ITER * ITER
-Theads:
-  offsets: Thread_ID * N / NUM_THREADS
-  sizes: N / NUM_THREADS
-Language: asm
-#---
+- Name: sum_avx
+- Description: Double-precision sum of a vector, optimized for AVX
+- RequireWorkGroup: true
+- FeatureFlag:
+  - avx
+- Parameters:
+  - N:
+      description: 'Size of array that should be loaded, Possible Values: kB, MB,
+        GB'
+      options:
+      - bytes
+      - required
+- Streams:
+  - STR0:
+      datatype: double
+      dimension: 1
+      dimsizes:
+      - N
+- Variables:
+    BYTES_PER_ELEM: 8
+    FLOPS_PER_ELEM: 1
+    LOADS_PER_ELEM: 1
+    BYTES_PER_ITER: 256
+    FLOPS_PER_ITER: 32
+    LOADS_PER_ITER: 32
+    INST_PER_ITER: 8
+    UPOS_PER_ITER: 16
+    UNROLL_FACTOR: 32
+- Metrics:
+    Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+    Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+    Total uops: UPOS_PER_ITER * ITER
+    Total instructions: INST_PER_ITER * ITER
+- Theads:
+    offsets: Thread_ID * N / NUM_THREADS
+    sizes: N / NUM_THREADS
+- Language: asm
+...
 LOOP(loop, rax=0, <, rdi=N, 32)
 vaddpd    ymm1, ymm1, [STR0 + rax * 8]
 vaddpd    ymm2, ymm2, [STR0 + rax * 8 + 32]
