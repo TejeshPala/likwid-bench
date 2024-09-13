@@ -541,17 +541,17 @@ int _hwthread_list_for_socket(int socket, int* numEntries, int** hwthreadList)
         }
     }
     int count = 0;
-    int* list = malloc(avail_hwthreads * sizeof(int));
+    int* list = malloc(_num_hwthreads * sizeof(int));
     if (!list)
     {
         return -ENOMEM;
     }
-    memset(list, 0, avail_hwthreads * sizeof(int));
+    memset(list, 0, _num_hwthreads * sizeof(int));
 
     for (int i = 0; i < _num_hwthreads; i++)
     {
         LikwidBenchHwthread* cur = &_hwthreads[i];
-        if (cur->socket_id == socket && cur->usable == 1)
+        if (cur->socket_id == socket && cur->usable == 1 && count < _num_hwthreads-1)
         {
             list[count++] = cur->os_id;
         }
@@ -579,17 +579,17 @@ int _hwthread_list_for_numa_domain(int numa_id, int* numEntries, int** hwthreadL
         }
     }
     int count = 0;
-    int* list = malloc(avail_hwthreads * sizeof(int));
+    int* list = malloc(_num_hwthreads * sizeof(int));
     if (!list)
     {
         return -ENOMEM;
     }
-    memset(list, 0, avail_hwthreads * sizeof(int));
+    memset(list, 0, _num_hwthreads * sizeof(int));
 
     for (int i = 0; i < _num_hwthreads; i++)
     {
         LikwidBenchHwthread* cur = &_hwthreads[i];
-        if (cur->numa_id == numa_id && cur->usable == 1)
+        if (cur->numa_id == numa_id && cur->usable == 1 && count < _num_hwthreads-1)
         {
             list[count++] = cur->os_id;
         }
@@ -617,17 +617,17 @@ int _hwthread_list_for_cpu_die(int die_id, int* numEntries, int** hwthreadList)
         }
     }
     int count = 0;
-    int* list = malloc(avail_hwthreads * sizeof(int));
+    int* list = malloc(_num_hwthreads * sizeof(int));
     if (!list)
     {
         return -ENOMEM;
     }
-    memset(list, 0, avail_hwthreads * sizeof(int));
+    memset(list, 0, _num_hwthreads * sizeof(int));
 
     for (int i = 0; i < _num_hwthreads; i++)
     {
         LikwidBenchHwthread* cur = &_hwthreads[i];
-        if (cur->die_id == die_id && cur->usable == 1)
+        if (cur->die_id == die_id && cur->usable == 1 && count < _num_hwthreads-1)
         {
             list[count++] = cur->os_id;
         }
@@ -654,6 +654,10 @@ int _hwthread_list_sort_by_core(int length, int* hwthreadList, int** outList)
 {
     int maxSocketId = 0;
     int maxCoreId = 0;
+    if ((length <= 0) || (!hwthreadList) || (!outList))
+    {
+        return -EINVAL;
+    }
     for (int i = 0; i < _num_hwthreads; i++)
     {
         LikwidBenchHwthread* cur = &_hwthreads[i];
@@ -685,7 +689,7 @@ int _hwthread_list_sort_by_core(int length, int* hwthreadList, int** outList)
                 LikwidBenchHwthread* test = getHwThread(hwthreadList[i]);
                 if (test)
                 {
-                    if (test->socket_id == s && test->core_id == c && test->usable == 1)
+                    if (test->socket_id == s && test->core_id == c && test->usable == 1 && count < length-1)
                     {
                         list[count++] = hwthreadList[i];
                     }
@@ -979,7 +983,7 @@ int cpustr_to_cpulist_expression(bstring cpustr, int* list, int length)
     int looplength = (length < _num_hwthreads ? length : _num_hwthreads);
     if (count > 0)
     {
-        looplength = (count < looplength ? count : looplength);
+        looplength = (tmpCount < looplength ? tmpCount : looplength);
     }
 
     if (stride == -1 && chunk == -1)
