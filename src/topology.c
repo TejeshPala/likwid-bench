@@ -884,7 +884,7 @@ int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
     int looplength = (length < _num_hwthreads ? length : _num_hwthreads);
     if (count > 0)
     {
-        looplength = (count < looplength ? count : looplength);
+        looplength = (tmpCount < looplength ? tmpCount : looplength);
     }
 
     int outcount = 0;
