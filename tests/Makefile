@@ -124,7 +124,7 @@ test_bstrlib_helper: test_bstrlib_helper.c $(BSTRLIB_HEADER) $(BSTRLIB_OBJ)
 	$(CC) $(INCLUDES) $(CFLAGS) test_bstrlib_helper.c $(BSTRLIB_OBJ) -o $@
 
 run: $(TESTS)
-	@for T in $(TESTS); do echo "#### Running $$T ####"; ./$$T; done
+	@for T in $(TESTS); do echo "#### Running $$T ####"; ./$$T; if [ $$? -ne 0 ]; then exit 1; fi; done
 
 clean:
 	rm -f $(TESTS)

@@ -72,3 +72,15 @@ void stackFree(Stack *s)
 	s->size = 0;
 	s->top = -1;
 }
+
+void stackPrint(Stack *s)
+{
+    if(s && s->top >= 0 && s->content != NULL)
+    {
+        for (int i = s->top; i >= 0; i--)
+        {
+            printf("%s ", (char*)s->content[i]);
+        }
+        printf("\n");
+    }
+}

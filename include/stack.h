@@ -13,3 +13,4 @@ void* stackTop(Stack *s);
 void* stackPop(Stack *s);
 int stackSize(Stack *s);
 void stackFree(Stack *s);
+void stackPrint(Stack *s);
