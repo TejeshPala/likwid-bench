@@ -540,6 +540,10 @@ int _hwthread_list_for_socket(int socket, int* numEntries, int** hwthreadList)
             avail_hwthreads++;
         }
     }
+    if (avail_hwthreads == 0)
+    {
+        return -ENODEV;
+    }
     int count = 0;
     int* list = malloc(_num_hwthreads * sizeof(int));
     if (!list)
@@ -578,6 +582,10 @@ int _hwthread_list_for_numa_domain(int numa_id, int* numEntries, int** hwthreadL
             avail_hwthreads++;
         }
     }
+    if (avail_hwthreads == 0)
+    {
+        return -ENODEV;
+    }
     int count = 0;
     int* list = malloc(_num_hwthreads * sizeof(int));
     if (!list)
@@ -615,6 +623,10 @@ int _hwthread_list_for_cpu_die(int die_id, int* numEntries, int** hwthreadList)
         {
             avail_hwthreads++;
         }
+    }
+    if (avail_hwthreads == 0)
+    {
+        return -ENODEV;
     }
     int count = 0;
     int* list = malloc(_num_hwthreads * sizeof(int));
@@ -720,11 +732,24 @@ int cpustr_to_cpulist_physical(bstring cpustr, int* list, int length)
         }
         else if (c == 2)
         {
-            for (int j = s; j <= e; j++)
+            if (s < e)
             {
-                if (getHwThread(j) != NULL && idx < length)
+                for (int j = s; j <= e; j++)
                 {
-                    list[idx++] = j;
+                    if (getHwThread(j) != NULL && idx < length)
+                    {
+                        list[idx++] = j;
+                    }
+                }
+            }
+            else
+            {
+                for (int j = s; j >= e; j--)
+                {
+                    if (getHwThread(j) != NULL && idx < length)
+                    {
+                        list[idx++] = j;
+                    }
                 }
             }
         }
@@ -842,6 +867,11 @@ int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
             tmpList = malloc(_num_hwthreads * sizeof(int));
             if (!tmpList)
             {
+                if (idxList)
+                {
+                    free(idxList);
+                    idxList = NULL;
+                }
                 return -ENOMEM;
             }
             for (int i = 0; i < _num_hwthreads; i++)
@@ -856,6 +886,12 @@ int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
                 ret = _hwthread_list_for_socket(domIdx, &tmpCount, &tmpList);
                 if (ret != 0)
                 {
+                    if (idxList)
+                    {
+                        free(idxList);
+                        idxList = NULL;
+                        idxLen = 0;
+                    }
                     return ret;
                 }
             }
@@ -866,6 +902,12 @@ int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
                 ret = _hwthread_list_for_numa_domain(domIdx, &tmpCount, &tmpList);
                 if (ret != 0)
                 {
+                    if (idxList)
+                    {
+                        free(idxList);
+                        idxList = NULL;
+                        idxLen = 0;
+                    }
                     return ret;
                 }
             }
@@ -876,6 +918,12 @@ int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
                 ret = _hwthread_list_for_cpu_die(domIdx, &tmpCount, &tmpList);
                 if (ret != 0)
                 {
+                    if (idxList)
+                    {
+                        free(idxList);
+                        idxList = NULL;
+                        idxLen = 0;
+                    }
                     return ret;
                 }
             }
