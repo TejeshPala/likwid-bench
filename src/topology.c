@@ -20,6 +20,8 @@
 #include "bitmap.h"
 #include "path.h"
 
+#define TOPO_MIN(a,b) ((a) < (b) ? (a) : (b))
+
 static int _min_processor = 0;
 static int _max_processor = 0;
 
@@ -555,7 +557,7 @@ int _hwthread_list_for_socket(int socket, int* numEntries, int** hwthreadList)
     for (int i = 0; i < _num_hwthreads; i++)
     {
         LikwidBenchHwthread* cur = &_hwthreads[i];
-        if (cur->socket_id == socket && cur->usable == 1 && count < _num_hwthreads-1)
+        if (cur->socket_id == socket && cur->usable == 1 && count < _num_hwthreads)
         {
             list[count++] = cur->os_id;
         }
@@ -597,7 +599,7 @@ int _hwthread_list_for_numa_domain(int numa_id, int* numEntries, int** hwthreadL
     for (int i = 0; i < _num_hwthreads; i++)
     {
         LikwidBenchHwthread* cur = &_hwthreads[i];
-        if (cur->numa_id == numa_id && cur->usable == 1 && count < _num_hwthreads-1)
+        if (cur->numa_id == numa_id && cur->usable == 1 && count < _num_hwthreads)
         {
             list[count++] = cur->os_id;
         }
@@ -639,7 +641,7 @@ int _hwthread_list_for_cpu_die(int die_id, int* numEntries, int** hwthreadList)
     for (int i = 0; i < _num_hwthreads; i++)
     {
         LikwidBenchHwthread* cur = &_hwthreads[i];
-        if (cur->die_id == die_id && cur->usable == 1 && count < _num_hwthreads-1)
+        if (cur->die_id == die_id && cur->usable == 1 && count < _num_hwthreads)
         {
             list[count++] = cur->os_id;
         }
@@ -701,7 +703,7 @@ int _hwthread_list_sort_by_core(int length, int* hwthreadList, int** outList)
                 LikwidBenchHwthread* test = getHwThread(hwthreadList[i]);
                 if (test)
                 {
-                    if (test->socket_id == s && test->core_id == c && test->usable == 1 && count < length-1)
+                    if (test->socket_id == s && test->core_id == c && test->usable == 1 && count < length)
                     {
                         list[count++] = hwthreadList[i];
                     }
@@ -929,14 +931,14 @@ int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
             }
             break;
     }
-    int looplength = (length < _num_hwthreads ? length : _num_hwthreads);
+    int looplength = TOPO_MIN(length, _num_hwthreads);
     if (count > 0)
     {
-        looplength = (tmpCount < looplength ? tmpCount : looplength);
+        looplength = TOPO_MIN(tmpCount, looplength);
     }
 
     int outcount = 0;
-    for (int i = 0; i < idxLen && outcount < looplength-1; i++)
+    for (int i = 0; i < idxLen && outcount < looplength; i++)
     {
         list[outcount++] = tmpList[idxList[i]];
     }
@@ -1027,11 +1029,10 @@ int cpustr_to_cpulist_expression(bstring cpustr, int* list, int length)
     }
     free(tmpList);
     tmpList = tmpList2;
-
-    int looplength = (length < _num_hwthreads ? length : _num_hwthreads);
+    int looplength = TOPO_MIN(length, TOPO_MIN(tmpCount, _num_hwthreads));
     if (count > 0)
     {
-        looplength = (tmpCount < looplength ? tmpCount : looplength);
+        looplength = TOPO_MIN(count, looplength);
     }
 
     if (stride == -1 && chunk == -1)
