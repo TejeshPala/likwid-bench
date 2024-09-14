@@ -329,6 +329,7 @@ static int _analyse_keyword(TestConfig_t config, struct bstrList* openkeys, stru
 int prepare_ptt(TestConfig_t config, struct bstrList* out)
 {
     int i = 0;
+    int err = 0;
     // Just for debugging
     int round = 0;
     bstring dstring;
@@ -337,6 +338,8 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out)
     // Check whether there is no code or no output list
     if (blength(config->code) == 0 || !out)
     {
+        errno = EINVAL;
+        ERROR_PRINT(No code or output list is undefined);
         return -EINVAL;
     }
 
@@ -344,6 +347,8 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out)
     struct bstrList* code = bsplittrim(config->code, '\n');
     if ((!code) || (code->qty <= 0))
     {
+        errno = EINVAL;
+        ERROR_PRINT(Failed to split code into lines);
         return -EINVAL;
     }
 
@@ -359,6 +364,7 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out)
     }
     if (openkeys->qty != closekeys->qty)
     {
+        errno = EINVAL;
         ERROR_PRINT(Invalid keyword definition);
         bstrListDestroy(code);
         bstrListDestroy(openkeys);
@@ -397,13 +403,17 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out)
     bdestroy(dstring);
     if (opennames->qty == 0 || closenames->qty == 0)
     {
-        ERROR_PRINT(Code without keyword names);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Code without keyword names);
+        for (int i = 0; i < code->qty; i++)
+        {
+            bstrListAdd(out, code->entry[i]);
+        }
         bstrListDestroy(code);
         bstrListDestroy(openkeys);
         bstrListDestroy(closekeys);
         bstrListDestroy(opennames);
         bstrListDestroy(closenames);
-        return -EINVAL;
+        return 0;
     }
     struct bstrList* bothnames = bstrListCreate();
     for (i = 0; i < opennames->qty; i++)
@@ -418,12 +428,14 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out)
     }
     if ((bothnames->qty != opennames->qty) || (bothnames->qty != closenames->qty))
     {
+        errno = EINVAL;
         ERROR_PRINT(Invalid label for keyword);
         bstrListDestroy(code);
         bstrListDestroy(openkeys);
         bstrListDestroy(closekeys);
         bstrListDestroy(opennames);
         bstrListDestroy(closenames);
+        bstrListDestroy(bothnames);
         return -EINVAL;
     }
     bstrListDestroy(opennames);
@@ -440,7 +452,12 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out)
     int done = 0;
     do {
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Round %d, round);
-        _analyse_keyword(config, openkeys, closekeys, pttin, pttout);
+        err = _analyse_keyword(config, openkeys, closekeys, pttin, pttout);
+        if (err != 0)
+        {
+            bstrListDestroy(pttin);
+            break;
+        }
         // Check if there are still opening or closing keywords in code
         int found = 0;
         for (int i = 0; i < pttout->qty; i++)
@@ -486,10 +503,13 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out)
         round++;
     } while (!done);
 
-    // Add final parsing result to output list
-    for (int i = 0; i < pttout->qty; i++)
+    if (err == 0)
     {
-        bstrListAdd(out, pttout->entry[i]);
+        // Add final parsing result to output list
+        for (int i = 0; i < pttout->qty; i++)
+        {
+            bstrListAdd(out, pttout->entry[i]);
+        }
     }
 
     // Cleanup
@@ -497,7 +517,7 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out)
     bstrListDestroy(openkeys);
     bstrListDestroy(closekeys);
     bstrListDestroy(pttout);
-    return 0;
+    return err;
 }
 
 static int _generate_replacement_lists(TestConfig_t config, struct bstrList* keys, struct bstrList* values, int* maxKeyLength)

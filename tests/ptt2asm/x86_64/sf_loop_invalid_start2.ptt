@@ -1,0 +1,2 @@
+LOOP(loop, rax, <, rdi=1000, 1)
+LOOPEND(loop)
