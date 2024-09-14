@@ -110,7 +110,6 @@ int read_test(bstring filename)
 int main(int argc, char* argv[])
 {
     int ret = 0;
-    char* filename = "../kernels/x86_64/peakflops_avx512.yaml";
 
     struct tagbstring basefolder = bsStatic("../kernels");
     struct bstrList* archs = NULL;
