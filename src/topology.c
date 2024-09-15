@@ -1258,7 +1258,7 @@ int read_flags_line(int cpu_id, bstring* flagline)
     struct tagbstring nameString = bsStatic("model name");
     struct tagbstring steppingString = bsStatic("stepping");
     struct tagbstring flagString = bsStatic("flags");
-#elif defined(__ARM_ARCH_8A)
+#elif defined(__ARM_ARCH_8A) || defined(__ARM_ARCH)
     struct tagbstring vendorString = bsStatic("CPU implementer");
     struct tagbstring familyString = bsStatic("CPU architecture");
     struct tagbstring modelString = bsStatic("CPU variant");

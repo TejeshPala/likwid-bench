@@ -35,6 +35,14 @@
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
 
+#if defined(__x86_64) || defined(__x86_64__)
+#include "isa_x86-64.h"
+#elif defined(__ARM_ARCH_8A) || defined(__ARM_ARCH)
+#include "isa_armv8.h"
+#elif defined(_ARCH_PPC)
+#include "isa_ppc64.h"
+#endif
+
 int parse_loop(TestConfig_t config, struct bstrList* code, struct bstrList* out)
 {
     int err = 0;
