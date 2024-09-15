@@ -65,7 +65,7 @@ int _set_t_aff(pthread_t thread, int cpuid)
     CPU_ZERO(&cpuset);
     CPU_SET(cpuid, &cpuset);
 
-    err = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+    err = sched_setaffinity(thread, sizeof(cpu_set_t), &cpuset);
     if (err != 0)
     {
         ERROR_PRINT(Error setting thread affinity %s, strerror(err));
@@ -81,7 +81,7 @@ void _print_aff(pthread_t thread)
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
 
-    err = pthread_getaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+    err = sched_getaffinity(thread, sizeof(cpu_set_t), &cpuset);
     if (err != 0)
     {
         ERROR_PRINT(Error getting thread affinity %s, strerror(err));
