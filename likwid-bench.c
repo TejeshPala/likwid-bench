@@ -514,6 +514,7 @@ int main(int argc, char** argv)
      /*
      * Print everything
      */
+     print_result(runcfg->global_results);
 
 main_out:
     DEBUG_PRINT(DEBUGLEV_DEVELOP, MAIN_OUT);

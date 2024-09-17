@@ -264,6 +264,52 @@ void collect_keys(RuntimeWorkgroupResult* result, struct bstrList* sl)
     foreach_in_bmap(result->values, collect_keys_func, sl);
 }
 
+int aggregate_results(struct bstrList* bkeys, struct bstrList** bvalues, RuntimeWorkgroupConfig* wg)
+{
+    int err = 0;
+    static struct tagbstring bcomma = bsStatic(",");
+    static const int num_aggregations = 4;
+    static struct tagbstring baggregations[] =
+    {
+        bsStatic("min"),
+        bsStatic("max"),
+        bsStatic("sum"),
+        bsStatic("avg"),
+    };
+    // printf("key: %s\n", bdata(bkey));
+    for (int id = 0; id < bkeys->qty; id++)
+    {
+        bstring key = bstrcpy(bkeys->entry[id]);
+        bstring formula = bjoin(bvalues[id], &bcomma);
+        for (int a = 0; a < num_aggregations; a++)
+        {
+            bstring bkey = bformat("%s[%s]", bdata(key), bdata(&baggregations[a]));
+            bstring full_formula = bformat("%s(%s)", bdata(&baggregations[a]), bdata(formula));
+            // printf("key: %s, full formula: %s, len: %d\n", bdata(bkey), bdata(full_formula), blength(full_formula));
+            double calc_result;
+            err = calculator_calc(bdata(full_formula), &calc_result);
+            if (err == 0)
+            {
+                // printf("calc result: %f\n", calc_result);
+                err = add_value(wg->group_results, bkey, calc_result);
+                if (err != 0)
+                {
+                    ERROR_PRINT(Unable to add value to workgroup group results);
+                }
+            }
+            else
+            {
+                ERROR_PRINT(Error calculating %s, bdata(full_formula));
+            }
+            bdestroy(full_formula);
+            bdestroy(bkey);
+        }
+        bdestroy(formula);
+        bdestroy(key);
+    }
+    return err;
+}
+
 int update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
 {
     int err = 0;
@@ -335,41 +381,13 @@ int update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
             }
         }
 
-        static struct tagbstring bcomma = bsStatic(",");
-        static const int num_aggregations = 4;
-        static struct tagbstring baggregations[] =
+        err = aggregate_results(bkeys, bvalues, wg);
+        if (err != 0)
         {
-            bsStatic("min"),
-            bsStatic("max"),
-            bsStatic("sum"),
-            bsStatic("avg"),
-        };
-        // printf("key: %s\n", bdata(bkey));
-        for (int id = 0; id < bkeys->qty; id++)
+            ERROR_PRINT(Error in aggregation of results for workgroup %d, wg);
+        }
+        for (int id = 0; id < bkeys->qty; id ++)
         {
-            bstring key = bstrcpy(bkeys->entry[id]);
-            bstring formula = bjoin(bvalues[id], &bcomma);
-            for (int a = 0; a < num_aggregations; a++)
-            {
-                bstring bkey = bformat("%s[%s]", bdata(key), bdata(&baggregations[a]));
-                bstring full_formula = bformat("%s(%s)", bdata(&baggregations[a]), bdata(formula));
-                // printf("key: %s, full formula: %s, len: %d\n", bdata(bkey), bdata(full_formula), blength(full_formula));
-                double calc_result;
-                err = calculator_calc(bdata(full_formula), &calc_result);
-                if (err == 0)
-                {
-                    // printf("calc result: %f\n", calc_result);
-                    add_value(wg->group_results, bkey, calc_result);
-                }
-                else
-                {
-                    ERROR_PRINT(Error calculating %s, bdata(full_formula));
-                }
-                bdestroy(full_formula);
-                bdestroy(bkey);
-            }
-            bdestroy(formula);
-            bdestroy(key);
             bstrListDestroy(bvalues[id]);
         }
         free(bvalues);
