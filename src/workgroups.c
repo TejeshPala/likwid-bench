@@ -264,23 +264,53 @@ void collect_keys(RuntimeWorkgroupResult* result, struct bstrList* sl)
     foreach_in_bmap(result->values, collect_keys_func, sl);
 }
 
-void update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
+int update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
 {
+    int err = 0;
     for (int w = 0; w < num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &wgroups[w];
         RuntimeThreadgroupConfig* tgroup = &wgroups->tgroups[w];
         struct bstrList* bkeys = bstrListCreate();
         struct bstrList** bvalues = NULL;
+        if (!bkeys)
+        {
+            ERROR_PRINT(Unable to allocate memory for keys);
+            return -ENOMEM;
+        }
         if (bkeys->qty == 0)
         {
             collect_keys(&wg->results[0], bkeys);
+            if (bkeys->qty == 0)
+            {
+                ERROR_PRINT(No keys are collected for the workgroup %d, w);
+                bstrListDestroy(bkeys);
+                return -EINVAL;
+            }
             bvalues = calloc(bkeys->qty, sizeof(struct bstrList*));
+            if (!bvalues)
+            {
+                ERROR_PRINT(Unable to allocate memory for values for workgroup %d, w);
+                bstrListDestroy(bkeys);
+                return -ENOMEM;
+            }
             for (int id = 0; id < bkeys->qty; id++)
             {
                 bvalues[id] = bstrListCreate();
+                if (!bvalues[id])
+                {
+                    ERROR_PRINT(Unable to allocate memory for values);
+                    for (int j = 0; j < id; j++)
+                    {
+                        bstrListDestroy(bvalues[j]);
+                    }
+                    free(bvalues);
+                    bstrListDestroy(bkeys);
+                    return -ENOMEM;
+                }
             }
         }
+
         for (int t = 0; t < tgroup->num_threads; t++)
         {
             RuntimeThreadConfig* thread = &tgroup->threads[t];
@@ -294,7 +324,8 @@ void update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
                     bstring t_value = bformat("%lf", value);
                     // printf("t_value: %s\n", bdata(t_value));
                     // if (update_bmap(result->values, bkeys->entry[id], &value, NULL) != 0)
-                    if (update_value(result, bkeys->entry[id], value) == 0)
+                    err = update_value(result, bkeys->entry[id], value);
+                    if (err == 0)
                     {
                         DEBUG_PRINT(DEBUGLEV_DEVELOP, Value updated for thread %d for key %s with value %lf, thread->data->hwthread, bdata(bkeys->entry[id]), value);
                     }
@@ -324,8 +355,8 @@ void update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
                 bstring full_formula = bformat("%s(%s)", bdata(&baggregations[a]), bdata(formula));
                 // printf("key: %s, full formula: %s, len: %d\n", bdata(bkey), bdata(full_formula), blength(full_formula));
                 double calc_result;
-                int result = calculator_calc(bdata(full_formula), &calc_result);
-                if (result == 0)
+                err = calculator_calc(bdata(full_formula), &calc_result);
+                if (err == 0)
                 {
                     // printf("calc result: %f\n", calc_result);
                     add_value(wg->group_results, bkey, calc_result);
@@ -345,6 +376,7 @@ void update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
         bstrListDestroy(bkeys);
         print_workgroup(wg);
     }
+    return err;
 }
 
 void _print_workgroup_cb(mpointer key, mpointer val, mpointer user_data)

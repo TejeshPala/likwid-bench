@@ -486,7 +486,12 @@ int main(int argc, char** argv)
         goto main_out;
     }
 
-    update_results(runcfg->num_wgroups, runcfg->wgroups);
+    err = update_results(runcfg->num_wgroups, runcfg->wgroups);
+    if (err != 0)
+    {
+        ERROR_PRINT(Error updating results);
+    }
+
     /*
      * Free arrays
      */
@@ -509,7 +514,6 @@ int main(int argc, char** argv)
      /*
      * Print everything
      */
-
 
 main_out:
     DEBUG_PRINT(DEBUGLEV_DEVELOP, MAIN_OUT);
