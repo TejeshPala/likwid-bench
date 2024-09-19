@@ -486,7 +486,7 @@ int main(int argc, char** argv)
         goto main_out;
     }
 
-    err = update_results(runcfg->num_wgroups, runcfg->wgroups);
+    err = update_results(runcfg, runcfg->num_wgroups, runcfg->wgroups);
     if (err != 0)
     {
         ERROR_PRINT(Error updating results);
@@ -514,6 +514,7 @@ int main(int argc, char** argv)
      /*
      * Print everything
      */
+     printf("Global Results\n");
      print_result(runcfg->global_results);
 
 main_out:

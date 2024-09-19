@@ -134,6 +134,21 @@ typedef struct {
 } RuntimeStreamConfig;
 
 typedef struct {
+    int num_aggregations;
+    struct tagbstring baggregations[4];
+} Aggregations;
+
+static const Aggregations aggregations = {
+    .num_aggregations = 4,
+    .baggregations = {
+        bsStatic("min"),
+        bsStatic("max"),
+        bsStatic("sum"),
+        bsStatic("avg"),
+    }
+};
+
+typedef struct {
     Map_t values;
     Map_t variables;
 } RuntimeWorkgroupResult;

@@ -264,42 +264,34 @@ void collect_keys(RuntimeWorkgroupResult* result, struct bstrList* sl)
     foreach_in_bmap(result->values, collect_keys_func, sl);
 }
 
-int aggregate_results(struct bstrList* bkeys, struct bstrList** bvalues, RuntimeWorkgroupConfig* wg)
+int _aggregate_results(struct bstrList* bkeys, struct bstrList** bvalues, RuntimeWorkgroupResult* res)
 {
     int err = 0;
     static struct tagbstring bcomma = bsStatic(",");
-    static const int num_aggregations = 4;
-    static struct tagbstring baggregations[] =
-    {
-        bsStatic("min"),
-        bsStatic("max"),
-        bsStatic("sum"),
-        bsStatic("avg"),
-    };
     // printf("key: %s\n", bdata(bkey));
     for (int id = 0; id < bkeys->qty; id++)
     {
         bstring key = bstrcpy(bkeys->entry[id]);
         bstring formula = bjoin(bvalues[id], &bcomma);
-        for (int a = 0; a < num_aggregations; a++)
+        for (int a = 0; a < aggregations.num_aggregations; a++)
         {
-            bstring bkey = bformat("%s[%s]", bdata(key), bdata(&baggregations[a]));
-            bstring full_formula = bformat("%s(%s)", bdata(&baggregations[a]), bdata(formula));
+            bstring bkey = bformat("%s[%s]", bdata(key), bdata(&aggregations.baggregations[a]));
+            bstring full_formula = bformat("%s(%s)", bdata(&aggregations.baggregations[a]), bdata(formula));
             // printf("key: %s, full formula: %s, len: %d\n", bdata(bkey), bdata(full_formula), blength(full_formula));
             double calc_result;
             err = calculator_calc(bdata(full_formula), &calc_result);
             if (err == 0)
             {
                 // printf("calc result: %f\n", calc_result);
-                err = add_value(wg->group_results, bkey, calc_result);
+                err = add_value(res, bkey, calc_result);
                 if (err != 0)
                 {
-                    ERROR_PRINT(Unable to add value to workgroup group results);
+                    ERROR_PRINT(Unable to add value to the results);
                 }
             }
             else
             {
-                ERROR_PRINT(Error calculating %s, bdata(full_formula));
+                ERROR_PRINT(Error calculating formula: %s, bdata(full_formula));
             }
             bdestroy(full_formula);
             bdestroy(bkey);
@@ -310,50 +302,74 @@ int aggregate_results(struct bstrList* bkeys, struct bstrList** bvalues, Runtime
     return err;
 }
 
-int update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
+int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfig* wgroups)
 {
     int err = 0;
+    struct bstrList* bkeys = bstrListCreate();
+    struct bstrList** bgrp_values = NULL;
+    struct bstrList** bvalues = NULL;
+    if (!bkeys)
+    {
+        ERROR_PRINT(Unable to allocate memory for keys);
+        return -ENOMEM;
+    }
+    if (bkeys->qty == 0)
+    {
+        collect_keys(&wgroups[0].results[0], bkeys);
+        if (bkeys->qty == 0)
+        {
+            ERROR_PRINT(No keys are collected from the workgroup);
+            bstrListDestroy(bkeys);
+            return -EINVAL;
+        }
+    }
+    bgrp_values = calloc(bkeys->qty, sizeof(struct bstrList*));
+    if (!bgrp_values)
+    {
+        ERROR_PRINT(Unable to allocate memory for group values);
+        bstrListDestroy(bkeys);
+        return -ENOMEM;
+    }
+    for (int id = 0; id < bkeys->qty; id++)
+    {
+        bgrp_values[id] = bstrListCreate();
+        if (!bgrp_values[id])
+        {
+            ERROR_PRINT(Unable to allocate memory for each group values);
+            for (int j = 0; j < id; j++)
+            {
+                bstrListDestroy(bgrp_values[j]);
+            }
+            free(bgrp_values);
+            bstrListDestroy(bkeys);
+            return -ENOMEM;
+        }
+    }
+
     for (int w = 0; w < num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &wgroups[w];
         RuntimeThreadgroupConfig* tgroup = &wgroups->tgroups[w];
-        struct bstrList* bkeys = bstrListCreate();
-        struct bstrList** bvalues = NULL;
-        if (!bkeys)
+        bvalues = calloc(bkeys->qty, sizeof(struct bstrList*));
+        if (!bvalues)
         {
-            ERROR_PRINT(Unable to allocate memory for keys);
+            ERROR_PRINT(Unable to allocate memory for values of %d workgroup, w);
+            bstrListDestroy(bkeys);
             return -ENOMEM;
         }
-        if (bkeys->qty == 0)
+        for (int id = 0; id < bkeys->qty; id++)
         {
-            collect_keys(&wg->results[0], bkeys);
-            if (bkeys->qty == 0)
+            bvalues[id] = bstrListCreate();
+            if (!bvalues[id])
             {
-                ERROR_PRINT(No keys are collected for the workgroup %d, w);
-                bstrListDestroy(bkeys);
-                return -EINVAL;
-            }
-            bvalues = calloc(bkeys->qty, sizeof(struct bstrList*));
-            if (!bvalues)
-            {
-                ERROR_PRINT(Unable to allocate memory for values for workgroup %d, w);
+                ERROR_PRINT(Unable to allocate memory for each values);
+                for (int j = 0; j < id; j++)
+                {
+                    bstrListDestroy(bvalues[j]);
+                }
+                free(bvalues);
                 bstrListDestroy(bkeys);
                 return -ENOMEM;
-            }
-            for (int id = 0; id < bkeys->qty; id++)
-            {
-                bvalues[id] = bstrListCreate();
-                if (!bvalues[id])
-                {
-                    ERROR_PRINT(Unable to allocate memory for values);
-                    for (int j = 0; j < id; j++)
-                    {
-                        bstrListDestroy(bvalues[j]);
-                    }
-                    free(bvalues);
-                    bstrListDestroy(bkeys);
-                    return -ENOMEM;
-                }
             }
         }
 
@@ -376,24 +392,35 @@ int update_results(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
                         DEBUG_PRINT(DEBUGLEV_DEVELOP, Value updated for thread %d for key %s with value %lf, thread->data->hwthread, bdata(bkeys->entry[id]), value);
                     }
                     bstrListAdd(bvalues[id], t_value);
+                    bstrListAdd(bgrp_values[id], t_value);
                     bdestroy(t_value);
                 }
             }
         }
 
-        err = aggregate_results(bkeys, bvalues, wg);
+        err = _aggregate_results(bkeys, bvalues, wg->group_results);
         if (err != 0)
         {
-            ERROR_PRINT(Error in aggregation of results for workgroup %d, wg);
+            ERROR_PRINT(Error in aggregation of group results for workgroup %d, wg);
         }
         for (int id = 0; id < bkeys->qty; id ++)
         {
             bstrListDestroy(bvalues[id]);
         }
         free(bvalues);
-        bstrListDestroy(bkeys);
         print_workgroup(wg);
     }
+    err = _aggregate_results(bkeys, bgrp_values, runcfg->global_results);
+    if (err != 0)
+    {
+        ERROR_PRINT(Error in aggregation of global results);
+    }
+    for (int id = 0; id < bkeys->qty; id ++)
+    {
+        bstrListDestroy(bgrp_values[id]);
+    }
+    free(bgrp_values);
+    bstrListDestroy(bkeys);
     return err;
 }
 
