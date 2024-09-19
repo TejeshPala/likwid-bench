@@ -117,6 +117,34 @@ struct bstrList* bstrListCopy(struct bstrList * sl)
     return ol;
 }
 
+int bstrListSortFunc(struct bstrList* in, int (*cmp)(const struct tagbstring * left, const struct tagbstring * right), struct bstrList** out)
+{
+    struct bstrList *tmp = bstrListCopy(in);
+    struct bstrList *outList = bstrListCreate();
+
+    while (tmp->qty > 0)
+    {
+        int mini = 0;
+        for (int i = 0; i < tmp->qty; i++)
+        {
+            mini = (cmp(tmp->entry[mini], tmp->entry[i]) < 0 ? mini : i);
+        }
+        if (mini >= 0)
+        {
+            bstrListAdd(outList, tmp->entry[mini]);
+            bstrListDel(tmp, mini);
+        }
+    }
+    bstrListDestroy(tmp);
+    *out = outList;
+    return 0;
+}
+
+int bstrListSort(struct bstrList* in, struct bstrList** out)
+{
+    return bstrListSortFunc(in, bstrcmp, out);
+}
+
 /*
  * int btrimbrackets (bstring b)
  *
@@ -143,7 +171,7 @@ int i, j;
     return BSTR_OK;
 }
 
-int bisnumber(bstring b)
+int bisinteger(bstring b)
 {
     int count = 0;
     for (int i = 0; i < blength(b); i++)
@@ -151,6 +179,42 @@ int bisnumber(bstring b)
         if (!isdigit(bchar(b, i)))
             break;
         count++;
+    }
+    return count == blength(b);
+}
+
+int bisnumber(bstring b)
+{
+    int count = 0;
+    if (bchar(b, 0) == '-')
+    {
+        count++;
+    }
+    int i = count;
+    for (; i < blength(b); i++)
+    {
+        if (!isdigit(bchar(b, i)))
+            break;
+        count++;
+    }
+    if (i < blength(b) - 1)
+    {
+        if (bchar(b, i) == 'E' || bchar(b, i) == 'e')
+        {
+            i++;
+            count++;
+            if (bchar(b, i) == '-')
+            {
+                i++;
+                count++;
+            }
+            for (i = count; i < blength(b); i++)
+            {
+                if (!isdigit(bchar(b, i)))
+                    break;
+                count++;
+            }
+        }
     }
     return count == blength(b);
 }
