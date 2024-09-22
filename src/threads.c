@@ -13,6 +13,7 @@
 #include <sched.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <sys/syscall.h>
 
 #include "test_types.h"
 #include "thread_group.h"
@@ -22,6 +23,18 @@
 #include "allocator.h"
 #include "calculator.h"
 #include "results.h"
+
+#ifdef _GNU_SOURCE
+#define USE_PTHREAD_AFFINITY 1
+#else
+#define USE_PTHREAD_AFFINITY 0
+#endif
+
+#ifdef __linux__
+#define gettid() syscall(SYS_gettid)
+#else
+#define gettid() pthread_self()
+#endif
 
 int destroy_tgroups(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
 {
@@ -66,14 +79,34 @@ int _set_t_aff(pthread_t thread, int cpuid)
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(cpuid, &cpuset);
-
-    err = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
-    if (err != 0)
+    if (cpuid < 0 || cpuid >= CPU_SETSIZE)
     {
-        ERROR_PRINT(Error setting thread affinity %s, strerror(err));
-        return -1;
+        ERROR_PRINT(Invalid cpu id: %d, cpuid);
+        return -EINVAL;
     }
 
+    if (USE_PTHREAD_AFFINITY)
+    {
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Using pthread_setaffinity_np);
+        err = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+        if (err != 0)
+        {
+            ERROR_PRINT(Error setting pthread affinity %s, strerror(err));
+            return err;
+        }
+    }
+    else
+    {
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Using sched_setaffinity);
+        pid_t pid = gettid();
+        err = sched_setaffinity(pid, sizeof(cpu_set_t), &cpuset);
+        if (err != 0)
+        {
+            ERROR_PRINT(Error setting PID thread affinity %s, strerror(err));
+            return err;
+        }
+    }
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, The CPU´s in the set are: %d, CPU_COUNT(&cpuset));
     return 0;
 }
 
@@ -83,11 +116,26 @@ void _print_aff(pthread_t thread)
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
 
-    err = pthread_getaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
-    if (err != 0)
+    if (USE_PTHREAD_AFFINITY)
     {
-        ERROR_PRINT(Error getting thread affinity %s, strerror(err));
-        return;
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Using pthread_getaffinity_np);
+        err = pthread_getaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+        if (err != 0)
+        {
+            ERROR_PRINT(Error getting pthread affinity %s, strerror(err));
+            return;
+        }
+    }
+    else
+    {
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Using sched_getaffinity);
+        pid_t pid = gettid();
+        err = sched_getaffinity(pid, sizeof(cpu_set_t), &cpuset);
+        if (err != 0)
+        {
+            ERROR_PRINT(Error getting PID thread affinity %s, strerror(err));
+            return;
+        }
     }
 
     printf("Threadid %16lu -> hwthread/affinity: ", thread);
@@ -100,6 +148,7 @@ void _print_aff(pthread_t thread)
         }
     }
     printf("\n");
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, The CPU´s in the set are: %d, CPU_COUNT(&cpuset));
 }
 
 double get_time_s()
