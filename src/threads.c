@@ -20,6 +20,8 @@
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
 #include "allocator.h"
+#include "calculator.h"
+#include "results.h"
 
 int destroy_tgroups(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
 {
@@ -115,9 +117,20 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
         RuntimeStreamConfig* sdata = &thread->command->tstreams[s];
         // DEBUG_PRINT(DEBUGLEV_DEVELOP, dims: %d, sdata->dims);
         size_t elems = getstreamelems(sdata);
-        size_t offset = 0;
-        size_t size = elems;
-        if (thread->num_threads > 1)
+        size_t offset;
+        size_t size;
+        if (thread->sizes && thread->offsets)
+        {
+            offset = thread->offsets;
+            size = thread->sizes;
+        }
+        else
+        {
+            elems = getstreamelems(sdata);
+            offset = 0;
+            size = elems;
+        }
+        if (thread->num_threads > 1 && !thread->sizes && !thread->offsets)
         {
             size_t chunk = elems / thread->num_threads;
             size_t rem_chunk = elems % thread->num_threads;
@@ -482,6 +495,9 @@ int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread
 {
     int err = 0;
     int total_threads = 0;
+    TestConfigThread* t = runcfg->tcfg->threads;
+    static struct tagbstring bnumthreads = bsStatic("NUM_THREADS");
+    static struct tagbstring bthreadid = bsStatic("THREAD_ID");
     RuntimeThreadgroupConfig* temp_groups = (RuntimeThreadgroupConfig*) malloc(runcfg->num_wgroups * sizeof(RuntimeThreadgroupConfig));
     if (!temp_groups)
     {
@@ -515,6 +531,21 @@ int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread
 
         for (int i = 0; i < group->num_threads; i++)
         {
+            bstring bsizes = bstrcpy(t->sizes->entry[0]);
+            bstring boffsets = bstrcpy(t->offsets->entry[0]);
+            RuntimeWorkgroupResult t_results;
+            if (bsizes != NULL && boffsets != NULL)
+            {
+                err = init_result(&t_results);
+                if (err != 0)
+                {
+                    ERROR_PRINT(Unable initialize thread results);
+                    return err;
+                }
+                bstring bthreads = bformat("%d", group->num_threads);
+                add_variable(&t_results, &bnumthreads, bthreads);
+                bdestroy(bthreads);
+            }
             RuntimeThreadConfig* thread = &group->threads[i];
             thread->command = (RuntimeThreadCommand*)malloc(sizeof(RuntimeThreadCommand));
             if (!thread->command)
@@ -529,6 +560,19 @@ int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread
             thread->command->done = 1;
             thread->command->num_streams = wg->num_streams;
             thread->command->tstreams = wg->streams;
+            size_t elems;
+            if (bsizes != NULL && boffsets != NULL)
+            {
+                for (int s = 0; s < runcfg->tcfg->num_streams; s++)
+                {
+                    TestConfigStream *istream = &runcfg->tcfg->streams[s];
+                    for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
+                    {
+                        elems = getstreamelems(&thread->command->tstreams[s]);
+                        add_value(&t_results, istream->dims->entry[k], (double)elems);
+                    }
+                }
+            }
             /*
              * printf("tstreams dims: %d\n", thread->command->tstreams->dims);
              * for (int s = 0; s < thread->command->tstreams->dims; s++)
@@ -561,6 +605,50 @@ int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread
             thread->num_threads = group->num_threads;
             thread->local_id = group->hwthreads[i];
             thread->global_id = total_threads + i;
+            if (bsizes != NULL && boffsets != NULL)
+            {
+                bstring btid = bformat("%d", (thread->local_id % thread->num_threads));
+                add_variable(&t_results, &bthreadid, btid);
+                if (DEBUGLEV_DEVELOP == global_verbosity)
+                {
+                    printf("The hwthread %3d results are\n", thread->local_id);
+                    print_result(&t_results);
+                }
+                replace_all(&t_results, bsizes, NULL);
+                replace_all(&t_results, boffsets, NULL);
+                // printf("After replace sizes: %s\n", bdata(bsizes));
+                // printf("After replace offsets: %s\n", bdata(boffsets));
+                double sizes_value;
+                double offsets_value;
+                err = calculator_calc(bdata(bsizes), &sizes_value);
+                if (err == 0)
+                {
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Calculated formula '%s' - sizes value: %lf, bdata(bsizes), sizes_value);
+                }
+                else
+                {
+                    ERROR_PRINT(Error calculating sizes for formula '%s', bdata(bsizes));
+                }
+                err = calculator_calc(bdata(boffsets), &offsets_value);
+                if (err == 0)
+                {
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Calculated formula '%s' - sizes value: %lf, bdata(boffsets), offsets_value);
+                }
+                else
+                {
+                    ERROR_PRINT(Error calculating sizes for formula '%s', bdata(boffsets));
+                }
+                thread->sizes = (int64_t)sizes_value;
+                thread->offsets = (off_t)offsets_value;
+                if ((thread->local_id % thread->num_threads) == thread->num_threads - 1)
+                {
+                    thread->sizes = (int64_t)(elems - thread->offsets);
+                }
+                bdestroy(btid);
+                bdestroy(bsizes);
+                bdestroy(boffsets);
+            }
+            destroy_result(&t_results);
             thread->runtime = 0.0;
             thread->cycles = 0;
             thread->barrier = &group->barrier;

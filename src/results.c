@@ -609,7 +609,7 @@ static void replace_all_cb(mpointer key, mpointer value, mpointer user_data)
         }
     }
 
-    if (bstrncmp(bkey, data->formula, blength(bkey)) == BSTR_OK)
+    if (binstr(data->formula, 0, bkey) != BSTR_ERR)
     {
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing '%s' with '%s' in '%s', bdata(bkey), bdata(bval), bdata(data->formula));
         err = bfindreplace(data->formula, bkey, bval, 0);
@@ -757,9 +757,13 @@ int fill_results(RuntimeConfig* runcfg)
             x = bformat("%d", wgroup->hwthreads[j]);
             add_variable(&wgroup->results[j], &bthreadcpu, x);
             bdestroy(x);
+
         }
         total_threads += wgroup->num_threads;
     }
+    bstring x = bformat("%d", total_threads);
+    add_variable(runcfg->global_results, &bnumthreads, x);
+    bdestroy(x);
     return 0;
 }
 

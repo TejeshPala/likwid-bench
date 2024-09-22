@@ -223,6 +223,8 @@ typedef struct {
     thread_data_t data;
     RuntimeThreadCommand* command;
     int num_threads;
+    int64_t sizes;
+    off_t offsets;
 } RuntimeThreadConfig;
 
 typedef struct {

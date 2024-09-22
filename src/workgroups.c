@@ -401,7 +401,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
         err = _aggregate_results(bkeys, bvalues, wg->group_results);
         if (err != 0)
         {
-            ERROR_PRINT(Error in aggregation of group results for workgroup %d, wg);
+            ERROR_PRINT(Error in aggregation of group results for workgroup %d, w);
         }
         for (int id = 0; id < bkeys->qty; id ++)
         {
