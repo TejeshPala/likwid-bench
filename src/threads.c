@@ -24,10 +24,10 @@
 #include "calculator.h"
 #include "results.h"
 
-#ifdef _GNU_SOURCE
-#define USE_PTHREAD_AFFINITY 1
+#if defined(_GNU_SOURCE) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 4)) && HAS_SCHEDAFFINITY
+    #define USE_PTHREAD_AFFINITY 1
 #else
-#define USE_PTHREAD_AFFINITY 0
+    #define USE_PTHREAD_AFFINITY 0
 #endif
 
 #ifdef __linux__
@@ -87,6 +87,7 @@ int _set_t_aff(pthread_t thread, int cpuid)
 
     if (USE_PTHREAD_AFFINITY)
     {
+        // printf("GLIBC MAJOR: %d, MINOR: %d\n", __GLIBC__, __GLIBC_MINOR__);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Using pthread_setaffinity_np);
         err = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
         if (err != 0)
