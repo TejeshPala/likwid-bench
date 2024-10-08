@@ -5,7 +5,10 @@
 
 #include <pthread.h>
 #include <bench.h>
+#include <error.h>
 #include <test_types.h>
+
+int global_verbosity = DEBUGLEV_ONLY_ERROR;
 
 
 void myfunc(size_t size, void* ptr)
