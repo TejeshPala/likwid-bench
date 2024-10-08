@@ -3,6 +3,6 @@
 
 typedef void (*BenchFuncPrototype)();
 
-void* run_benchmark(void* arg);
+int run_benchmark(RuntimeThreadConfig* data);
 
 #endif

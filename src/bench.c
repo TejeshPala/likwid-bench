@@ -1,8 +1,10 @@
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <errno.h>
+#include <error.h>
 
 #include <pthread.h>
 #include <test_types.h>
@@ -22,14 +24,12 @@
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
     clock_gettime(CLOCK_MONOTONIC, &stop); \
     data->runtime = (double)(((double)(stop.tv_sec - start.tv_sec)) + (((double)(stop.tv_nsec - start.tv_nsec))*1E-9)); \
-    printf("Runtime %f\n", data->runtime); \
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
 
-void* run_benchmark(void* arg)
+int run_benchmark(RuntimeThreadConfig* data)
 {
     cpu_set_t cpuset;
     cpu_set_t runset;
-    RuntimeThreadConfig *data = (RuntimeThreadConfig*)arg;
     thread_data_t myData = data->data;
     BenchFuncPrototype func = data->command->cmdfunc.run;
     struct timespec start = {0, 0}, stop = {0, 0};
@@ -42,11 +42,11 @@ void* run_benchmark(void* arg)
         // Pinning gets reset later to the original cpuset
         CPU_ZERO(&runset);
         CPU_SET(myData->hwthread, &runset);
-        printf("Pinning task to hwthread %d\n", myData->hwthread);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Pinning task to hwthread %d, myData->hwthread);
         sched_setaffinity(0, sizeof(cpu_set_t), &runset);
     }
 
-    if (!data->barrier) printf("Run in serial mode\n");
+    if (!data->barrier) DEBUG_PRINT(DEBUGLEV_DEVELOP, Run in serial mode);
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier);
 
     /* Up to 10 streams the following registers are used for Array ptr:
@@ -56,6 +56,8 @@ void* run_benchmark(void* arg)
      * If more than 10 streams are used first 5 streams are in register, above 5 a macro must be used to
      * load them from stack
      * */
+
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Start benchmark execution);
 
     // not sure whether we need to give the sizes here. Since we compile the code, we could add the sizes there directly
     // as constants
@@ -340,14 +342,13 @@ void* run_benchmark(void* arg)
             break;
     }
 
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Execution took %f seconds, data->runtime);
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier);
-    if (data->barrier) pthread_exit(NULL);
 
     if (CPU_COUNT(&runset) > 0)
     {
-        printf("Reset task affinity to %d hwthreads\n", CPU_COUNT(&cpuset));
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Reset task affinity to %d hwthreads, CPU_COUNT(&cpuset));
         sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
     }
-
-    return NULL;
+    return 0;
 }

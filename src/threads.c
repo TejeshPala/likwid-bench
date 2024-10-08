@@ -23,6 +23,7 @@
 #include "allocator.h"
 #include "calculator.h"
 #include "results.h"
+#include "bench.h"
 
 #if defined(_GNU_SOURCE) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 4)) && HAS_SCHEDAFFINITY
     #define USE_PTHREAD_AFFINITY 1
@@ -330,6 +331,14 @@ void* _func_t(void* arg)
                 break;
             case LIKWID_THREAD_COMMAND_NOOP:
                 DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is set with NOOP command, thread->local_id, thread->global_id);
+                break;
+            case LIKWID_THREAD_COMMAND_RUN:
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is set with RUN command, thread->local_id, thread->global_id);
+                int err = run_benchmark(thread);
+                if (err != 0)
+                {
+                    ERROR_PRINT(Running benchmark kernel failed for thread %d with global thread %d, thread->local_id, thread->global_id);
+                }
                 break;
             case LIKWID_THREAD_COMMAND_EXIT:
                 DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d exits, thread->local_id, thread->global_id);
@@ -753,7 +762,6 @@ free:
             }
         }
         free(temp_groups);
-        temp_groups = NULL;
     }
     return err;
 }

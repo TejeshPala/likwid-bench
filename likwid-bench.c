@@ -471,6 +471,20 @@ int main(int argc, char** argv)
     /*
      * Run benchmark
      */
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        RuntimeThreadgroupConfig* group = &runcfg->wgroups->tgroups[w];
+        for (int i = 0; i < group->num_threads; i++)
+        {
+            err = send_cmd(LIKWID_THREAD_COMMAND_RUN, &group->threads[i]);
+            if (err < 0)
+            {
+                ERROR_PRINT(Error communicating with threads);
+                destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups->tgroups);
+                goto main_out;
+            }
+        }
+    }
     //int time_exec = bench(create_threads, runcfg->num_wgroups, runcfg->tgroups, runcfg);
     //if (time_exec < 0)
     //{
