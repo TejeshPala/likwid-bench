@@ -112,6 +112,12 @@ typedef struct {
 } TestConfig;
 typedef TestConfig* TestConfig_t;
 
+typedef enum {
+    STREAM_DIM_1D = 1,
+    STREAM_DIM_2D = 2,
+    STREAM_DIM_3D = 3
+} StreamDimension;
+
 typedef struct {
     bstring name;
     void* ptr;
@@ -126,6 +132,21 @@ typedef struct {
     TestConfigStreamData data;
     void* init_val;
 } RuntimeStreamConfig;
+
+typedef struct {
+    int num_aggregations;
+    struct tagbstring baggregations[4];
+} Aggregations;
+
+static const Aggregations aggregations = {
+    .num_aggregations = 4,
+    .baggregations = {
+        bsStatic("min"),
+        bsStatic("max"),
+        bsStatic("sum"),
+        bsStatic("avg"),
+    }
+};
 
 typedef struct {
     Map_t values;
@@ -202,6 +223,8 @@ typedef struct {
     thread_data_t data;
     RuntimeThreadCommand* command;
     int num_threads;
+    int64_t sizes;
+    off_t offsets;
 } RuntimeThreadConfig;
 
 typedef struct {
