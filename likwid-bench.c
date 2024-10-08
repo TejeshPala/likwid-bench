@@ -20,7 +20,7 @@
 #include "thread_group.h"
 
 #ifndef global_verbosity
-int global_verbosity = DEBUGLEV_DEVELOP;
+int global_verbosity = DEBUGLEV_ONLY_ERROR;
 #endif
 
 static struct tagbstring app_title = bsStatic("likwid-bench");

@@ -1,10 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
 #include <string.h>
 
 #include "bitmap.h"
-
+#include <error.h>
 
 int create_bitmap(size_t size, size_t alignment, Bitmap* bitmap)
 {
@@ -66,26 +65,20 @@ void print_set_bits(const Bitmap *bitmap)
 {
     if (bitmap == NULL || bitmap->data == NULL)
     {
-        printf("bitmap data not found\n");
+        ERROR_PRINT(Bitmap invalid or data not found);
         return;
     }
 
     int found = 0;
-    printf("Set Bits are: ");
+    printf("[");
     for (size_t i = 0; i < bitmap->size; ++i)
     {
         if (is_bit_set((Bitmap*) bitmap, i))
         {
-            printf("%lu ", i);
+            if (!found) printf("%lu", i);
+            else printf(",%lu", i);
             found = 1;
         }
-
     }
-
-    if (!found)
-    {
-        printf("bitmap is not set");
-    }
-
-    printf("\n");
+    printf("]\n");
 }
