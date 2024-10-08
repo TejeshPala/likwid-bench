@@ -197,30 +197,36 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
         switch ((StreamDimension)sdata->dims)
         {
             case STREAM_DIM_1D:
-                tmp.ptr = (char*)sdata->ptr + (offset * getsizeof(sdata->type));
-                tmp.dimsizes[0] = size * getsizeof(sdata->type);
-                break;
+                {
+                    tmp.ptr = (char*)sdata->ptr + (offset * getsizeof(sdata->type));
+                    tmp.dimsizes[0] = size * getsizeof(sdata->type);
+                    break;
+                }
             case STREAM_DIM_2D:
-                size_t rows = sdata->dimsizes[0] / getsizeof(sdata->type);
-                size_t cols = sdata->dimsizes[1] / getsizeof(sdata->type);
-                size_t start_rows = offset / cols;
-                size_t end_rows = (offset + size - 1) / cols;
-                tmp.ptr = (char*)sdata->ptr + (start_rows * cols);
-                tmp.dimsizes[0] = (end_rows - start_rows + 1) * getsizeof(sdata->type);
-                tmp.dimsizes[1] = cols * getsizeof(sdata->type);
-                break;
+                {
+                    size_t rows = sdata->dimsizes[0] / getsizeof(sdata->type);
+                    size_t cols = sdata->dimsizes[1] / getsizeof(sdata->type);
+                    size_t start_rows = offset / cols;
+                    size_t end_rows = (offset + size - 1) / cols;
+                    tmp.ptr = (char*)sdata->ptr + (start_rows * cols);
+                    tmp.dimsizes[0] = (end_rows - start_rows + 1) * getsizeof(sdata->type);
+                    tmp.dimsizes[1] = cols * getsizeof(sdata->type);
+                    break;
+                }
             case STREAM_DIM_3D:
-                size_t dim1 = sdata->dimsizes[0] / getsizeof(sdata->type);
-                size_t dim2 = sdata->dimsizes[1] / getsizeof(sdata->type);
-                size_t dim3 = sdata->dimsizes[2] / getsizeof(sdata->type);
-                size_t slice = dim2 * dim3;
-                size_t start = offset / slice;
-                size_t end = (offset + size - 1) / slice;
-                tmp.ptr = (char*)sdata->ptr + (start * slice);
-                tmp.dimsizes[0] = (end - start + 1) * getsizeof(sdata->type);
-                tmp.dimsizes[1] = dim2 * getsizeof(sdata->type);
-                tmp.dimsizes[2] = dim3 * getsizeof(sdata->type);
-                break;
+                {
+                    size_t dim1 = sdata->dimsizes[0] / getsizeof(sdata->type);
+                    size_t dim2 = sdata->dimsizes[1] / getsizeof(sdata->type);
+                    size_t dim3 = sdata->dimsizes[2] / getsizeof(sdata->type);
+                    size_t slice = dim2 * dim3;
+                    size_t start = offset / slice;
+                    size_t end = (offset + size - 1) / slice;
+                    tmp.ptr = (char*)sdata->ptr + (start * slice);
+                    tmp.dimsizes[0] = (end - start + 1) * getsizeof(sdata->type);
+                    tmp.dimsizes[1] = dim2 * getsizeof(sdata->type);
+                    tmp.dimsizes[2] = dim3 * getsizeof(sdata->type);
+                    break;
+                }
         }
         tmp.type = sdata->type;
         tmp.init = init_function;
@@ -250,17 +256,24 @@ int initialize_global(RuntimeThreadConfig* thread)
         switch ((StreamDimension)sdata->dims)
         {
             case STREAM_DIM_1D:
-                tmp.dimsizes[0] = sdata->dimsizes[0];
-                break;
+                {
+                    tmp.dimsizes[0] = sdata->dimsizes[0];
+                    break;
+                }
             case STREAM_DIM_2D:
-                tmp.dimsizes[0] = sdata->dimsizes[0];
-                tmp.dimsizes[1] = sdata->dimsizes[1];
+                {
+                    tmp.dimsizes[0] = sdata->dimsizes[0];
+                    tmp.dimsizes[1] = sdata->dimsizes[1];
+                    break;
+                }
                 break;
             case STREAM_DIM_3D:
-                tmp.dimsizes[0] = sdata->dimsizes[0];
-                tmp.dimsizes[1] = sdata->dimsizes[1];
-                tmp.dimsizes[2] = sdata->dimsizes[2];
-                break;
+                {
+                    tmp.dimsizes[0] = sdata->dimsizes[0];
+                    tmp.dimsizes[1] = sdata->dimsizes[1];
+                    tmp.dimsizes[2] = sdata->dimsizes[2];
+                    break;
+                }
         }
         tmp.type = sdata->type;
         tmp.init = init_function;
@@ -281,8 +294,9 @@ int initialize_global(RuntimeThreadConfig* thread)
 void* _func_t(void* arg)
 {
     RuntimeThreadConfig* thread = (RuntimeThreadConfig*)arg;
+    bool keep_running = true;
     DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is running, thread->local_id, thread->global_id);
-    while (1)
+    while (keep_running)
     {
         pthread_mutex_lock(&thread->command->mutex);
         while(thread->command->done)
@@ -293,15 +307,20 @@ void* _func_t(void* arg)
             int err = pthread_cond_timedwait(&thread->command->cond, &thread->command->mutex, &ts);
             if (err != 0)
             {
-                if (thread->command->cmd != LIKWID_THREAD_COMMAND_NOOP && err == ETIMEDOUT)
+                if (err == ETIMEDOUT)
                 {
                     ERROR_PRINT(Thread %d timedout waiting for command, thread->local_id);
+                }
+                else
+                {
+                    ERROR_PRINT(Thread %d failed to wait for command: %s, thread->local_id, strerror(err));
                 }
                 pthread_mutex_unlock(&thread->command->mutex);
                 goto exit_thread;
             }
             // pthread_cond_wait(&thread->command->cond, &thread->command->mutex);
         }
+
         LikwidThreadCommand c_cmd = thread->command->cmd;
         pthread_mutex_unlock(&thread->command->mutex);
 
@@ -329,9 +348,11 @@ void* _func_t(void* arg)
                     }
                 }
                 break;
+
             case LIKWID_THREAD_COMMAND_NOOP:
                 DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is set with NOOP command, thread->local_id, thread->global_id);
                 break;
+
             case LIKWID_THREAD_COMMAND_RUN:
                 DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is set with RUN command, thread->local_id, thread->global_id);
                 int err = run_benchmark(thread);
@@ -339,13 +360,20 @@ void* _func_t(void* arg)
                 {
                     ERROR_PRINT(Running benchmark kernel failed for thread %d with global thread %d, thread->local_id, thread->global_id);
                 }
-                break;
-            case LIKWID_THREAD_COMMAND_EXIT:
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d exits, thread->local_id, thread->global_id);
+                keep_running = false;
                 goto exit_thread;
                 break;
+
+            case LIKWID_THREAD_COMMAND_EXIT:
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d exits, thread->local_id, thread->global_id);
+                keep_running = false;
+                goto exit_thread;
+                break;
+
             default:
                 ERROR_PRINT(Invalid Command);
+                keep_running = false;
+                goto exit_thread;
                 break;
         }
 
@@ -363,6 +391,7 @@ exit_thread:
     thread->command->done = 1;
     pthread_cond_signal(&thread->command->cond);
     pthread_mutex_unlock(&thread->command->mutex);
+
     DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d has completed, thread->local_id, thread->global_id);
     pthread_exit(NULL);
     return NULL;
