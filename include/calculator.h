@@ -35,6 +35,7 @@ int calculator_setprecision(int precision);
 int calculator_settokenlength(int tokenlength);
 int calculator_setpostfix(int flag);
 int calculator_setallowcommands(int flag);
+int calculator_setprinterrors(int flag);
 int calculator_calc(const char* formula, double* result);
 #endif
 

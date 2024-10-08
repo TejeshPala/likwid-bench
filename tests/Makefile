@@ -131,7 +131,7 @@ test_bench: test_bench.c $(BENCH_OBJ) $(BENCH_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) test_bench.c $(BENCH_OBJ) -o $@
 
 run: $(TESTS)
-	@for T in $(TESTS); do echo "#### Running $$T ####"; ./$$T; done
+	@for T in $(TESTS); do echo "#### Running $$T ####"; ./$$T; if [ $$? -ne 0 ]; then exit 1; fi; done
 
 clean:
 	rm -f $(TESTS)

@@ -20,6 +20,8 @@
 #include "bitmap.h"
 #include "path.h"
 
+#define TOPO_MIN(a,b) ((a) < (b) ? (a) : (b))
+
 static int _min_processor = 0;
 static int _max_processor = 0;
 
@@ -441,7 +443,7 @@ int check_hwthreads()
         LikwidBenchHwthread* tmpList = malloc(numThreads * sizeof(LikwidBenchHwthread));
         if (!tmpList)
         {
-            printf("failed to allocate tmpList\n");
+            ERROR_PRINT(Failed to allocate tmpList);
             return -ENOMEM;
         }
         memset(tmpList, 0, numThreads * sizeof(LikwidBenchHwthread));
@@ -476,7 +478,7 @@ int check_hwthreads()
         _hwthreads = malloc(tmpCount * sizeof(LikwidBenchHwthread));
         if (!_hwthreads)
         {
-            printf("failed to allocate _hwthreads\n");
+            ERROR_PRINT(Failed to allocate _hwthreads);
             return -ENOMEM;
         }
         memset(_hwthreads, 0, tmpCount * sizeof(LikwidBenchHwthread));
@@ -540,18 +542,22 @@ int _hwthread_list_for_socket(int socket, int* numEntries, int** hwthreadList)
             avail_hwthreads++;
         }
     }
+    if (avail_hwthreads == 0)
+    {
+        return -ENODEV;
+    }
     int count = 0;
-    int* list = malloc(avail_hwthreads * sizeof(int));
+    int* list = malloc(_num_hwthreads * sizeof(int));
     if (!list)
     {
         return -ENOMEM;
     }
-    memset(list, 0, avail_hwthreads * sizeof(int));
+    memset(list, 0, _num_hwthreads * sizeof(int));
 
     for (int i = 0; i < _num_hwthreads; i++)
     {
         LikwidBenchHwthread* cur = &_hwthreads[i];
-        if (cur->socket_id == socket && cur->usable == 1)
+        if (cur->socket_id == socket && cur->usable == 1 && count < _num_hwthreads)
         {
             list[count++] = cur->os_id;
         }
@@ -578,18 +584,22 @@ int _hwthread_list_for_numa_domain(int numa_id, int* numEntries, int** hwthreadL
             avail_hwthreads++;
         }
     }
+    if (avail_hwthreads == 0)
+    {
+        return -ENODEV;
+    }
     int count = 0;
-    int* list = malloc(avail_hwthreads * sizeof(int));
+    int* list = malloc(_num_hwthreads * sizeof(int));
     if (!list)
     {
         return -ENOMEM;
     }
-    memset(list, 0, avail_hwthreads * sizeof(int));
+    memset(list, 0, _num_hwthreads * sizeof(int));
 
     for (int i = 0; i < _num_hwthreads; i++)
     {
         LikwidBenchHwthread* cur = &_hwthreads[i];
-        if (cur->numa_id == numa_id && cur->usable == 1)
+        if (cur->numa_id == numa_id && cur->usable == 1 && count < _num_hwthreads)
         {
             list[count++] = cur->os_id;
         }
@@ -616,18 +626,22 @@ int _hwthread_list_for_cpu_die(int die_id, int* numEntries, int** hwthreadList)
             avail_hwthreads++;
         }
     }
+    if (avail_hwthreads == 0)
+    {
+        return -ENODEV;
+    }
     int count = 0;
-    int* list = malloc(avail_hwthreads * sizeof(int));
+    int* list = malloc(_num_hwthreads * sizeof(int));
     if (!list)
     {
         return -ENOMEM;
     }
-    memset(list, 0, avail_hwthreads * sizeof(int));
+    memset(list, 0, _num_hwthreads * sizeof(int));
 
     for (int i = 0; i < _num_hwthreads; i++)
     {
         LikwidBenchHwthread* cur = &_hwthreads[i];
-        if (cur->die_id == die_id && cur->usable == 1)
+        if (cur->die_id == die_id && cur->usable == 1 && count < _num_hwthreads)
         {
             list[count++] = cur->os_id;
         }
@@ -654,6 +668,10 @@ int _hwthread_list_sort_by_core(int length, int* hwthreadList, int** outList)
 {
     int maxSocketId = 0;
     int maxCoreId = 0;
+    if ((length <= 0) || (!hwthreadList) || (!outList))
+    {
+        return -EINVAL;
+    }
     for (int i = 0; i < _num_hwthreads; i++)
     {
         LikwidBenchHwthread* cur = &_hwthreads[i];
@@ -685,7 +703,7 @@ int _hwthread_list_sort_by_core(int length, int* hwthreadList, int** outList)
                 LikwidBenchHwthread* test = getHwThread(hwthreadList[i]);
                 if (test)
                 {
-                    if (test->socket_id == s && test->core_id == c && test->usable == 1)
+                    if (test->socket_id == s && test->core_id == c && test->usable == 1 && count < length)
                     {
                         list[count++] = hwthreadList[i];
                     }
@@ -716,11 +734,24 @@ int cpustr_to_cpulist_physical(bstring cpustr, int* list, int length)
         }
         else if (c == 2)
         {
-            for (int j = s; j <= e; j++)
+            if (s < e)
             {
-                if (getHwThread(j) != NULL && idx < length)
+                for (int j = s; j <= e; j++)
                 {
-                    list[idx++] = j;
+                    if (getHwThread(j) != NULL && idx < length)
+                    {
+                        list[idx++] = j;
+                    }
+                }
+            }
+            else
+            {
+                for (int j = s; j >= e; j--)
+                {
+                    if (getHwThread(j) != NULL && idx < length)
+                    {
+                        list[idx++] = j;
+                    }
                 }
             }
         }
@@ -838,6 +869,11 @@ int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
             tmpList = malloc(_num_hwthreads * sizeof(int));
             if (!tmpList)
             {
+                if (idxList)
+                {
+                    free(idxList);
+                    idxList = NULL;
+                }
                 return -ENOMEM;
             }
             for (int i = 0; i < _num_hwthreads; i++)
@@ -852,6 +888,12 @@ int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
                 ret = _hwthread_list_for_socket(domIdx, &tmpCount, &tmpList);
                 if (ret != 0)
                 {
+                    if (idxList)
+                    {
+                        free(idxList);
+                        idxList = NULL;
+                        idxLen = 0;
+                    }
                     return ret;
                 }
             }
@@ -862,6 +904,12 @@ int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
                 ret = _hwthread_list_for_numa_domain(domIdx, &tmpCount, &tmpList);
                 if (ret != 0)
                 {
+                    if (idxList)
+                    {
+                        free(idxList);
+                        idxList = NULL;
+                        idxLen = 0;
+                    }
                     return ret;
                 }
             }
@@ -872,19 +920,25 @@ int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
                 ret = _hwthread_list_for_cpu_die(domIdx, &tmpCount, &tmpList);
                 if (ret != 0)
                 {
+                    if (idxList)
+                    {
+                        free(idxList);
+                        idxList = NULL;
+                        idxLen = 0;
+                    }
                     return ret;
                 }
             }
             break;
     }
-    int looplength = (length < _num_hwthreads ? length : _num_hwthreads);
+    int looplength = TOPO_MIN(length, _num_hwthreads);
     if (count > 0)
     {
-        looplength = (count < looplength ? count : looplength);
+        looplength = TOPO_MIN(tmpCount, looplength);
     }
 
     int outcount = 0;
-    for (int i = 0; i < idxLen; i++)
+    for (int i = 0; i < idxLen && outcount < looplength; i++)
     {
         list[outcount++] = tmpList[idxList[i]];
     }
@@ -975,11 +1029,10 @@ int cpustr_to_cpulist_expression(bstring cpustr, int* list, int length)
     }
     free(tmpList);
     tmpList = tmpList2;
-
-    int looplength = (length < _num_hwthreads ? length : _num_hwthreads);
+    int looplength = TOPO_MIN(length, TOPO_MIN(tmpCount, _num_hwthreads));
     if (count > 0)
     {
-        looplength = (count < looplength ? count : looplength);
+        looplength = TOPO_MIN(count, looplength);
     }
 
     if (stride == -1 && chunk == -1)
@@ -1205,14 +1258,14 @@ int read_flags_line(int cpu_id, bstring* flagline)
     struct tagbstring nameString = bsStatic("model name");
     struct tagbstring steppingString = bsStatic("stepping");
     struct tagbstring flagString = bsStatic("flags");
-#elif defined(__ARM_ARCH_8A)
+#elif defined(__ARM_ARCH_8A) || defined(__aarch64__) || defined(__arm__)
     struct tagbstring vendorString = bsStatic("CPU implementer");
     struct tagbstring familyString = bsStatic("CPU architecture");
     struct tagbstring modelString = bsStatic("CPU variant");
     struct tagbstring nameString = bsStatic("CPU part");
     struct tagbstring steppingString = bsStatic("CPU revision");
     struct tagbstring flagString = bsStatic("Features");
-#elif defined(_ARCH_PPC)
+#elif defined(_ARCH_PPC) || defined(__powerpc) || defined(__ppc__) || defined(__PPC__)
     struct tagbstring vendorString = bsStatic("vendor_id");
     struct tagbstring familyString = bsStatic("cpu family");
     struct tagbstring modelString = bsStatic("cpu");
@@ -1308,7 +1361,7 @@ int read_flags_line(int cpu_id, bstring* flagline)
                 bconcat(*flagline, cpu_info[i].ProcInfo.flags);
             }
 
-            if (DEBUGLEV_DEVELOP)
+            if (global_verbosity == DEBUGLEV_DEVELOP)
             {
                 printf("CPU processor\t: %s\n", bdata(cpu_info[i].processor));
                 printf("CPU vendor\t: %s\n", bdata(cpu_info[i].ProcInfo.vendor));
@@ -1369,7 +1422,7 @@ int get_feature_flags(int cpu_id, struct bstrList** outlist)
     *outlist = bstrListCopy(blist);
     bstrListDestroy(blist);
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Available flags are );
-    if (DEBUGLEV_DEVELOP) bstrListPrint(*outlist);
+    if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(*outlist);
 
     return 0;
 }
@@ -1436,7 +1489,7 @@ int read_cpu_cores(bstring fname, Bitmap* bm)
         }
     }
 
-    if (DEBUGLEV_DEVELOP)
+    if (global_verbosity == DEBUGLEV_DEVELOP)
     {
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Bits set for %s, bdata(fname));
         print_set_bits(bm);
