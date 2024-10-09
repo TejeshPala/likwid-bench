@@ -582,6 +582,7 @@ int create_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
 int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread_groups)
 {
     int err = 0;
+    uint64_t iter;
     int total_threads = 0;
     TestConfigThread* t = runcfg->tcfg->threads;
     static struct tagbstring bnumthreads = bsStatic("NUM_THREADS");
@@ -594,6 +595,14 @@ int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread
         return err;
     }
 
+    if (runcfg->iterations >= 0)
+    {
+        iter = (runcfg->iterations > MIN_ITERATIONS) ? runcfg->iterations : MIN_ITERATIONS;
+        if (runcfg->iterations < MIN_ITERATIONS)
+        {
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Overwriting iterations to %d, MIN_ITERATIONS);
+        }
+    }
     // printf("Num Workgroups: %d\n", runcfg->num_wgroups);
     for (int w = 0; w < runcfg->num_wgroups; w++)
     {
@@ -752,7 +761,7 @@ int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread
             // printf("Threadid: %d\n", thread->local_id);
             thread->data->hwthread = thread->local_id;
             thread->data->flags = THREAD_DATA_THREADINIT_FLAG;
-            thread->data->iters = 0;
+            thread->data->iters = iter;
             thread->data->cycles = 0;
             thread->data->min_runtime = 0;
             // printf("Threadid: %d\n", thread->data->hwthread);
