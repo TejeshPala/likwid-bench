@@ -360,8 +360,6 @@ void* _func_t(void* arg)
                 {
                     ERROR_PRINT(Running benchmark kernel failed for thread %d with global thread %d, thread->local_id, thread->global_id);
                 }
-                keep_running = false;
-                goto exit_thread;
                 break;
 
             case LIKWID_THREAD_COMMAND_EXIT:

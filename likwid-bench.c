@@ -56,7 +56,7 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->tmpfolder = bfromcstr("");
     runcfg->kernelfolder = bfromcstr("");
     runcfg->arraysize = bfromcstr("");
-    runcfg->iterations = -1;
+    runcfg->iterations = 0;
     runcfg->runtime = -1.0;
     *config = runcfg;
     return 0;
@@ -477,6 +477,24 @@ int main(int argc, char** argv)
         for (int i = 0; i < group->num_threads; i++)
         {
             err = send_cmd(LIKWID_THREAD_COMMAND_RUN, &group->threads[i]);
+            if (err < 0)
+            {
+                ERROR_PRINT(Error communicating with threads);
+                destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups->tgroups);
+                goto main_out;
+            }
+        }
+    }
+
+    /*
+     * Exit threads
+     */
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        RuntimeThreadgroupConfig* group = &runcfg->wgroups->tgroups[w];
+        for (int i = 0; i < group->num_threads; i++)
+        {
+            err = send_cmd(LIKWID_THREAD_COMMAND_EXIT, &group->threads[i]);
             if (err < 0)
             {
                 ERROR_PRINT(Error communicating with threads);

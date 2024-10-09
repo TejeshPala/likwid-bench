@@ -714,12 +714,6 @@ int fill_results(RuntimeConfig* runcfg)
 	    add_variable(runcfg->global_results, &biterations, biter);
 	    bdestroy(biter);
     }
-    else
-    {
-	    bstring biter = bformat("%d", 0);
-	    add_variable(runcfg->global_results, &biterations, biter);
-	    bdestroy(biter);
-    }
 
     for (int i = 0; i < runcfg->tcfg->num_constants; i++)
     {
