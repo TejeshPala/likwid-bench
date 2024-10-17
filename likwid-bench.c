@@ -21,6 +21,11 @@
 #include "topology.h"
 #include "thread_group.h"
 
+#ifdef LIKWID_USE_HWLOC
+#include "hwloc.h"
+#include "topology_hwloc.h"
+#endif
+
 #ifndef global_verbosity
 int global_verbosity = DEBUGLEV_DEVELOP;
 #endif
@@ -267,6 +272,15 @@ int main(int argc, char** argv)
         goto main_out;
     }
 
+#ifdef LIKWID_USE_HWLOC
+    hwloc_topology_t topo = NULL;
+    hwloc_obj_t obj = NULL;
+    hwloc_topology_init(&topo);
+    hwloc_topology_load(topo);
+    collect_cpuinfo(topo, runcfg);
+    print_cpuinfo(topo);
+#endif
+
     struct bstrList* flist = bstrListCreate();
     int res = get_feature_flags(1, &flist);
     if (res < 0)
@@ -509,6 +523,9 @@ int main(int argc, char** argv)
      * Print everything
      */
 
+#ifdef LIKWID_USE_HWLOC
+    hwloc_topology_destroy(topo);
+#endif
 
 main_out:
     DEBUG_PRINT(DEBUGLEV_DEVELOP, MAIN_OUT);

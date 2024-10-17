@@ -60,7 +60,7 @@ $(SHARED_LIBHWLOC): $(OBJ)
 
 #PATTERN RULES
 $(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
-	@echo "===> COMPILING $<"
+	@echo "===> COMPILE $<"
 	$(Q)$(CC) -c $(DEBUG_FLAGS) $(CFLAGS) $(CPPFLAGS) $< -o $@
 	$(Q)$(CC) $(DEBUG_FLAGS) $(CPPFLAGS) -MT $(@:.d=.o) -MM  $< > $(BUILD_DIR)/$*.d
 

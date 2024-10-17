@@ -33,7 +33,7 @@ struct tagbstring _topology_interesting_flags[] = {
     bsStatic("fma"),
     bsStatic("ht"),
     bsStatic("fp"),
-#elif defined(__ARM_ARCH_8A)
+#elif defined(__ARM_ARCH_8A) || defined(__aarch64__) || defined(__arm__)
     bsStatic("neon"),
     bsStatic("vfp"),
     bsStatic("asimd"),
@@ -1106,23 +1106,32 @@ int parse_flags(bstring flagline, struct bstrList** outlist)
         return -errno;
     }
 
+    struct tagbstring bunderscroll = bsStatic("_");
+    struct tagbstring bempty = bsStatic("");
     int i = 0;
     while (_topology_interesting_flags[i].slen > 0)
     {
         // struct tagbstring binteresting_flag = _topology_interesting_flags[i];
         for (int j = 0; j < blist->qty; j++)
         {
-            int pos = binstr(blist->entry[j], 0, &(_topology_interesting_flags[i]));
+            bstring btmp = bstrcpy(blist->entry[j]);
+            btrimws(btmp);
+            int pos = binstr(btmp, 0, &(_topology_interesting_flags[i]));
             // printf("pos %d\n", pos);
-            if (pos == 0) bstrListAdd(btmplist, blist->entry[j]);
+            /* Use the flags as read from /proc/cpuinfo, the flags will be replaced by '_' and uppercase */
+            bfindreplace(btmp, &bunderscroll, &bempty, 0);
+            btoupper(btmp);
+            if (pos == 0) bstrListAdd(btmplist, btmp);
             // printf("flag: %s\n", bdata(blist->entry[j]));
+            bdestroy(btmp);
         }
 
         i++;
     }
     
     bstrListDestroy(blist);
-    *outlist = bstrListCopy(btmplist);
+    bstrListSort(btmplist, outlist);
+    // *outlist = bstrListCopy(btmplist);
     bstrListDestroy(btmplist);
     return (*outlist != NULL) ? 0 : -errno;
 }
@@ -1258,7 +1267,7 @@ int read_flags_line(int cpu_id, bstring* flagline)
     struct tagbstring nameString = bsStatic("model name");
     struct tagbstring steppingString = bsStatic("stepping");
     struct tagbstring flagString = bsStatic("flags");
-#elif defined(__ARM_ARCH_8A)
+#elif defined(__ARM_ARCH_8A) || defined(__aarch64__) || defined(__arm__)
     struct tagbstring vendorString = bsStatic("CPU implementer");
     struct tagbstring familyString = bsStatic("CPU architecture");
     struct tagbstring modelString = bsStatic("CPU variant");
@@ -1337,7 +1346,7 @@ int read_flags_line(int cpu_id, bstring* flagline)
 
 #if defined(__x86_64) || defined(__x86_64__)
                 else if (bstrncmp(bkvpair->entry[0], &flagString, blength(&flagString)) == 0 && cpu_info[p].ProcInfo.flags == NULL)
-#elif defined(__ARM_ARCH_8A)
+#elif defined(__ARM_ARCH_8A) || defined(__aarch64__) || defined(__arm__)
                 else if (bstrncmp(bkvpair->entry[0], &flagString, blength(&flagString)) == 0 && cpu_info[p].ProcInfo.flags == NULL)
 #endif
                 {
