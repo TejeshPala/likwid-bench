@@ -1,0 +1,80 @@
+---
+- Name: triad_sp_mem_avx
+- Description: Single-precision triad A(i) = B(i) * C(i) + D(i), optimized for AVX
+    and non-temporal stores
+- RequireWorkGroup: true
+- FeatureFlag:
+  - avx
+- Parameters:
+  - N:
+      description: 'Size of array that should be loaded, Possible Values: kB, MB,
+        GB'
+      options:
+      - bytes
+      - required
+- Streams:
+  - STR0:
+      datatype: single
+      dimension: 1
+      dimsizes:
+      - N
+  - STR1:
+      datatype: single
+      dimension: 1
+      dimsizes:
+      - N
+  - STR2:
+      datatype: single
+      dimension: 1
+      dimsizes:
+      - N
+  - STR3:
+      datatype: single
+      dimension: 1
+      dimsizes:
+      - N
+- Variables:
+    BYTES_PER_ELEM: 4
+    BYTES_PER_ITER: 128
+    FLOPS_PER_ITER: 16
+    LOADS_PER_ITER: 24
+    STORES_PER_ITER: 8
+    INST_PER_ITER: 5
+    UPOS_PER_ITER: 7
+    UNROLL_FACTOR: 8
+- Metrics:
+    Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+    Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+    Total uops: UPOS_PER_ITER * ITER
+    Total instructions: INST_PER_ITER * ITER
+- Theads:
+    offsets: Thread_ID * N / NUM_THREADS
+    sizes: N / NUM_THREADS
+- Language: asm
+...
+LOOP(loop, rax=0, <, rdi=N, 8)
+vmovaps ymm1, [STR1 + rax*4]
+vmovaps ymm2, [STR2 + rax*4]
+vmulps  ymm0, ymm1, ymm2
+vaddps  ymm0, ymm0, [STR3 + rax*4]
+vmovntps   [STR0 + rax*4], ymm0
+LOOPEND(loop)
+# ptt for comparision [Will be removed soon]
+STREAMS 4
+TYPE SINGLE
+FLOPS 2
+BYTES 16
+DESC Single-precision triad A(i) = B(i) * C(i) + D(i), optimized for AVX and non-temporal stores
+LOADS 3
+STORES 1
+INSTR_CONST 16
+INSTR_LOOP 9
+UOPS 9
+LOOP 8
+vmovaps ymm1, [STR1 + GPR1*4]
+vmovaps ymm2, [STR2 + GPR1*4]
+vmulps  ymm0, ymm1, ymm2
+vaddps  ymm0, ymm0, [STR3 + GPR1*4]
+vmovntps   [STR0 + GPR1*4], ymm0

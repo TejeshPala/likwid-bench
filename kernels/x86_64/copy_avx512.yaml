@@ -1,0 +1,77 @@
+---
+- Name: copy_avx512
+- Description: Double-precision vector copy, optimized for AVX-512
+- RequireWorkGroup: true
+- FeatureFlag:
+  - avx512
+- Parameters:
+  - N:
+      description: 'Size of array that should be loaded, Possible Values: kB, MB,
+        GB'
+      options:
+      - bytes
+      - required
+- Streams:
+  - STR0:
+      datatype: double
+      dimension: 1
+      dimsizes:
+      - N
+  - STR1:
+      datatype: double
+      dimension: 1
+      dimsizes:
+      - N
+- Variables:
+    BYTES_PER_ELEM: 16
+    LOADS_PER_ELEM: 1
+    STORES_PER_ELEM: 1
+    BYTES_PER_ITER: 512
+    LOADS_PER_ITER: 32
+    STORES_PER_ITER: 32
+    INST_PER_ITER: 8
+    UPOS_PER_ITER: 12
+    UNROLL_FACTOR: 32
+- Metrics:
+    Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+    Total uops: UPOS_PER_ITER * ITER
+    Total instructions: INST_PER_ITER * ITER
+- Theads:
+    offsets: Thread_ID * N / NUM_THREADS
+    sizes: N / NUM_THREADS
+- Language: asm
+...
+LOOP(loop, rax=0, <, rdi=N, 32)
+vmovapd    zmm1, [STR0 + rax * 8]
+vmovapd    zmm2, [STR0 + rax * 8 + 64]
+vmovapd    zmm3, [STR0 + rax * 8 + 128]
+vmovapd    zmm4, [STR0 + rax * 8 + 192]
+vmovapd    [STR1 + rax * 8]     , zmm1
+vmovapd    [STR1 + rax * 8 + 64], zmm2
+vmovapd    [STR1 + rax * 8 + 128], zmm3
+vmovapd    [STR1 + rax * 8 + 192], zmm4
+LOOPEND(loop)
+# ptt for comparision [Will be removed soon]
+STREAMS 2
+TYPE DOUBLE
+FLOPS 0
+BYTES 16
+DESC Double-precision vector copy, optimized for AVX-512
+LOADS 1
+STORES 1
+INSTR_CONST 16
+INSTR_LOOP 11
+UOPS 14
+LOOP 32
+vmovapd    zmm1, [STR0 + GPR1 * 8]
+vmovapd    zmm2, [STR0 + GPR1 * 8 + 64]
+vmovapd    zmm3, [STR0 + GPR1 * 8 + 128]
+vmovapd    zmm4, [STR0 + GPR1 * 8 + 192]
+vmovapd    [STR1 + GPR1 * 8]     , zmm1
+vmovapd    [STR1 + GPR1 * 8 + 64], zmm2
+vmovapd    [STR1 + GPR1 * 8 + 128], zmm3
+vmovapd    [STR1 + GPR1 * 8 + 192], zmm4
+
+

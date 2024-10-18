@@ -1,0 +1,64 @@
+---
+- Name: clstore
+- Description: Double-precision cache line store, only stores first element of each
+    cache line.
+- RequireWorkGroup: true
+- FeatureFlag: []
+- Parameters:
+  - N:
+      description: 'Size of array that should be loaded, Possible Values: kB, MB,
+        GB'
+      options:
+      - bytes
+      - required
+- Streams:
+  - STR0:
+      datatype: double
+      dimension: 1
+      dimsizes:
+      - N
+- Variables:
+    BYTES_PER_ELEM: 8
+    STORES_PER_ELEM: 1
+    BYTES_PER_ITER: 256
+    STORES_PER_ITER: 32
+    INST_PER_ITER: 4
+    UPOS_PER_ITER: 8
+    UNROLL_FACTOR: 32
+- Metrics:
+    Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+    Total uops: UPOS_PER_ITER * ITER
+    Total instructions: INST_PER_ITER * ITER
+- Theads:
+    offsets: Thread_ID * N / NUM_THREADS
+    sizes: N / NUM_THREADS
+- Language: asm
+...
+LOOP(loop, rax=0, <, rdi=N, 32)
+movaps    [STR0 + rax * 8], FPR1
+movaps    [STR0 + rax * 8 + 64], FPR2
+movaps    [STR0 + rax * 8 + 128], FPR3
+movaps    [STR0 + rax * 8 + 192], FPR4
+LOOPEND(loop)
+# ptt for comparision [Will be removed soon]
+STREAMS 1
+TYPE DOUBLE
+FLOPS 0
+BYTES 8
+DESC Double-precision cache line store, only stores first element of each cache line.
+LOADS 0
+STORES 1
+INSTR_CONST 20
+INSTR_LOOP 7
+UOPS 10
+movaps FPR1, [rip+SCALAR]
+movaps FPR2, [rip+SCALAR]
+movaps FPR3, [rip+SCALAR]
+movaps FPR4, [rip+SCALAR]
+LOOP 32
+movaps    [STR0 + GPR1 * 8], FPR1
+movaps    [STR0 + GPR1 * 8 + 64], FPR2
+movaps    [STR0 + GPR1 * 8 + 128], FPR3
+movaps    [STR0 + GPR1 * 8 + 192], FPR4
+

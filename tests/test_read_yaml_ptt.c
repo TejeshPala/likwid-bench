@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 #include <bstrlib.h>
 #include <bstrlib_helper.h>
@@ -10,12 +12,61 @@
 
 int global_verbosity = DEBUGLEV_DEVELOP;
 
-int main(int argc, char* argv[])
+int get_architecture_dirs(bstring basefolder, struct bstrList** outlist)
+{
+    DIR *dp = NULL;
+    struct dirent *ep = NULL;
+    DIR *(*myopendir)(const char *name) = opendir;
+    struct bstrList* out = bstrListCreate();
+    dp = myopendir(bdata(basefolder));
+    if (dp == NULL)
+    {
+        return -errno;
+    }
+    while ((ep = readdir(dp)) != NULL)
+    {
+        if (ep->d_name[0] != '.')
+        {
+            bstring abs = bformat("%s/%s", bdata(basefolder), ep->d_name);
+            bstrListAdd(out, abs);
+            bdestroy(abs);
+        }
+    }
+    closedir(dp);
+    *outlist = out;
+    return 0;
+}
+
+int get_architecture_tests(bstring archfolder, struct bstrList** outlist)
+{
+    DIR *dp = NULL;
+    struct dirent *ep = NULL;
+    DIR *(*myopendir)(const char *name) = opendir;
+    struct bstrList* out = bstrListCreate();
+    dp = myopendir(bdata(archfolder));
+    if (dp == NULL)
+    {
+        return -errno;
+    }
+    while ((ep = readdir(dp)) != NULL)
+    {
+        if ((ep->d_name[0] != '.') && (strncmp(&ep->d_name[strlen(ep->d_name)-4], "yaml", 4) == 0))
+        {
+            bstring abs = bformat("%s/%s", bdata(archfolder), ep->d_name);
+            bstrListAdd(out, abs);
+            bdestroy(abs);
+        }
+    }
+    closedir(dp);
+    *outlist = out;
+    return 0;
+}
+
+int read_test(bstring filename)
 {
     TestConfig_t config = NULL;
-    char* filename = "../kernels/x86_64/load.yaml";
-
-    int ret = read_yaml_ptt(filename, &config);
+    printf("---- Filename %s ----\n", bdata(filename));
+    int ret = read_yaml_ptt(bdata(filename), &config);
     if (ret)
     {
         return ret;
@@ -53,7 +104,35 @@ int main(int argc, char* argv[])
     printf("%s\n", bdata(config->code));
 
     close_yaml_ptt(config);
+    return 0;
+}
 
+int main(int argc, char* argv[])
+{
+    int ret = 0;
+
+    struct tagbstring basefolder = bsStatic("../kernels");
+    struct bstrList* archs = NULL;
+    ret = get_architecture_dirs(&basefolder, &archs);
+    if (ret != 0)
+    {
+        return ret;
+    }
+    for (int i = 0; i < archs->qty; i++)
+    {
+        struct bstrList* archtests = NULL;
+        ret = get_architecture_tests(archs->entry[i], &archtests);
+        if (ret != 0)
+        {
+            continue;
+        }
+        for (int j = 0; j < archtests->qty; j++)
+        {
+            read_test(archtests->entry[j]);
+        }
+        bstrListDestroy(archtests);
+    }
+    bstrListDestroy(archs);
     return 0;
 }
 

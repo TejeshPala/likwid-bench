@@ -1,0 +1,98 @@
+---
+- Name: stream_sp_mem_avx
+- Description: Single-precision stream triad A(i) = B(i)*c + C(i), optimized for AVX
+    and non-temporal stores
+- RequireWorkGroup: true
+- FeatureFlag:
+  - avx
+- Parameters:
+  - N:
+      description: 'Size of array that should be loaded, Possible Values: kB, MB,
+        GB'
+      options:
+      - bytes
+      - required
+- Streams:
+  - STR0:
+      datatype: single
+      dimension: 1
+      dimsizes:
+      - N
+  - STR1:
+      datatype: single
+      dimension: 1
+      dimsizes:
+      - N
+  - STR2:
+      datatype: single
+      dimension: 1
+      dimsizes:
+      - N
+- Variables:
+    BYTES_PER_ELEM: 4
+    BYTES_PER_ITER: 384
+    FLOPS_PER_ITER: 64
+    LOADS_PER_ITER: 64
+    STORES_PER_ITER: 32
+    INST_PER_ITER: 16
+    UPOS_PER_ITER: 24
+    UNROLL_FACTOR: 32
+- Metrics:
+    Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+    Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+    Total uops: UPOS_PER_ITER * ITER
+    Total instructions: INST_PER_ITER * ITER
+- Theads:
+    offsets: Thread_ID * N / NUM_THREADS
+    sizes: N / NUM_THREADS
+- Language: asm
+...
+LOOP(loop, rax=0, <, rdi=N, 32)
+vmovaps   ymm2, [STR1 + rax*4]
+vmovaps   ymm3, [STR1 + rax*4+32]
+vmovaps   ymm4, [STR1 + rax*4+64]
+vmovaps   ymm5, [STR1 + rax*4+96]
+vmulps    ymm2, ymm2, ymm1
+vaddps    ymm2, ymm2, [STR2 + rax*4]
+vmulps    ymm3, ymm3, ymm1
+vaddps    ymm3, ymm3, [STR2 + rax*4+32]
+vmulps    ymm4, ymm4, ymm1
+vaddps    ymm4, ymm4, [STR2 + rax*4+64]
+vmulps    ymm5, ymm5, ymm1
+vaddps    ymm5, ymm5, [STR2 + rax*4+96]
+vmovntps    [STR0 + rax*4], ymm2
+vmovntps    [STR0 + rax*4+32], ymm3
+vmovntps    [STR0 + rax*4+64], ymm4
+vmovntps    [STR0 + rax*4+96], ymm5
+LOOPEND(loop)
+# ptt for comparision [Will be removed soon]
+STREAMS 3
+TYPE SINGLE
+FLOPS 2
+BYTES 12
+DESC Single-precision stream triad A(i) = B(i)*c + C(i), optimized for AVX and non-temporal stores
+LOADS 2
+STORES 1
+INSTR_CONST 17
+INSTR_LOOP 19
+UOPS 26
+vmovaps ymm1, [rip+SCALAR]
+LOOP 32
+vmovaps   ymm2, [STR1 + GPR1*4]
+vmovaps   ymm3, [STR1 + GPR1*4+32]
+vmovaps   ymm4, [STR1 + GPR1*4+64]
+vmovaps   ymm5, [STR1 + GPR1*4+96]
+vmulps    ymm2, ymm2, ymm1
+vaddps    ymm2, ymm2, [STR2 + GPR1*4]
+vmulps    ymm3, ymm3, ymm1
+vaddps    ymm3, ymm3, [STR2 + GPR1*4+32]
+vmulps    ymm4, ymm4, ymm1
+vaddps    ymm4, ymm4, [STR2 + GPR1*4+64]
+vmulps    ymm5, ymm5, ymm1
+vaddps    ymm5, ymm5, [STR2 + GPR1*4+96]
+vmovntps    [STR0 + GPR1*4], ymm2
+vmovntps    [STR0 + GPR1*4+32], ymm3
+vmovntps    [STR0 + GPR1*4+64], ymm4
+vmovntps    [STR0 + GPR1*4+96], ymm5

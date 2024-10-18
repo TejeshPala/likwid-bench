@@ -82,7 +82,7 @@ static int read_keyvalue(bstring str, bstring *key, bstring *value)
 static bstring read_code(bstring bptt)
 {
     int i = 0;
-    int start_copy = 0;
+    int start_copy = -1;
     bstring basm = bfromcstr("");
 
     struct bstrList* lines = bsplit(bptt, '\n');
@@ -91,7 +91,8 @@ static bstring read_code(bstring bptt)
     {
         if (bstrnicmp(lines->entry[i], &byaml_end, 3) == BSTR_OK)
         {
-            start_copy = 1;
+            if (start_copy < 0) start_copy = 1;
+            else if (start_copy == 1) start_copy = 0;
             continue;
         }
         if (start_copy)

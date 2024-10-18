@@ -1,0 +1,62 @@
+---
+- Name: load_avx
+- Description: Double-precision load, optimized for AVX
+- RequireWorkGroup: true
+- FeatureFlag:
+  - avx
+- Parameters:
+  - N:
+      description: 'Size of array that should be loaded, Possible Values: kB, MB,
+        GB'
+      options:
+      - bytes
+      - required
+- Streams:
+  - STR0:
+      datatype: double
+      dimension: 1
+      dimsizes:
+      - N
+- Variables:
+    BYTES_PER_ELEM: 8
+    LOADS_PER_ELEM: 1
+    BYTES_PER_ITER: 128
+    LOADS_PER_ITER: 16
+    INST_PER_ITER: 4
+    UPOS_PER_ITER: 4
+    UNROLL_FACTOR: 16
+- Metrics:
+    Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+    Total uops: UPOS_PER_ITER * ITER
+    Total instructions: INST_PER_ITER * ITER
+- Theads:
+    offsets: Thread_ID * N / NUM_THREADS
+    sizes: N / NUM_THREADS
+- Language: asm
+...
+LOOP(loop, rax=0, <, rdi=N, 16)
+vmovaps    ymm1, [STR0 + rax * 8]
+vmovaps    ymm2, [STR0 + rax * 8 + 32]
+vmovaps    ymm3, [STR0 + rax * 8 + 64]
+vmovaps    ymm4, [STR0 + rax * 8 + 96]
+LOOPEND(loop)
+# ptt for comparision [Will be removed soon]
+STREAMS 1
+TYPE DOUBLE
+FLOPS 0
+BYTES 8
+DESC Double-precision load, optimized for AVX
+LOADS 1
+STORES 0
+INSTR_CONST 16
+INSTR_LOOP 7
+UOPS 6
+LOOP 16
+#mov        GPR12, [STR0 + GPR1 * 8 + 256]
+vmovaps    ymm1, [STR0 + GPR1 * 8]
+vmovaps    ymm2, [STR0 + GPR1 * 8 + 32]
+vmovaps    ymm3, [STR0 + GPR1 * 8 + 64]
+vmovaps    ymm4, [STR0 + GPR1 * 8 + 96]
+
+

@@ -1,6 +1,6 @@
 ---
-- Name: load
-- Description: Double-precision load, only scalar operations
+- Name: divide
+- Description: Double-precision vector update, only scalar operations
 - RequireWorkGroup: true
 - FeatureFlag: []
 - Parameters:
@@ -18,14 +18,17 @@
       - N
 - Variables:
     BYTES_PER_ELEM: 8
-    LOADS_PER_ELEM: 1
     BYTES_PER_ITER: 64
-    LOADS_PER_ITER: 8
-    INST_PER_ITER: 8
-    UPOS_PER_ITER: 8
-    UNROLL_FACTOR: 8
+    FLOPS_PER_ITER: 4
+    LOADS_PER_ITER: 4
+    STORES_PER_ITER: 4
+    INST_PER_ITER: 12
+    UPOS_PER_ITER: 12
+    UNROLL_FACTOR: 4
 - Metrics:
+    Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
     Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Store bandwidth [MBytes/s]: STORES_PER_ITER * BYTES_PER_ELEM * ITER / TIME
     Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
     Total uops: UPOS_PER_ITER * ITER
     Total instructions: INST_PER_ITER * ITER
@@ -34,34 +37,43 @@
     sizes: N / NUM_THREADS
 - Language: asm
 ...
-LOOP(loop, rax=0, <, rdi=N, 8)
+LOOP(loop, rax=0, <, rdi=N, 4)
 movsd    FPR1, [STR0 + rax * 8]
+divsd    FPR1, FPR1
+movsd    [STR0 + rax * 8]     , FPR1
 movsd    FPR2, [STR0 + rax * 8 + 8]
 movsd    FPR3, [STR0 + rax * 8 + 16]
 movsd    FPR4, [STR0 + rax * 8 + 24]
-movsd    FPR5, [STR0 + rax * 8 + 32]
-movsd    FPR6, [STR0 + rax * 8 + 40]
-movsd    FPR7, [STR0 + rax * 8 + 48]
-movsd    FPR8, [STR0 + rax * 8 + 56]
+divsd    FPR2, FPR2
+divsd    FPR3, FPR3
+divsd    FPR4, FPR4
+movsd    [STR0 + rax * 8 + 8], FPR2
+movsd    [STR0 + rax * 8 + 16], FPR3
+movsd    [STR0 + rax * 8 + 24], FPR4
 LOOPEND(loop)
 # ptt for comparision [Will be removed soon]
 STREAMS 1
 TYPE DOUBLE
-FLOPS 0
-BYTES 8
-DESC Double-precision load, only scalar operations
+FLOPS 1
+BYTES 16
+DESC Double-precision vector update, only scalar operations
 LOADS 1
-STORES 0
+STORES 1
 INSTR_CONST 16
 INSTR_LOOP 11
-UOPS 10
-LOOP 8
+UOPS 14
+LOOP 4
 movsd    FPR1, [STR0 + GPR1 * 8]
+divsd    FPR1, FPR1
+movsd    [STR0 + GPR1 * 8]     , FPR1
 movsd    FPR2, [STR0 + GPR1 * 8 + 8]
 movsd    FPR3, [STR0 + GPR1 * 8 + 16]
 movsd    FPR4, [STR0 + GPR1 * 8 + 24]
-movsd    FPR5, [STR0 + GPR1 * 8 + 32]
-movsd    FPR6, [STR0 + GPR1 * 8 + 40]
-movsd    FPR7, [STR0 + GPR1 * 8 + 48]
-movsd    FPR8, [STR0 + GPR1 * 8 + 56]
+divsd    FPR2, FPR2
+divsd    FPR3, FPR3
+divsd    FPR4, FPR4
+movsd    [STR0 + GPR1 * 8 + 8], FPR2
+movsd    [STR0 + GPR1 * 8 + 16], FPR3
+movsd    [STR0 + GPR1 * 8 + 24], FPR4
+
 

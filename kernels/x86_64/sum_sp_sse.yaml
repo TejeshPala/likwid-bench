@@ -1,0 +1,80 @@
+---
+- Name: sum_sp_sse
+- Description: Single-precision sum of a vector, optimized for SSE
+- RequireWorkGroup: true
+- FeatureFlag:
+  - sse
+- Parameters:
+  - N:
+      description: 'Size of array that should be loaded, Possible Values: kB, MB,
+        GB'
+      options:
+      - bytes
+      - required
+- Streams:
+  - STR0:
+      datatype: single
+      dimension: 1
+      dimsizes:
+      - N
+- Variables:
+    BYTES_PER_ELEM: 4
+    FLOPS_PER_ELEM: 1
+    LOADS_PER_ELEM: 1
+    BYTES_PER_ITER: 128
+    FLOPS_PER_ITER: 32
+    LOADS_PER_ITER: 32
+    INST_PER_ITER: 8
+    UPOS_PER_ITER: 16
+    UNROLL_FACTOR: 32
+- Metrics:
+    Flops [MFLOPS/s]: FLOPS_PER_ITER * ITER / TIME
+    Load bandwidth [MBytes/s]: LOADS_PER_ITER * BYTES_PER_ELEM * ITER / TIME
+    Total bandwidth [MBytes/s]: BYTES_PER_ITER * ITER / TIME
+    Total uops: UPOS_PER_ITER * ITER
+    Total instructions: INST_PER_ITER * ITER
+- Theads:
+    offsets: Thread_ID * N / NUM_THREADS
+    sizes: N / NUM_THREADS
+- Language: asm
+...
+LOOP(loop, rax=0, <, rdi=N, 32)
+addps    FPR1, [STR0 + rax * 4]
+addps    FPR2, [STR0 + rax * 4 + 16]
+addps    FPR3, [STR0 + rax * 4 + 32]
+addps    FPR4, [STR0 + rax * 4 + 48]
+addps    FPR5, [STR0 + rax * 4 + 64]
+addps    FPR6, [STR0 + rax * 4 + 80]
+addps    FPR7, [STR0 + rax * 4 + 96]
+addps    FPR8, [STR0 + rax * 4 + 112]
+LOOPEND(loop)
+# ptt for comparision [Will be removed soon]
+STREAMS 1
+TYPE SINGLE
+FLOPS 1
+BYTES 4
+DESC Single-precision sum of a vector, optimized for SSE
+LOADS 1
+STORES 0
+INSTR_CONST 24
+INSTR_LOOP 11
+UOPS 18
+xorps FPR1, FPR1
+movaps FPR2, FPR1
+movaps FPR3, FPR1
+movaps FPR4, FPR1
+movaps FPR5, FPR1
+movaps FPR6, FPR1
+movaps FPR7, FPR1
+movaps FPR8, FPR1
+LOOP 32
+addps    FPR1, [STR0 + GPR1 * 4]
+addps    FPR2, [STR0 + GPR1 * 4 + 16]
+addps    FPR3, [STR0 + GPR1 * 4 + 32]
+addps    FPR4, [STR0 + GPR1 * 4 + 48]
+addps    FPR5, [STR0 + GPR1 * 4 + 64]
+addps    FPR6, [STR0 + GPR1 * 4 + 80]
+addps    FPR7, [STR0 + GPR1 * 4 + 96]
+addps    FPR8, [STR0 + GPR1 * 4 + 112]
+
+
