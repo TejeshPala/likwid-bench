@@ -111,10 +111,12 @@ int collect_cpuinfo(hwloc_topology_t topo, RuntimeConfig* runcfg)
                 {
                     hwloc_obj_add_info(pu, "cpu_stepping", bdata(bval));
                 }
+#if defined(__x86_64) || defined(__x86_64__)
                 else if (bstrncmp(bkey, &physicalString, blength(&physicalString)) == BSTR_OK && binstr(&physicalString, 0, bkey) != BSTR_ERR)
                 {
                     hwloc_obj_add_info(pu, "cpu_physical", bdata(bval));
                 }
+#endif
                 else if (bstrncmp(bkey, &flagString, blength(&flagString)) == BSTR_OK && binstr(&flagString, 0, bkey) != BSTR_ERR)
                 {
                     struct bstrList* flist = NULL;
@@ -187,4 +189,16 @@ void print_cpuinfo(hwloc_topology_t topo)
         }
     }
     printf("\n");
+}
+
+void print_topology(hwloc_topology_t topo)
+{
+    printf("HWThread\tSocket\tCore\n");
+    hwloc_obj_t pu = NULL;
+    while ((pu = hwloc_get_next_obj_by_type(topo, HWLOC_OBJ_PU, pu)) != NULL)
+    {
+        hwloc_obj_t socket = hwloc_get_ancestor_obj_by_type(topo, HWLOC_OBJ_PACKAGE, pu);
+        hwloc_obj_t core = hwloc_get_ancestor_obj_by_type(topo, HWLOC_OBJ_CORE, pu);
+        printf("%d\t\t%d\t%d\n", pu->os_index, socket ? socket->os_index : -1, core ? core->os_index : -1);
+    }
 }

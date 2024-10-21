@@ -279,6 +279,7 @@ int main(int argc, char** argv)
     hwloc_topology_load(topo);
     collect_cpuinfo(topo, runcfg);
     print_cpuinfo(topo);
+    print_topology(topo);
 #endif
 
     struct bstrList* flist = bstrListCreate();

@@ -12,6 +12,8 @@
 
 int collect_cpuinfo(hwloc_topology_t topo, RuntimeConfig* runcfg);
 void print_cpuinfo(hwloc_topology_t topo);
+void print_topology(hwloc_topology_t topo);
+
 #endif
 
 #endif /* TOPOLOGY_HWLOC_H */

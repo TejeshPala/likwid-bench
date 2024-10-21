@@ -35,6 +35,10 @@ ifneq ($(filter GCCARMv7 GCCARMv8 GCCARM ARMCLANG FCC GCCPOWER XLC,$(COMPILER)),
 OBJ := $(filter-out $(BUILD_DIR)/topology-x86.o, $(OBJ))
 endif
 
+ifneq ($(filter arm% ppc% aarch64%,$(strip $(shell uname -m))),)
+OBJ := $(filter-out $(BUILD_DIR)/topology-x86.o, $(OBJ))
+endif
+
 EXCLUDE_TOPOLOGIES := freebsd pci xml-libxml netbsd windows darwin gl solaris solaris-chiptype nvml hpux cuda opencl aix levelzero rsmi
 EXCLUDE_OBJ := $(addprefix $(BUILD_DIR)/topology-,$(addsuffix .o,$(EXCLUDE_TOPOLOGIES)))
 OBJ := $(filter-out $(EXCLUDE_OBJ),$(OBJ))
