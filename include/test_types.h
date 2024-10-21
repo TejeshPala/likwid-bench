@@ -160,8 +160,8 @@ typedef struct {
 } RuntimeParameterConfig;
 
 typedef struct {
-    bstring asmfile;
     bstring objfile;
+    bstring functionname;
     bstring flags;
     bstring compiler;
     void* dlhandle;
@@ -247,6 +247,7 @@ typedef struct {
     int num_params;
     RuntimeParameterConfig* params;
     RuntimeThreadgroupConfig* tgroups;
+    RuntimeTestConfig testconfig;
 } RuntimeWorkgroupConfig;
 
 typedef struct {
@@ -260,6 +261,7 @@ typedef struct {
     RuntimeParameterConfig* params;
     bstring testname;
     bstring pttfile;
+    bstring compiler;
     bstring kernelfolder;
     bstring tmpfolder;
     bstring arraysize;

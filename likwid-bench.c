@@ -18,6 +18,7 @@
 #include "results.h"
 #include "topology.h"
 #include "thread_group.h"
+#include "dynload.h"
 
 #ifndef global_verbosity
 int global_verbosity = DEBUGLEV_ONLY_ERROR;
@@ -56,6 +57,7 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->tmpfolder = bfromcstr("");
     runcfg->kernelfolder = bfromcstr("");
     runcfg->arraysize = bfromcstr("");
+    runcfg->compiler = bfromcstr("");
     runcfg->iterations = 0;
     runcfg->runtime = -1.0;
     *config = runcfg;
@@ -72,6 +74,8 @@ void free_runtime_config(RuntimeConfig* runcfg)
         bdestroy(runcfg->testname);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy tmpfolder in RuntimeConfig);
         bdestroy(runcfg->tmpfolder);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy compiler in RuntimeConfig);
+        bdestroy(runcfg->compiler);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy kernelfolder in RuntimeConfig);
         bdestroy(runcfg->kernelfolder);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy arraysize in RuntimeConfig);
@@ -127,7 +131,32 @@ void free_runtime_config(RuntimeConfig* runcfg)
                         bdestroy(runcfg->wgroups[i].params[j].value);
                     }
                 }
+                if (runcfg->wgroups[i].testconfig.objfile)
+                {
+                    bdestroy(runcfg->wgroups[i].testconfig.objfile);
+                }
+                if (runcfg->wgroups[i].testconfig.compiler)
+                {
+                    bdestroy(runcfg->wgroups[i].testconfig.compiler);
+                }
+                if (runcfg->wgroups[i].testconfig.flags)
+                {
+                    bdestroy(runcfg->wgroups[i].testconfig.flags);
+                }
+                if (runcfg->wgroups[i].testconfig.functionname)
+                {
+                    bdestroy(runcfg->wgroups[i].testconfig.functionname);
+                }
+                if (runcfg->wgroups[i].testconfig.function)
+                {
+                    close_function(&runcfg->wgroups[i]);
+                }
+                if (runcfg->wgroups[i].tgroups)
+                {
+                    destroy_tgroups(1, runcfg->wgroups[i].tgroups);
+                }
             }
+            
             free(runcfg->wgroups);
             runcfg->wgroups = NULL;
             runcfg->num_wgroups = 0;
@@ -199,6 +228,7 @@ int main(int argc, char** argv)
     bstring kernelfolder = bformat("./");
 #endif
     bstring tmpfolder = bformat("/tmp/likwid-bench-%d/%s/", getpid(), bdata(arch));
+    bstring compiler = bfromcstr("gcc");
     bdestroy(arch);
     int (*ownaccess)(const char*, int) = access;
 
@@ -218,6 +248,7 @@ int main(int argc, char** argv)
     }
     bconcat(runcfg->kernelfolder, kernelfolder);
     bconcat(runcfg->tmpfolder, tmpfolder);
+    bconcat(runcfg->compiler, compiler);
 
     /*
      * Get command line arguments
@@ -429,7 +460,6 @@ int main(int argc, char** argv)
         DEBUG_PRINT(global_verbosity, "CODE: %s\n", bdata(runcfg->codelines->entry[i]));
     }
 
-
     /*
      * Start threads
      */
@@ -438,6 +468,25 @@ int main(int argc, char** argv)
     {
         ERROR_PRINT(Error updating thread groups);
         goto main_out;
+    }
+
+    /*
+     * Update kernel code
+     */
+    for (int i = 0; i < runcfg->num_wgroups; i++)
+    {
+        err = dynload_create_runtime_test_config(runcfg, &runcfg->wgroups[i]);
+        if (err < 0)
+        {
+            ERROR_PRINT(Error generating function object);
+            goto main_out;
+        }
+        err = open_function(&runcfg->wgroups[i]);
+        if (err < 0)
+        {
+            ERROR_PRINT(Error opening function objects);
+            goto main_out;
+        }
     }
 
     /*
@@ -561,6 +610,10 @@ main_out:
     if (tmpfolder)
     {
         bdestroy(tmpfolder);
+    }
+    if (compiler)
+    {
+        bdestroy(compiler);
     }
     if (args)
     {

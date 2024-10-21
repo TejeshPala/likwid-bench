@@ -63,6 +63,7 @@ static ConstCliOption _basecliopts[] = {
     {"kfolder", 'K', required_argument, "Folder with test files to search for test name"},
     {"tmpfolder", 'D', required_argument, "Temporary folder for the object files"},
     {"iterations", 'i', required_argument, "Iterations"},
+    {"compiler", 'C', required_argument, "Select compiler (gcc, icc, icx, clang)"},
     {"runtime", 'r', required_argument, "Possible Units: ms, s, m, h. Default: s. Runtime"},
 };
 

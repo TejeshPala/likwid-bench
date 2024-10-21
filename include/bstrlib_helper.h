@@ -34,6 +34,7 @@ int batof(bstring b, float* value);
 int batod(bstring b, double* value);
 
 bstring read_file(char *filename);
+int write_bstrList_to_file(struct bstrList* list, char* filename);
 
 #ifdef __cplusplus
 }

@@ -414,6 +414,7 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     struct tagbstring biterations = bsStatic("--iterations");
     struct tagbstring bruntime = bsStatic("--runtime");
     struct tagbstring btrue = bsStatic("1");
+    struct tagbstring bcompiler = bsStatic("--compiler");
     for (int i = 0; i < options->num_options; i++)
     {
         CliOption* opt = &options->options[i];
@@ -477,6 +478,12 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
         {
             btrunc(runcfg->arraysize, 0);
             bconcat(runcfg->arraysize, opt->value);
+        }
+        
+        if (bstrcmp(opt->name, &bcompiler) == BSTR_OK && blength(opt->value) > 0)
+        {
+            btrunc(runcfg->compiler, 0);
+            bconcat(runcfg->compiler, opt->value);
         }
 
         if (bstrcmp(opt->name, &biterations) == BSTR_OK && blength(opt->value) > 0)

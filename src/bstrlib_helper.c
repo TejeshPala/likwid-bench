@@ -235,6 +235,7 @@ bstring read_file(char *filename)
         ret = fread(buf, 1, sizeof(buf), fp);
         if (ret < 0) {
             fprintf(stderr, "fread(%p, 1, %lu, %p): %d, errno=%d\n", buf, sizeof(buf), fp, ret, errno);
+            fclose(fp);
             return content;
         }
         else if (ret == 0) {
@@ -242,7 +243,38 @@ bstring read_file(char *filename)
         }
         bcatblk(content, buf, ret);
     }
+    fclose(fp);
     return content;
+}
+
+int write_bstrList_to_file(struct bstrList* list, char* filename)
+{
+    int ret = 0;
+    char newline = '\n';
+    FILE* fp = NULL;
+    size_t (*myfwrite)(const void *ptr, size_t size, size_t nmemb, FILE *stream) = fwrite;
+    fp = fopen(filename, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "fopen(%s): errno=%d\n", filename, errno);
+        return -1;
+    }
+    for (int i = 0; i < list->qty; i++)
+    {
+        ret = myfwrite(bdata(list->entry[i]), 1, blength(list->entry[i]) * sizeof(char), fp);
+        if (ret < 0) {
+            fprintf(stderr, "fwrite(%p, 1, %lu, %p): %d, errno=%d\n", bdata(list->entry[i]), blength(list->entry[i]) * sizeof(char), fp, ret, errno);
+            fclose(fp);
+            return -1;
+        }
+        ret = myfwrite(&newline, 1, sizeof(char), fp);
+        if (ret < 0) {
+            fprintf(stderr, "fwrite(%p, 1, %lu, %p): %d, errno=%d\n", &newline, sizeof(char), fp, ret, errno);
+            fclose(fp);
+            return -1;
+        }
+    }
+    fclose(fp);
+    return 0;
 }
 
 int batoi(bstring b, int* value)
