@@ -240,7 +240,6 @@ typedef struct {
     int num_threads;
     int* hwthreads;
     RuntimeWorkgroupResult* results;
-    pthread_t *threads;
     RuntimeWorkgroupResult* group_results;
     int num_streams;
     RuntimeStreamConfig* streams;

@@ -86,7 +86,6 @@ int resolve_workgroup(RuntimeWorkgroupConfig* wg, int maxThreads)
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Workgroup string %s resolves to %d threads, bdata(wg->str), nthreads);
     wg->num_threads = nthreads;
-    wg->threads = NULL;
     return 0;
 }
 

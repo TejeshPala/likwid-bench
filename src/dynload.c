@@ -69,12 +69,14 @@ int open_function(RuntimeWorkgroupConfig *wcfg)
     if (!ownaccess(bdata(wcfg->testconfig.objfile), F_OK))
     {
         dlerror();
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Opening object file %s, bdata(wcfg->testconfig.objfile));
         wcfg->testconfig.dlhandle = owndlopen(bdata(wcfg->testconfig.objfile), RTLD_LAZY);
         if (!wcfg->testconfig.dlhandle) {
             ERROR_PRINT(Error dynloading file %s: %s, bdata(wcfg->testconfig.objfile), dlerror());
             return -1;
         }
         dlerror();
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Loading function %s from object file %s, bdata(wcfg->testconfig.functionname), bdata(wcfg->testconfig.objfile));
         wcfg->testconfig.function = owndlsym(wcfg->testconfig.dlhandle, bdata(wcfg->testconfig.functionname));
         if ((error = dlerror()) != NULL)  {
             dlclose(wcfg->testconfig.dlhandle);
@@ -82,6 +84,7 @@ int open_function(RuntimeWorkgroupConfig *wcfg)
             ERROR_PRINT(Error dynloading function %s from file %s: %s, bdata(wcfg->testconfig.functionname), bdata(wcfg->testconfig.objfile), error);
             return -1;
         }
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Function pointer %p, wcfg->testconfig.function);
         dlerror();
     }
     else
@@ -130,7 +133,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
     bstring asmfile = NULL;
     bstring objfile = NULL;
     struct bstrList* wcodelines = NULL;
-    bstring flags = bfromcstr("");
+    bstring flags = bfromcstr("-fPIC -shared");
     bstring compiler = get_compiler(rcfg->compiler);
     if (!compiler)
     {
@@ -167,6 +170,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
 
     for (int i = 0; i < wcodelines->qty; i++)
     {
+        if (bchar(wcodelines->entry[i], 0) == '#') continue;
         for (int j = sorted_valkeys->qty - 1; j >= 0; j--)
         {
             if (binstr(wcodelines->entry[i], 0, sorted_valkeys->entry[j]) == BSTR_OK)
@@ -231,6 +235,17 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
     }
     bdestroy(cmd);
     bdestroy(asmfile);
+    if (global_verbosity == DEBUGLEV_DEVELOP)
+    {
+        for (int i = 0; i < wcodelines->qty; i++)
+        {
+            btrimws(wcodelines->entry[i]);
+            if (blength(wcodelines->entry[i]) > 0)
+            {
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Code WG (%s): %s, bdata(wcfg->str), bdata(wcodelines->entry[i]));
+            }
+        }
+    }
     bstrListDestroy(wcodelines);
 
     wcfg->testconfig.objfile = objfile;

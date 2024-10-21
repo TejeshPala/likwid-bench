@@ -98,11 +98,6 @@ void free_runtime_config(RuntimeConfig* runcfg)
                     free(runcfg->wgroups[i].results);
                     runcfg->wgroups[i].results = NULL;
                 }
-                if (runcfg->wgroups[i].threads)
-                {
-                    free(runcfg->wgroups[i].threads);
-                    runcfg->wgroups[i].threads = NULL;
-                }
                 if (runcfg->wgroups[i].hwthreads)
                 {
                     free(runcfg->wgroups[i].hwthreads);
@@ -492,13 +487,16 @@ int main(int argc, char** argv)
     /*
      * Prepare thread runtime info
      */
-
-    err = create_threads(runcfg->num_wgroups, runcfg->wgroups->tgroups);
-    if (err < 0)
-    {   
-        ERROR_PRINT(Error creating thread);
-        destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups->tgroups);
-        goto main_out;
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        err = create_threads(1, wg->tgroups);
+        if (err < 0)
+        {   
+            ERROR_PRINT(Error creating thread);
+            destroy_tgroups(1, wg->tgroups);
+            goto main_out;
+        }
     }
 
     /* Send LIKWID CMD's */
@@ -522,10 +520,14 @@ int main(int argc, char** argv)
      */
     for (int w = 0; w < runcfg->num_wgroups; w++)
     {
-        RuntimeThreadgroupConfig* group = &runcfg->wgroups->tgroups[w];
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        RuntimeThreadgroupConfig* group = wg->tgroups;
         for (int i = 0; i < group->num_threads; i++)
         {
-            err = send_cmd(LIKWID_THREAD_COMMAND_RUN, &group->threads[i]);
+            RuntimeThreadConfig* thread =  &group->threads[i];
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting threads run command function to %p, wg->testconfig.function);
+            thread->command->cmdfunc.run = wg->testconfig.function;
+            err = send_cmd(LIKWID_THREAD_COMMAND_RUN, thread);
             if (err < 0)
             {
                 ERROR_PRINT(Error communicating with threads);
