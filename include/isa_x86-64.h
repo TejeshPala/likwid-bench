@@ -72,7 +72,7 @@ int header(struct bstrList* code, bstring funcname)
 
 int footer(struct bstrList* code, bstring funcname)
 {
-    bstring line = bformat(".size %s, .-%s", funcname, funcname);
+    bstring line = bformat(".size %s, .-%s", bdata(funcname), bdata(funcname));
     bstrListAddChar(code, "pop r15");
     bstrListAddChar(code, "pop r14");
     bstrListAddChar(code, "pop r13");

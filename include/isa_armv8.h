@@ -120,7 +120,7 @@ int footer(struct bstrList* code, bstring funcname)
 
     bstrListAddChar(code, "ret");
 
-    bstring line = bformat(".size kernelfunction, .-kernelfunction");
+    bstring line = bformat(".size %s, .-%s", bdata(funcname), bdata(funcname));
     bstrListAdd(code, line);
     bdestroy(line);
 
