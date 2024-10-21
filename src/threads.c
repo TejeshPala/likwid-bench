@@ -34,7 +34,7 @@
 #ifdef __linux__
 #define gettid() syscall(SYS_gettid)
 #else
-#define gettid() pthread_self()
+#define gettid() getpid()
 #endif
 
 int destroy_tgroups(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
