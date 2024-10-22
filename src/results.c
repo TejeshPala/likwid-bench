@@ -496,6 +496,40 @@ int add_value(RuntimeWorkgroupResult* result, bstring name, double value)
     return 0;
 }
 
+int update_value(RuntimeWorkgroupResult* result, bstring name, double value)
+{
+    int err = 0;
+    bstring v = NULL;
+    if ((!result) || (!result->values) || (!name))
+    {
+        return -EINVAL;
+    }
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Searching for value %s, bdata(name));
+    bstring old_v = NULL;
+    err = get_bmap_by_key(result->values, name, (void**)&old_v);
+    if (err == 0)
+    {
+        v = bformat("%f", value);
+        if (v)
+        {
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Updating value %s -> %s, bdata(name), bdata(v));
+            err = update_bmap(result->values, name, (void*)v, (void**)&old_v);
+            bdestroy(old_v);
+            if (err < 0)
+            {
+                ERROR_PRINT(Failed updating value %s = %s, bdata(name), bdata(v));
+                return 0;
+            }
+        }
+    }
+    else
+    {
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Unable to update %s, bdata(name));
+        return -ENOENT;
+    }
+    return 0;
+}
+
 int add_variable(RuntimeWorkgroupResult* result, bstring name, bstring value)
 {
     int err = 0;
@@ -575,7 +609,7 @@ static void replace_all_cb(mpointer key, mpointer value, mpointer user_data)
         }
     }
 
-    if (bstrncmp(bkey, data->formula, blength(bkey)) == BSTR_OK)
+    if (binstr(data->formula, 0, bkey) != BSTR_ERR)
     {
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing '%s' with '%s' in '%s', bdata(bkey), bdata(bval), bdata(data->formula));
         err = bfindreplace(data->formula, bkey, bval, 0);
@@ -655,6 +689,7 @@ int fill_results(RuntimeConfig* runcfg)
     struct tagbstring bgroupid = bsStatic("GROUP_ID");
     struct tagbstring bthreadid = bsStatic("THREAD_ID");
     struct tagbstring bthreadcpu = bsStatic("THREAD_CPU"); 
+    struct tagbstring bglobalid = bsStatic("GLOBAL_ID");
 
     for (int i = 0; i < runcfg->num_params; i++)
     {
@@ -700,25 +735,35 @@ int fill_results(RuntimeConfig* runcfg)
     {
         RuntimeWorkgroupConfig *wgroup = &runcfg->wgroups[i];
 
-        bstring x = bformat("%d", wgroup->num_threads);
-        add_variable(wgroup->group_results, &bnumthreads, x);
-        bdestroy(x);
-
-        x = bformat("%d", i);
-        add_variable(wgroup->group_results, &bgroupid, x);
-        bdestroy(x);
-
         for (int j = 0; j < wgroup->num_threads; j++)
         {
+            bstring x = bformat("%d", wgroup->num_threads);
+            add_variable(&wgroup->results[j], &bnumthreads, x);
+            bdestroy(x);
+
+            x = bformat("%d", i);
+            add_variable(&wgroup->results[j], &bgroupid, x);
+            bdestroy(x);
+
+            int global_id = total_threads + j;
+            x = bformat("%d", global_id);
+            add_variable(&wgroup->results[j], &bglobalid, x);
+            bdestroy(x);
+
             x = bformat("%d", j);
-            add_variable(wgroup->group_results, &bthreadid, x);
+            add_variable(&wgroup->results[j], &bthreadid, x);
             bdestroy(x);
 
             x = bformat("%d", wgroup->hwthreads[j]);
-            add_variable(wgroup->group_results, &bthreadcpu, x);
+            add_variable(&wgroup->results[j], &bthreadcpu, x);
             bdestroy(x);
+
         }
+        total_threads += wgroup->num_threads;
     }
+    bstring x = bformat("%d", total_threads);
+    add_variable(runcfg->global_results, &bnumthreads, x);
+    bdestroy(x);
     return 0;
 }
 

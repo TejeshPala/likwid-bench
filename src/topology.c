@@ -443,7 +443,7 @@ int check_hwthreads()
         LikwidBenchHwthread* tmpList = malloc(numThreads * sizeof(LikwidBenchHwthread));
         if (!tmpList)
         {
-            printf("failed to allocate tmpList\n");
+            ERROR_PRINT(Failed to allocate tmpList);
             return -ENOMEM;
         }
         memset(tmpList, 0, numThreads * sizeof(LikwidBenchHwthread));
@@ -478,7 +478,7 @@ int check_hwthreads()
         _hwthreads = malloc(tmpCount * sizeof(LikwidBenchHwthread));
         if (!_hwthreads)
         {
-            printf("failed to allocate _hwthreads\n");
+            ERROR_PRINT(Failed to allocate _hwthreads);
             return -ENOMEM;
         }
         memset(_hwthreads, 0, tmpCount * sizeof(LikwidBenchHwthread));
@@ -1274,7 +1274,7 @@ int read_flags_line(int cpu_id, bstring* flagline)
     struct tagbstring nameString = bsStatic("CPU part");
     struct tagbstring steppingString = bsStatic("CPU revision");
     struct tagbstring flagString = bsStatic("Features");
-#elif defined(_ARCH_PPC)
+#elif defined(_ARCH_PPC) || defined(__powerpc) || defined(__ppc__) || defined(__PPC__)
     struct tagbstring vendorString = bsStatic("vendor_id");
     struct tagbstring familyString = bsStatic("cpu family");
     struct tagbstring modelString = bsStatic("cpu");
@@ -1370,7 +1370,7 @@ int read_flags_line(int cpu_id, bstring* flagline)
                 bconcat(*flagline, cpu_info[i].ProcInfo.flags);
             }
 
-            if (DEBUGLEV_DEVELOP)
+            if (global_verbosity == DEBUGLEV_DEVELOP)
             {
                 printf("CPU processor\t: %s\n", bdata(cpu_info[i].processor));
                 printf("CPU vendor\t: %s\n", bdata(cpu_info[i].ProcInfo.vendor));
@@ -1431,7 +1431,7 @@ int get_feature_flags(int cpu_id, struct bstrList** outlist)
     *outlist = bstrListCopy(blist);
     bstrListDestroy(blist);
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Available flags are );
-    if (DEBUGLEV_DEVELOP) bstrListPrint(*outlist);
+    if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(*outlist);
 
     return 0;
 }
@@ -1498,7 +1498,7 @@ int read_cpu_cores(bstring fname, Bitmap* bm)
         }
     }
 
-    if (DEBUGLEV_DEVELOP)
+    if (global_verbosity == DEBUGLEV_DEVELOP)
     {
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Bits set for %s, bdata(fname));
         print_set_bits(bm);

@@ -9,7 +9,7 @@ INC_DIR    = ./include
 MAKE_DIR   = ./make
 Q         ?= @
 
-include $(MAKE_DIR)/include_$(strip $(COMPILER)).mk $(MAKE_DIR)/test-float16.mk
+include $(MAKE_DIR)/include_$(strip $(COMPILER)).mk $(MAKE_DIR)/test-float16.mk $(MAKE_DIR)/config-checks.mk
 INCLUDES  += -g -I$(INC_DIR) -I$(BUILD_DIR) -I$(HWLOC_INCLUDE_DIR)
 LIBDIRS   += -L$(HWLOC_LIB_DIR)
 LIBS      += -lm  -ldl $(HWLOC_LIB_DIR)/$(STATIC_LIBHWLOC)

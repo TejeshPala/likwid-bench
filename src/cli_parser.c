@@ -258,7 +258,7 @@ static void set_required_argument(CliOption* x, bstring arg)
     {
         btrunc(x->value, 0);
     }
-    printf("Set argument for %s/%s: %s\n", bdata(x->symbol), bdata(x->name), bdata(arg));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Set argument for %s/%s: %s, bdata(x->symbol), bdata(x->name), bdata(arg));
     bconcat(x->value, arg);
 }
 
@@ -268,7 +268,7 @@ static void add_multi_argument(bstring combine, bstring arg)
     {
         bconchar(combine, ' ');
     }
-    printf("Add argument for multi_argument %s\n", bdata(arg));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Add argument for multi_argument %s, bdata(arg));
     bconcat(combine, arg);
 }
 

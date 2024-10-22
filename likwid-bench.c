@@ -8,9 +8,7 @@
 #include "error.h"
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
-
-
-
+#include "calculator.h"
 #include "test_types.h"
 #include "read_yaml_ptt.h"
 #include "cli_parser.h"
@@ -27,7 +25,7 @@
 #endif
 
 #ifndef global_verbosity
-int global_verbosity = DEBUGLEV_DEVELOP;
+int global_verbosity = DEBUGLEV_ONLY_ERROR;
 #endif
 
 static struct tagbstring app_title = bsStatic("likwid-bench");
@@ -198,6 +196,7 @@ int main(int argc, char** argv)
     addConstCliOptions(&baseopts, &basecliopts);
 /*    bstring bccflags = bfromcstr("-fPIC -shared");*/
 
+    calculator_init();
     bstring arch = get_architecture();
 #ifdef LIKWIDBENCH_KERNEL_FOLDER
     bstring kernelfolder = bformat("%s/%s/", TOSTRING(LIKWIDBENCH_KERNEL_FOLDER), bdata(arch));
@@ -501,9 +500,16 @@ int main(int argc, char** argv)
         goto main_out;
     }
 
+    err = update_results(runcfg, runcfg->num_wgroups, runcfg->wgroups);
+    if (err != 0)
+    {
+        ERROR_PRINT(Error updating results);
+    }
+
     /*
      * Free arrays
      */
+    release_streams(runcfg->num_wgroups, runcfg->wgroups);
 
     /*
      * Destroy threads
@@ -526,6 +532,9 @@ int main(int argc, char** argv)
 #ifdef LIKWID_USE_HWLOC
     hwloc_topology_destroy(topo);
 #endif
+     
+     printf("Global Results\n");
+     print_result(runcfg->global_results);
 
 main_out:
     DEBUG_PRINT(DEBUGLEV_DEVELOP, MAIN_OUT);
