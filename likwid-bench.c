@@ -273,7 +273,6 @@ int main(int argc, char** argv)
     }
 
 #ifdef LIKWID_USE_HWLOC
-    hwloc_topology_t topo = NULL;
     hwloc_obj_t obj = NULL;
     hwloc_topology_init(&topo);
     hwloc_topology_load(topo);

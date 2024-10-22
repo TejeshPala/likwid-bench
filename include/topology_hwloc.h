@@ -7,12 +7,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "topology.h"
+#include "error.h"
+#include "bstrlib.h"
+#include "bstrlib_helper.h"
+
 #ifdef LIKWID_USE_HWLOC
 #include "hwloc.h"
+
+extern hwloc_topology_t topo;
 
 int collect_cpuinfo(hwloc_topology_t topo, RuntimeConfig* runcfg);
 void print_cpuinfo(hwloc_topology_t topo);
 void print_topology(hwloc_topology_t topo);
+
+int cpustr_to_cpulist_hwloc(bstring cpustr, int* list, int length);
 
 #endif
 

@@ -760,7 +760,7 @@ int cpustr_to_cpulist_physical(bstring cpustr, int* list, int length)
     return idx;
 }
 
-static int resolve_list(bstring bstr, int* outLength, int** outList)
+int resolve_list(bstring bstr, int* outLength, int** outList)
 {
     int len = 0;
     int *list = NULL;

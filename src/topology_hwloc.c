@@ -16,6 +16,10 @@
 #include "topology_hwloc.h"
 #endif
 
+#define MIN(a,b) ((a < b) ? a : b)
+
+hwloc_topology_t topo;
+
 int collect_cpuinfo(hwloc_topology_t topo, RuntimeConfig* runcfg)
 {
     FILE *file = fopen("/proc/cpuinfo", "r");
@@ -201,4 +205,272 @@ void print_topology(hwloc_topology_t topo)
         hwloc_obj_t core = hwloc_get_ancestor_obj_by_type(topo, HWLOC_OBJ_CORE, pu);
         printf("%d\t\t%d\t%d\n", pu->os_index, socket ? socket->os_index : -1, core ? core->os_index : -1);
     }
+}
+
+int cpustr_to_cpulist_physical_hwloc(bstring cpustr, int* list, int length)
+{
+    int idx = 0;
+    struct bstrList* blist = bsplit(cpustr, ',');
+
+    for (int i = 0; i < blist->qty; i++)
+    {
+        int start = 0, end = 0;
+        int c = sscanf(bdata(blist->entry[i]), "%d-%d", &start, &end);
+        if (c == 2)
+        {
+            if (start < end)
+            {
+                for (int j = start; j <= end && idx < length; j++)
+                {
+                    hwloc_obj_t obj = hwloc_get_pu_obj_by_os_index(topo, j);
+                    if (obj)
+                    {
+                        list[idx++] = obj->os_index;
+                    }
+                }
+            }
+            else
+            {
+                for (int j = start; j >= end && idx < length; j--)
+                {
+                    hwloc_obj_t obj = hwloc_get_pu_obj_by_os_index(topo, j);
+                    if (obj)
+                    {
+                        list[idx++] = obj->os_index;
+                    }
+                }
+            }
+        }
+        else if (c == 1)
+        {
+            hwloc_obj_t obj = hwloc_get_pu_obj_by_os_index(topo, start);
+            if (obj && idx < length)
+            {
+                list[idx++] = obj->os_index;
+            }
+        }
+    }
+
+    bstrListDestroy(blist);
+    return idx;
+}
+
+int cpustr_to_cpulist_expression_hwloc(bstring cpustr, int* list, int length)
+{
+    int ret = 0;
+    int outcount = 0;
+    char domain = 'X';
+    int domIdx = -1;
+    int count = 0;
+    int chunk = -1;
+    int stride = -1;
+
+    int c = sscanf(bdata(cpustr), "E:%c:%d:%d:%d", &domain, &count, &chunk, &stride);
+    if (domain != 'N' && count == 0)
+    {
+        c = sscanf(bdata(cpustr), "E:%c:%d:%d:%d:%d", &domain, &domIdx, &count, &chunk, &stride);
+    }
+
+    if (domain == 'X' && count == 0)
+    {
+        return -EINVAL;
+    }
+
+    if ((domain == 'S' || domain == 'M' || domain == 'D') && domIdx < 0)
+    {
+        return -EINVAL;
+    }
+
+    hwloc_bitmap_t cpuset = hwloc_bitmap_alloc();
+    if (!cpuset)
+    {
+        return -ENOMEM;
+    }
+    hwloc_obj_t obj = NULL;
+
+    switch (domain)
+    {
+        case 'N':
+            hwloc_bitmap_copy(cpuset, hwloc_topology_get_topology_cpuset(topo));
+            break;
+        case 'S':
+            obj = hwloc_get_obj_by_type(topo, HWLOC_OBJ_PACKAGE, domIdx);
+            if (obj)
+            {
+                hwloc_bitmap_copy(cpuset, obj->cpuset);
+            }
+            break;
+        case 'M':
+            obj = hwloc_get_obj_by_type(topo, HWLOC_OBJ_NUMANODE, domIdx);
+            if (obj)
+            {
+                hwloc_bitmap_copy(cpuset, obj->cpuset);
+            }
+            break;
+        case 'D':
+            hwloc_topology_set_type_filter(topo, HWLOC_OBJ_DIE, HWLOC_TYPE_FILTER_KEEP_ALL);
+            obj = hwloc_get_obj_by_depth(topo, HWLOC_OBJ_DIE, domIdx);
+            if (obj)
+            {
+                hwloc_bitmap_copy(cpuset, obj->cpuset);
+            }
+            break;
+    }
+
+    ret = hwloc_bitmap_iszero(cpuset);
+    if (ret)
+    {
+        hwloc_bitmap_free(cpuset);
+        return -EINVAL;
+    }
+
+    int looplength = MIN(length, hwloc_bitmap_weight(cpuset));
+    if (count > 0)
+    {
+        looplength = MIN(count, looplength);
+    }
+
+    unsigned int cpu_id;
+    if (stride == -1 && chunk == -1)
+    {
+        hwloc_bitmap_foreach_begin(cpu_id, cpuset)
+        {
+            if (outcount >= length)
+            {
+                break;
+            }
+            list[outcount++] = cpu_id;
+        } hwloc_bitmap_foreach_end();
+    }
+    else
+    {
+        int tmpcount = looplength;
+        while (tmpcount > 0)
+        {
+            hwloc_bitmap_foreach_begin(cpu_id, cpuset)
+            {
+                if (tmpcount <= 0)
+                {
+                    break;
+                }
+                for (int j = 0; j < chunk && tmpcount > 0; j++)
+                {
+                    if (hwloc_bitmap_isset(cpuset, cpu_id + j))
+                    {
+                        list[outcount++] = cpu_id + j;
+                        tmpcount--;
+                    }
+                }
+                cpu_id += stride - 1;
+            } hwloc_bitmap_foreach_end();
+        }
+    }
+
+    hwloc_bitmap_free(cpuset);
+    return outcount;
+}
+
+int cpustr_to_cpulist_logical_hwloc(bstring cpustr, int* list, int length)
+{
+    struct tagbstring bcolon = bsStatic(":");
+    char domain = 'X';
+    int domIdx = -1;
+    int count = 0;
+    int colon = binchr(cpustr, 0, &bcolon);
+    bstring bdomain = bmidstr(cpustr, 0, colon);
+    bstring blist = bmidstr(cpustr, colon + 1, blength(cpustr) - colon);
+
+    sscanf(bdata(bdomain), "%c%d", &domain, &domIdx);
+
+    hwloc_bitmap_t cpuset = hwloc_bitmap_alloc();
+    hwloc_obj_t obj = NULL;
+
+    switch (domain)
+    {
+        case 'N':
+            hwloc_bitmap_copy(cpuset, hwloc_topology_get_topology_cpuset(topo));
+            break;
+        case 'S':
+            obj = hwloc_get_obj_by_type(topo, HWLOC_OBJ_PACKAGE, domIdx);
+            if (obj)
+            {
+                hwloc_bitmap_copy(cpuset, obj->cpuset);
+            }
+            break;
+        case 'M':
+            obj = hwloc_get_obj_by_type(topo, HWLOC_OBJ_NUMANODE, domIdx);
+            if (obj)
+            {
+                hwloc_bitmap_copy(cpuset, obj->cpuset);
+            }
+            break;
+        case 'D':
+            hwloc_topology_set_type_filter(topo, HWLOC_OBJ_DIE, HWLOC_TYPE_FILTER_KEEP_ALL);
+            obj = hwloc_get_obj_by_depth(topo, HWLOC_OBJ_DIE, domIdx);
+            if (obj)
+            {
+                hwloc_bitmap_copy(cpuset, obj->cpuset);
+            }
+            break;
+    }
+
+    int ret = hwloc_bitmap_iszero(cpuset);
+    if (ret)
+    {
+        hwloc_bitmap_free(cpuset);
+        bdestroy(bdomain);
+        bdestroy(blist);
+        return -EINVAL;
+    }
+
+    int* idxList = NULL;
+    int idxLen = 0;
+    ret = resolve_list(blist, &idxLen, &idxList);
+    if (ret != 0)
+    {
+        hwloc_bitmap_free(cpuset);
+        bdestroy(bdomain);
+        bdestroy(blist);
+        return -EINVAL;
+    }
+
+    int outcount = 0;
+    int idx = 0;
+    unsigned int cpu_id;
+    hwloc_bitmap_foreach_begin(cpu_id, cpuset)
+    {
+        if (idx >= idxLen || outcount >= length)
+        {
+            break;
+        }
+        if (idx == idxList[outcount])
+        {
+            list[outcount++] = cpu_id;
+        }
+        idx++;
+    } hwloc_bitmap_foreach_end();
+
+    hwloc_bitmap_free(cpuset);
+    bdestroy(bdomain);
+    bdestroy(blist);
+    free(idxList);
+    return outcount;
+}
+
+int cpustr_to_cpulist_hwloc(bstring cpustr, int* list, int length)
+{
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Using hwloc lib for cpustr);
+    if (bchar(cpustr, 0) == 'E')
+    {
+        return cpustr_to_cpulist_expression_hwloc(cpustr, list, length);
+    }
+    else if (bstrchrp(cpustr, ':', 0) >= 0)
+    {
+        return cpustr_to_cpulist_logical_hwloc(cpustr, list, length);
+    }
+    else
+    {
+        return cpustr_to_cpulist_physical_hwloc(cpustr, list, length);
+    }
+    return -EINVAL;
 }

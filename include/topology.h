@@ -38,6 +38,7 @@ extern struct tagbstring _topology_interesting_flags[];
 
 int check_hwthreads();
 int get_num_hw_threads();
+int resolve_list(bstring bstr, int* outLength, int** outList);
 int cpustr_to_cpulist(bstring cpustr, int* list, int length);
 void destroy_hwthreads();
 
