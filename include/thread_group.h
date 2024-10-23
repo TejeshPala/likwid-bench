@@ -42,13 +42,13 @@
 
 #define MIN_ITERATIONS 100
 #define MIN_RUNTIME 0.2
-#define TIMEOUT_SECONDS 5
+#define TIMEOUT_SECONDS 30
 
 int send_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread);
-int destroy_tgroups(int num_wgroups, RuntimeThreadgroupConfig* thread_groups);
-int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread_groups);
-int create_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups);
-int join_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups);
+int destroy_tgroups(int num_wgroups, RuntimeWorkgroupConfig* wgroups);
+int update_thread_group(RuntimeConfig* runcfg);
+int create_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups);
+int join_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups);
 double bench(int (*fn)(int num_wgroups, RuntimeThreadgroupConfig* thread_groups), int num_wgroups, RuntimeThreadgroupConfig* thread_groups, RuntimeConfig* runcfg);
 
 #endif /* THREAD_GROUP_H */

@@ -447,7 +447,7 @@ int main(int argc, char** argv)
     /*
      * Start threads
      */
-    err = update_thread_group(runcfg, &runcfg->wgroups->tgroups);
+    err = update_thread_group(runcfg);
     if (err < 0)
     {
         ERROR_PRINT(Error updating thread groups);
@@ -458,25 +458,26 @@ int main(int argc, char** argv)
      * Prepare thread runtime info
      */
 
-    err = create_threads(runcfg->num_wgroups, runcfg->wgroups->tgroups);
+    err = create_threads(runcfg->num_wgroups, runcfg->wgroups);
     if (err < 0)
     {   
         ERROR_PRINT(Error creating thread);
-        destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups->tgroups);
+        destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups);
         goto main_out;
     }
 
     /* Send LIKWID CMD's */
     for (int w = 0; w < runcfg->num_wgroups; w++)
     {
-        RuntimeThreadgroupConfig* group = &runcfg->wgroups->tgroups[w];
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        RuntimeThreadgroupConfig* group = wg->tgroups;
         for (int i = 0; i < group->num_threads; i++)
         {
             err = send_cmd(LIKWID_THREAD_COMMAND_INITIALIZE, &group->threads[i]);
             if (err < 0)
             {
                 ERROR_PRINT(Error communicating with threads);
-                destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups->tgroups);
+                destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups);
                 goto main_out;
             }
         }
@@ -493,7 +494,7 @@ int main(int argc, char** argv)
     //}
     // command loop for threads
 
-    err = join_threads(runcfg->num_wgroups, runcfg->wgroups->tgroups);
+    err = join_threads(runcfg->num_wgroups, runcfg->wgroups);
     if (err < 0)
     {
         ERROR_PRINT(Error joining threads);
@@ -514,7 +515,7 @@ int main(int argc, char** argv)
     /*
      * Destroy threads
      */
-    err = destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups->tgroups);
+    err = destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups);
     if (err != 0)
     {
         ERROR_PRINT(Error destroying thread groups);
