@@ -727,7 +727,7 @@ int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread
                 err = calculator_calc(bdata(boffsets), &offsets_value);
                 if (err == 0)
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Calculated formula '%s' - sizes value: %lf, bdata(boffsets), offsets_value);
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Calculated formula '%s' - offsets value: %lf, bdata(boffsets), offsets_value);
                 }
                 else
                 {
