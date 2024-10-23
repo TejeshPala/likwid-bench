@@ -349,7 +349,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
     for (int w = 0; w < num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &wgroups[w];
-        RuntimeThreadgroupConfig* tgroup = &wgroups->tgroups[w];
+        RuntimeThreadgroupConfig* tgroup = wg->tgroups;
         bvalues = calloc(bkeys->qty, sizeof(struct bstrList*));
         if (!bvalues)
         {

@@ -36,40 +36,47 @@
 #define gettid() pthread_self()
 #endif
 
-int destroy_tgroups(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
+int destroy_tgroups(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
 {
     for (int w = 0; w < num_wgroups; w++)
     {
-        RuntimeThreadgroupConfig* group = &thread_groups[w];
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread groups for workgroup %3d, w);
-        pthread_barrier_destroy(&group->barrier.barrier);
-        for (int i = 0; i < group->num_threads; i++)
+        RuntimeWorkgroupConfig* wg = &wgroups[w];
+        if (wg->tgroups)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread group %3d for workgroup %3d, i, w);
-            if (group->threads[i].data)
+            RuntimeThreadgroupConfig* group = wg->tgroups;
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread groups for workgroup %3d, w);
+            pthread_barrier_destroy(&group->barrier.barrier);
+            if (group->threads)
             {
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying data for thread %3d, group->threads[i].local_id);
-                free(group->threads[i].data);
-                group->threads[i].data = NULL;
-            }
-            if (group->threads[i].command)
-            {
-                if (group->threads[i].command->init_val)
+                for (int i = 0; i < group->num_threads; i++)
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying init_val for thread %3d, group->threads[i].local_id);
-                    free(group->threads[i].command->init_val);
-                    group->threads[i].command->init_val = NULL;
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread group %3d for workgroup %3d, i, w);
+                    if (group->threads[i].data)
+                    {
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying data for thread %3d, group->threads[i].local_id);
+                        free(group->threads[i].data);
+                        group->threads[i].data = NULL;
+                    }
+                    if (group->threads[i].command)
+                    {
+                        if (group->threads[i].command->init_val)
+                        {
+                            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying init_val for thread %3d, group->threads[i].local_id);
+                            free(group->threads[i].command->init_val);
+                            group->threads[i].command->init_val = NULL;
+                        }
+                        pthread_mutex_destroy(&group->threads[i].command->mutex);
+                        pthread_cond_destroy(&group->threads[i].command->cond);
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying commands for thread %3d, group->threads[i].local_id);
+                        free(group->threads[i].command);
+                        group->threads[i].command = NULL;
+                    }
                 }
-                pthread_mutex_destroy(&group->threads[i].command->mutex);
-                pthread_cond_destroy(&group->threads[i].command->cond);
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying commands for thread %3d, group->threads[i].local_id);
-                free(group->threads[i].command);
-                group->threads[i].command = NULL;
+                free(group->threads);
             }
+            free(wg->tgroups);
         }
-        free(group->threads);
     }
-    free(thread_groups);
     return 0;
 }
 
@@ -480,9 +487,9 @@ int send_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread)
     return err;
 }
 
-int join_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
+int join_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
 {
-    if (num_wgroups < 0 || !thread_groups)
+    if (num_wgroups < 0 || !wgroups)
     {
         return -1;
     }
@@ -490,7 +497,8 @@ int join_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
     int err = 0;
     for (int w = 0; w < num_wgroups; w++)
     {
-        RuntimeThreadgroupConfig* group = &thread_groups[w];
+        RuntimeWorkgroupConfig* wg = &wgroups[w];
+        RuntimeThreadgroupConfig* group = wg->tgroups;
         for (int i = 0; i < group->num_threads; i++)
         {
             DEBUG_PRINT(DEBUGLEV_DEVELOP, Joining thread %3d in workgroup %3d with thread ID %16ld, group->threads[i].local_id, w, group->threads[i].thread);
@@ -505,9 +513,9 @@ int join_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
     return 0;
 }
 
-int create_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
+int create_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
 {
-    if (num_wgroups < 0 || !thread_groups)
+    if (num_wgroups < 0 || !wgroups)
     {
         return -1;
     }
@@ -515,7 +523,8 @@ int create_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
     int err = 0;
     for (int w = 0; w < num_wgroups; w++)
     {
-        RuntimeThreadgroupConfig* group = &thread_groups[w];
+        RuntimeWorkgroupConfig* wg = &wgroups[w];
+        RuntimeThreadgroupConfig* group = wg->tgroups;
         for (int i = 0; i < group->num_threads; i++)
         {
             RuntimeThreadConfig* thread = &group->threads[i];
@@ -541,26 +550,27 @@ int create_threads(int num_wgroups, RuntimeThreadgroupConfig* thread_groups)
     return 0;
 }
 
-int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread_groups)
+int update_thread_group(RuntimeConfig* runcfg)
 {
     int err = 0;
     int total_threads = 0;
     TestConfigThread* t = runcfg->tcfg->threads;
     static struct tagbstring bnumthreads = bsStatic("NUM_THREADS");
     static struct tagbstring bthreadid = bsStatic("THREAD_ID");
-    RuntimeThreadgroupConfig* temp_groups = (RuntimeThreadgroupConfig*) malloc(runcfg->num_wgroups * sizeof(RuntimeThreadgroupConfig));
-    if (!temp_groups)
-    {
-        ERROR_PRINT(Failed to allocate memory for thread groups);
-        err = -ENOMEM;
-        return err;
-    }
 
     // printf("Num Workgroups: %d\n", runcfg->num_wgroups);
     for (int w = 0; w < runcfg->num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
-        RuntimeThreadgroupConfig* group = &temp_groups[w];
+        wg->tgroups = (RuntimeThreadgroupConfig*) malloc(sizeof(RuntimeThreadgroupConfig));
+        if (!wg->tgroups)
+        {
+            ERROR_PRINT(Failed to allocate memory for thread groups);
+            err = -ENOMEM;
+            goto free;
+        }
+
+        RuntimeThreadgroupConfig* group = wg->tgroups;
         group->num_threads = wg->num_threads;
         // printf("Num threads: %d\n", group->num_threads);
         group->hwthreads = wg->hwthreads;
@@ -723,38 +733,10 @@ int update_thread_group(RuntimeConfig* runcfg, RuntimeThreadgroupConfig** thread
         total_threads += group->num_threads;
     }
 
-    *thread_groups = temp_groups;
     return 0;
 
 free:
-    if (temp_groups)
-    {
-        for (int w = 0; w < runcfg->num_wgroups; w++)
-        {
-            RuntimeThreadgroupConfig* group = &temp_groups[w];
-            pthread_barrier_destroy(&group->barrier.barrier);
-            if (group->threads)
-            {
-                for (int i = 0; i < group->num_threads; i++)
-                {
-                    if (group->threads[i].data)
-                    {
-                        free(group->threads[i].data);
-                    }
-
-                    if (group->threads[i].command)
-                    {
-                        pthread_mutex_destroy(&group->threads[i].command->mutex);
-                        pthread_cond_destroy(&group->threads[i].command->cond);
-                        free(group->threads[i].command);
-                    }
-                }
-                free(group->threads);
-            }
-        }
-        free(temp_groups);
-        temp_groups = NULL;
-    }
+    destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups);
     return err;
 }
 
