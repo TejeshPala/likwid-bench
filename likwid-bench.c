@@ -19,7 +19,7 @@
 #include "topology.h"
 #include "thread_group.h"
 
-#ifdef LIKWID_USE_HWLOC
+#ifdef LIKWIDBENCH_USE_HWLOC
 #include "hwloc.h"
 #include "topology_hwloc.h"
 #endif
@@ -271,7 +271,7 @@ int main(int argc, char** argv)
         goto main_out;
     }
 
-#ifdef LIKWID_USE_HWLOC
+#ifdef LIKWIDBENCH_USE_HWLOC
     hwloc_obj_t obj = NULL;
     hwloc_topology_init(&topo);
     hwloc_topology_load(topo);
@@ -530,7 +530,7 @@ int main(int argc, char** argv)
      * Print everything
      */
 
-#ifdef LIKWID_USE_HWLOC
+#ifdef LIKWIDBENCH_USE_HWLOC
     hwloc_topology_destroy(topo);
 #endif
      

@@ -15,7 +15,7 @@
 #include "map.h"
 #include "calculator.h"
 
-#ifdef LIKWID_USE_HWLOC
+#ifdef LIKWIDBENCH_USE_HWLOC
 #include "hwloc.h"
 #include "topology_hwloc.h"
 #endif
@@ -82,7 +82,7 @@ int resolve_workgroup(RuntimeWorkgroupConfig* wg, int maxThreads)
     }
 
     int nthreads = 0;
-#ifdef LIKWID_USE_HWLOC
+#if defined(LIKWIDBENCH_USE_HWLOC) && !defined(LIKWIDBENCH_NO_HWLOC)
     nthreads = cpustr_to_cpulist_hwloc(wg->str, wg->hwthreads, maxThreads);
 #else
     nthreads = cpustr_to_cpulist(wg->str, wg->hwthreads, maxThreads);

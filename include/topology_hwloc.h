@@ -12,7 +12,7 @@
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
 
-#ifdef LIKWID_USE_HWLOC
+#ifdef LIKWIDBENCH_USE_HWLOC
 #include "hwloc.h"
 
 extern hwloc_topology_t topo;

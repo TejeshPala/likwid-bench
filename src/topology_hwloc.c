@@ -11,7 +11,7 @@
 #include "topology.h"
 #include "test_types.h"
 
-#ifdef LIKWID_USE_HWLOC
+#ifdef LIKWIDBENCH_USE_HWLOC
 #include "hwloc.h"
 #include "topology_hwloc.h"
 #endif
@@ -459,7 +459,7 @@ int cpustr_to_cpulist_logical_hwloc(bstring cpustr, int* list, int length)
 
 int cpustr_to_cpulist_hwloc(bstring cpustr, int* list, int length)
 {
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Using hwloc lib for cpustr);
+    printf("Using hwloc lib for cpustr\n");
     if (bchar(cpustr, 0) == 'E')
     {
         return cpustr_to_cpulist_expression_hwloc(cpustr, list, length);

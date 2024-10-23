@@ -1067,6 +1067,7 @@ int cpustr_to_cpulist_expression(bstring cpustr, int* list, int length)
 
 int cpustr_to_cpulist(bstring cpustr, int* list, int length)
 {
+    printf("Using sysfs dir scan for cpustr\n");
     if (bchar(cpustr, 0) == 'E')
     {
         return cpustr_to_cpulist_expression(cpustr, list, length);
