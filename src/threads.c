@@ -176,7 +176,7 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
         size_t elems = getstreamelems(sdata);
         size_t offset;
         size_t size;
-        if (thread->sizes && thread->offsets)
+        if (thread->sizes > 0 && thread->offsets >= 0)
         {
             offset = thread->offsets;
             size = thread->sizes;
@@ -187,7 +187,7 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
             offset = 0;
             size = elems;
         }
-        if (thread->num_threads > 1 && !thread->sizes && !thread->offsets)
+        if (thread->num_threads > 1 && (thread->sizes == 0 && thread->offsets == 0))
         {
             size_t chunk = elems / thread->num_threads;
             size_t rem_chunk = elems % thread->num_threads;
@@ -678,8 +678,8 @@ int update_thread_group(RuntimeConfig* runcfg)
                 replace_all(&t_results, boffsets, NULL);
                 // printf("After replace sizes: %s\n", bdata(bsizes));
                 // printf("After replace offsets: %s\n", bdata(boffsets));
-                double sizes_value;
-                double offsets_value;
+                double sizes_value = 0;
+                double offsets_value = 0;
                 err = calculator_calc(bdata(bsizes), &sizes_value);
                 if (err == 0)
                 {

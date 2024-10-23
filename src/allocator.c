@@ -488,7 +488,7 @@ int _initialize_arrays_1dim(RuntimeStreamConfig *sdata)
         void* tmp = NULL;
         int state = 0;
         size_t elems = getstreamelems(sdata);
-        printf("initialize str %d with %d dimensions and total %lu elements\n", sdata->id, sdata->dims, elems);
+        // printf("initialize str %d with %d dimensions and total %lu elements\n", sdata->id, sdata->dims, elems);
         switch(sdata->type)
         {
             DEFINE_1D_TYPE_CASE_INIT(TEST_STREAM_TYPE_DOUBLE, double)
@@ -528,7 +528,7 @@ int _initialize_arrays_2dim(RuntimeStreamConfig *sdata)
         size_t elems = getstreamelems(sdata);
         size_t size1 = sdata->dimsizes[0] / getsizeof(sdata->type);
         size_t size2 = sdata->dimsizes[1] / getsizeof(sdata->type);
-        printf("initialize str %d with %d dimensions and total %lu elements\n", sdata->id, sdata->dims, elems);
+        // printf("initialize str %d with %d dimensions and total %lu elements\n", sdata->id, sdata->dims, elems);
         switch(sdata->type)
         {
             DEFINE_2D_TYPE_CASE_INIT(TEST_STREAM_TYPE_DOUBLE, double)
@@ -572,7 +572,7 @@ int _initialize_arrays_3dim(RuntimeStreamConfig *sdata)
         size_t size1 = sdata->dimsizes[0] / getsizeof(sdata->type);
         size_t size2 = sdata->dimsizes[1] / getsizeof(sdata->type);
         size_t size3 = sdata->dimsizes[2] / getsizeof(sdata->type);
-        printf("initialize str %d with %d dimensions and total %lu elements\n", sdata->id, sdata->dims, elems);
+        // printf("initialize str %d with %d dimensions and total %lu elements\n", sdata->id, sdata->dims, elems);
         switch(sdata->type)
         {
             DEFINE_3D_TYPE_CASE_INIT(TEST_STREAM_TYPE_DOUBLE, double)
