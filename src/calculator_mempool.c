@@ -6,10 +6,8 @@
 #ifdef CALCULATOR_AS_LIB
 #include <errno.h>
 #endif
-#include "stack.h"
-#include "calculator.h"
-
-
+#include "stack_mempool.h"
+#include "calculator_mempool.h"
 
 
 typedef enum
@@ -100,13 +98,18 @@ number buildNumber(token str)
 	return result;
 }
 
-token num2Str(number num)
+token num2Str(MemPool_t pool, number num)
 {
 	int len = 0;
 	int precision = MAXPRECISION;
 	if (prefs.precision >= 0 && prefs.precision < precision)
 		precision = prefs.precision;
-	token str = (token)malloc(prefs.maxtokenlength*sizeof(char));
+	token str = NULL;
+	int err = mempool_alloc(pool, prefs.maxtokenlength*sizeof(char), (void**)&str);
+	if (err < 0)
+	{
+	    return NULL;
+	}
 	len = snprintf(str, prefs.maxtokenlength-1, "%.*f", precision, num);
 	if (prefs.precision == AUTOPRECISION)
 	{
@@ -129,19 +132,19 @@ number toDegrees(number radians)
 	return radians * 180.0 / PI;
 }
 
-int doFunc(Stack *s, token function)
+int doFunc(MemPool_t pool, Stack *s, token function)
 {
 	if (stackSize(s) == 0)
 	{
 		raise(inputMissing);
-		stackPush(s, num2Str(NAN));
+		stackPush(s, num2Str(pool, NAN));
 		return -EFAULT;
 	}
 	else if (stackSize(s) == 1 && strcmp(stackTop(s), FUNCTIONSEPARATOR) == 0)
 	{
 		stackPop(s);
 		raise(inputMissing);
-		stackPush(s, num2Str(NAN));
+		stackPush(s, num2Str(pool, NAN));
 		return -EFAULT;
 	}
 	else if (stackSize(s) > 2)
@@ -156,7 +159,7 @@ int doFunc(Stack *s, token function)
 	    {
 	        while (stackSize(s) > 0) stackPop(s);
 	        raise(inputMissing);
-		    stackPush(s, num2Str(NAN));
+		    stackPush(s, num2Str(pool, NAN));
 		    return -EFAULT;
 	    }
 	}
@@ -243,8 +246,8 @@ int doFunc(Stack *s, token function)
 		Stack tmp = FRESH_STACK, safe = FRESH_STACK;
 		// Result already initialized with first number
 		counter = 1;
-		stackInit(&tmp, (stackSize(s) > 0 ? stackSize(s) : 1));
-		stackInit(&safe, (stackSize(s) > 0 ? stackSize(s) : 1));
+		stackInit(pool, &tmp, (stackSize(s) > 0 ? stackSize(s) : 1));
+		stackInit(pool, &safe, (stackSize(s) > 0 ? stackSize(s) : 1));
 		// add first value to the later sorted stack
 		stackPush(&tmp, input);
 		while (stackSize(s) > 0  && strcmp(stackTop(s), FUNCTIONSEPARATOR) != 0)
@@ -265,7 +268,7 @@ int doFunc(Stack *s, token function)
 			}
 			counter++;
 		}
-		stackFree(&safe);
+		stackFree(pool, &safe);
 		// calculate the median index
 		counter = (number)(((int)counter+1)/2);
 		// pop all numbers until median index
@@ -280,14 +283,14 @@ int doFunc(Stack *s, token function)
 		{
 			stackPop(&tmp);
 		}
-		stackFree(&tmp);
+		stackFree(pool, &tmp);
 	}
 	else if(strncmp(function, "var", 3) == 0)
 	{
 		Stack tmp = FRESH_STACK;
 		counter = 1;
 		// second stack to store values during calculation of mean
-		stackInit(&tmp, (stackSize(s) > 0 ? stackSize(s) : 1));
+		stackInit(pool, &tmp, (stackSize(s) > 0 ? stackSize(s) : 1));
 		// push first value to temporary stack
 		stackPush(&tmp, input);
 		number mean = result;
@@ -312,15 +315,15 @@ int doFunc(Stack *s, token function)
 		}
 		// determine variance
 		result /= counter;
-		stackFree(&tmp);
+		stackFree(pool, &tmp);
 	}
 	if (strcmp(stackTop(s), FUNCTIONSEPARATOR) == 0)
 		stackPop(s);
-	stackPush(s, num2Str(result));
+	stackPush(s, num2Str(pool, result));
 	return 0;
 }
 
-int doOp(Stack *s, token op)
+int doOp(MemPool_t pool, Stack *s, token op)
 {
 	int err = 0;
 	token roperand = (token)stackPop(s);
@@ -384,7 +387,7 @@ int doOp(Stack *s, token op)
 			}
 			break;
 	}
-	stackPush(s, num2Str(ret));
+	stackPush(s, num2Str(pool, ret));
 	return err;
 }
 
@@ -393,12 +396,17 @@ int doOp(Stack *s, token op)
  * Only parameter is the input stream.
  * Return value is a string. Don't forget to free it.
  */
-char* ufgets(FILE* stream)
+char* ufgets(MemPool_t pool, FILE* stream)
 {
 	unsigned int maxlen = 128, size = 128;
-	char* buffer = (char*)malloc(maxlen);
+	char* buffer = NULL;
+	int err = mempool_alloc(pool, maxlen, (void**)&buffer);
+    if (err < 0)
+    {
+        return NULL;
+    }
 
-	if(buffer != NULL) /* NULL if malloc() fails */
+	if(buffer != NULL) /* NULL if mempool_alloc() fails */
 	{
 		char ch = EOF;
 		int pos = 0;
@@ -410,7 +418,12 @@ char* ufgets(FILE* stream)
 			if(pos == size) /* Next character to be inserted needs more memory */
 			{
 				size = pos + maxlen;
-				buffer = (char*)realloc(buffer, size);
+				err = mempool_realloc(pool, size, (void**)&buffer);
+				if (err < 0 || !buffer)
+				{
+				    if (buffer) mempool_free(pool, buffer);
+				    return NULL;
+				}
 			}
 		}
 		buffer[pos] = '\0'; /* Null-terminate the completed string */
@@ -585,7 +598,7 @@ Symbol tokenType(token tk)
 }
 
 
-int tokenize(char *str, char *(**tokensRef))
+int tokenize(MemPool_t pool, char *str, char *(**tokensRef))
 {
 	int i = 0;
 	char** tokens = NULL;
@@ -605,10 +618,11 @@ int tokenize(char *str, char *(**tokensRef))
 		raise(faultyExpression);
 		return -EFAULT;
 	}
-	char* tmpToken = malloc((prefs.maxtokenlength+1) * sizeof(char));
-	if (!tmpToken)
+	char* tmpToken = NULL;
+	int err = mempool_alloc(pool, (prefs.maxtokenlength+1) * sizeof(char), (void**)&tmpToken);
+	if (err < 0 || !tmpToken)
 	{
-		fprintf(stderr, "Malloc of temporary buffer failed\n");
+		fprintf(stderr, "mempool_alloc of temporary buffer failed\n");
 		return -ENOMEM;
 	}
 	while((ch = *ptr++))
@@ -758,49 +772,54 @@ int tokenize(char *str, char *(**tokensRef))
 				tokens = (char**)malloc(numTokens * sizeof(char*));
 			else*/
 			
-			newToken = malloc((strlen(tmpToken)+1) * sizeof(char));
-			if (!newToken)
+			err = mempool_alloc(pool, (strlen(tmpToken)+1) * sizeof(char), (void**)&newToken);
+			if (err < 0 || !newToken)
 			{
 				numTokens--;
 				break;
 			}
 			strcpy(newToken, tmpToken);
 			newToken[strlen(tmpToken)] = '\0';
-			tmp = (char**)realloc(tokens, numTokens * sizeof(char*));
-			if (tmp == NULL)
+			token *tmp = NULL;
+			err = mempool_alloc(pool, numTokens * sizeof(char*), (void**)&tmp);
+			if (err < 0 || tmp == NULL)
 			{
 				if (tokens != NULL)
 				{
 					for(i=0;i<numTokens-1;i++)
 					{
 						if (tokens[i] != NULL)
-							free(tokens[i]);
+							mempool_free(pool, tokens[i]);
 					}
-					free(tokens);
+					mempool_free(pool, tokens);
 				}
 				*tokensRef = NULL;
-				free(newToken);
-				free(tmpToken);
+				mempool_free(pool, newToken);
+				mempool_free(pool, tmpToken);
 				return -ENOMEM;
 			}
+			for (int i = 0; i < numTokens-1; i++)
+			{
+			    tmp[i] = tokens[i];
+			}
+			mempool_free(pool, tokens);
 			tokens = tmp;
-			tmp = NULL;
 			tokens[numTokens - 1] = newToken;
 		}
 	}
-	free(tmpToken);
+	mempool_free(pool, tmpToken);
 	tmpToken = NULL;
 	if (lparen_count != rparen_count)
 	{
-		for (int i = 0; i < numTokens; i++) free(tokens[i]);
-		free(tokens);
+		for (int i = 0; i < numTokens; i++) mempool_free(pool, tokens[i]);
+		mempool_free(pool, tokens);
 		raise(parenMismatch);
 		return -EFAULT;
 	}
 	if (numTokens == lparen_count + rparen_count + ops_count)
 	{
-		for (int i = 0; i < numTokens; i++) free(tokens[i]);
-		free(tokens);
+		for (int i = 0; i < numTokens; i++) mempool_free(pool, tokens[i]);
+		mempool_free(pool, tokens);
 		raise(faultyExpression);
 		return -EFAULT;
 	}
@@ -857,7 +876,7 @@ int precedence(token op1, token op2)
 	return ret;
 }
 
-int evalStackPush(Stack *s, token val)
+int evalStackPush(MemPool_t pool, Stack *s, token val)
 {
 	int err = 0;
 	if(prefs.display.postfix)
@@ -869,13 +888,13 @@ int evalStackPush(Stack *s, token val)
 			{
 				//token res;
 				//operand = (token)stackPop(s);
-				err = doFunc(s, val);
+				err = doFunc(pool, s, val);
 				if (err < 0)
 				{
 					while (stackSize(s) > 0)
 					{
 						char* t = stackPop(s);
-						free(t);
+						mempool_free(pool, t);
 					}
 					return err;
 				}
@@ -891,7 +910,7 @@ int evalStackPush(Stack *s, token val)
 					// Pop two operands
 
 					// Evaluate
-					err = doOp(s, val);
+					err = doOp(pool, s, val);
 					if (err < 0)
 					{
 						return err;
@@ -917,13 +936,13 @@ int evalStackPush(Stack *s, token val)
 	return 0;
 }
 
-int postfix(token *tokens, int numTokens, Stack *output)
+int postfix(MemPool_t pool, token *tokens, int numTokens, Stack *output)
 {
 	Stack operators = FRESH_STACK, intermediate = FRESH_STACK;
 	int i;
 	int err = 0;
-	stackInit(&operators, numTokens);
-	stackInit(&intermediate, numTokens);
+	stackInit(pool, &operators, numTokens);
+	stackInit(pool, &intermediate, numTokens);
 	for(i = 0; i < numTokens; i++)
 	{
 		// From Wikipedia/Shunting-yard_algorithm:
@@ -933,11 +952,11 @@ int postfix(token *tokens, int numTokens, Stack *output)
 				{
 					// If the token is a number, then add it to the output queue.
 					//printf("Adding number %s to output stack\n", tokens[i]);
-					err = evalStackPush(output, tokens[i]);
+					err = evalStackPush(pool, output, tokens[i]);
 					if (err < 0)
 					{
-						stackFree(&operators);
-						stackFree(&intermediate);
+						stackFree(pool, &operators);
+						stackFree(pool, &intermediate);
 						return err;
 					}
 				}
@@ -949,11 +968,11 @@ int postfix(token *tokens, int numTokens, Stack *output)
 						&& ((precedence(tokens[i], (char*)stackTop(&operators)) <= 0)))
 					{
 						//printf("Moving operator %s from operator stack to output stack\n", (char*)stackTop(&operators));
-						err = evalStackPush(output, stackPop(&operators));
+						err = evalStackPush(pool, output, stackPop(&operators));
 						if (err < 0)
 						{
-							stackFree(&operators);
-							stackFree(&intermediate);
+							stackFree(pool, &operators);
+							stackFree(pool, &intermediate);
 							return err;
 						}
 						stackPush(&intermediate, stackTop(output));
@@ -978,11 +997,11 @@ int postfix(token *tokens, int numTokens, Stack *output)
 						&& stackSize(&operators) > 1)
 					{
 						//printf("Moving operator from operator stack to output stack\n");
-						err = evalStackPush(output, stackPop(&operators));
+						err = evalStackPush(pool, output, stackPop(&operators));
 						if (err < 0)
 						{
-							stackFree(&operators);
-							stackFree(&intermediate);
+							stackFree(pool, &operators);
+							stackFree(pool, &intermediate);
 							return err;
 						}
 						stackPush(&intermediate, stackTop(output));
@@ -1015,11 +1034,11 @@ int postfix(token *tokens, int numTokens, Stack *output)
 							|| (!leftAssoc(tokens[i]) && precedence(tokens[i], (char*)stackTop(&operators)) < 0)))
 					{
 						//printf("Moving operator %s from operator stack to output stack\n", (char*)stackTop(&operators));
-						err = evalStackPush(output, stackPop(&operators));
+						err = evalStackPush(pool, output, stackPop(&operators));
 						if (err < 0)
 						{
-							stackFree(&operators);
-							stackFree(&intermediate);
+							stackFree(pool, &operators);
+							stackFree(pool, &intermediate);
 							return err;
 						}
 						stackPush(&intermediate, stackTop(output));
@@ -1050,11 +1069,11 @@ int postfix(token *tokens, int numTokens, Stack *output)
 						&& stackSize(&operators) > 1)
 					{
 						//printf("Moving operator %s from operator stack to output stack\n", (char*)stackTop(&operators));
-						err = evalStackPush(output, stackPop(&operators));
+						err = evalStackPush(pool, output, stackPop(&operators));
 						if (err < 0)
 						{
-							stackFree(&operators);
-							stackFree(&intermediate);
+							stackFree(pool, &operators);
+							stackFree(pool, &intermediate);
 							return err;
 						}
 						stackPush(&intermediate, stackTop(output));
@@ -1064,8 +1083,8 @@ int postfix(token *tokens, int numTokens, Stack *output)
 					{
 						err = -EFAULT;
 						raise(parenMismatch);
-						stackFree(&operators);
-						stackFree(&intermediate);
+						stackFree(pool, &operators);
+						stackFree(pool, &intermediate);
 						return err;
 					}
 					//printf("Removing left paren from operator stack\n");
@@ -1073,11 +1092,11 @@ int postfix(token *tokens, int numTokens, Stack *output)
 					while (stackSize(&operators) > 0 && tokenType((token)stackTop(&operators)) == function)
 					{
 						//printf("Removing function from operator stack to output stack\n");
-						err = evalStackPush(output, stackPop(&operators));
+						err = evalStackPush(pool, output, stackPop(&operators));
 						if (err < 0)
 						{
-							stackFree(&operators);
-							stackFree(&intermediate);
+							stackFree(pool, &operators);
+							stackFree(pool, &intermediate);
 							return err;
 						}
 						stackPush(&intermediate, stackTop(output));
@@ -1102,11 +1121,11 @@ int postfix(token *tokens, int numTokens, Stack *output)
 			err = true;
 		}
 		//printf("Moving operator from operator stack to output stack\n");
-		err = evalStackPush(output, stackPop(&operators));
+		err = evalStackPush(pool, output, stackPop(&operators));
 		if (err < 0)
 		{
-			stackFree(&operators);
-			stackFree(&intermediate);
+			stackFree(pool, &operators);
+			stackFree(pool, &intermediate);
 			return err;
 		}
 		stackPush(&intermediate, stackTop(output));
@@ -1117,7 +1136,7 @@ int postfix(token *tokens, int numTokens, Stack *output)
 	while (stackSize(&intermediate) > 0)
 	{
 		token s = stackPop(&intermediate);
-		free(s);
+		mempool_free(pool, s);
 	}
 	if (err != 0)
 	{
@@ -1125,11 +1144,11 @@ int postfix(token *tokens, int numTokens, Stack *output)
 		{
 			token s = stackPop(&operators);
 			//printf("Freeing %s from operators stack\n", s);
-			free(s);
+			mempool_free(pool, s);
 		}
 	}
-	stackFree(&intermediate);
-	stackFree(&operators);
+	stackFree(pool, &intermediate);
+	stackFree(pool, &operators);
 	return err;
 }
 
@@ -1447,7 +1466,8 @@ int calculator_setallowcommands(int flag)
 	return -EINVAL;
 }
 
-int calculator_calc(const char* formula, double* result)
+#ifdef WITH_MEMPOOL
+int calculator_calc_pool(MemPool_t pool, const char* formula, double* result)
 {
 	int i = 0;
 	int err = 0;
@@ -1464,22 +1484,22 @@ int calculator_calc(const char* formula, double* result)
 		err = execCommand((char*)formula);
 		return err;
 	}
-	numTokens = tokenize((char*)formula, &tokens);
+	numTokens = tokenize(pool, (char*)formula, &tokens);
 	if (numTokens < 0)
 	{
 		if (prefs.display.errors) printf("\tError tokenizing expression\n");
 		err = numTokens;
 		goto error_or_out;
 	}
-	stackInit(&expr, numTokens);
-	err = postfix(tokens, numTokens, &expr);
+	stackInit(pool, &expr, numTokens);
+	err = postfix(pool, tokens, numTokens, &expr);
 	if (err != 0)
 	{
 		if (stackSize(&expr) > 0)
 		{
 			char* t = stackTop(&expr);
 			res = atof(t);
-			free(t);
+			mempool_free(pool, t);
 		}
 		if (prefs.display.errors) printf("\tError evaluating expression\n");;
 		goto error_or_out;
@@ -1499,29 +1519,30 @@ int calculator_calc(const char* formula, double* result)
 			if (tokens[i] == stackTop(&expr))
 				tokens[i] = NULL;
 		}
-		free(stackPop(&expr));
+		mempool_free(pool, stackPop(&expr));
 	}
 error_or_out:
 	for(i = 0; i < numTokens; i++)
 	{
 		if (tokens[i] != NULL)
-			free(tokens[i]);
+			mempool_free(pool, tokens[i]);
 	}
 	if (tokens)
 	{
-		free(tokens);
+		mempool_free(pool, tokens);
 		tokens = NULL;
 	}
 	numTokens = 0;
-	stackFree(&expr);
+	stackFree(pool, &expr);
 	*result = res;
 	return err;
 }
-
+#else
 int calculator_calc_pool(MemPool_t pool, const char* formula, double* result)
 {
     return calculator_calc(formula, result);
 }
+#endif
 
 
 #else
@@ -1538,6 +1559,7 @@ int main(int argc, char *argv[])
 	prefs.maxtokenlength = MAXTOKENLENGTH;
 	prefs.allow_commands = DEFAULTALLOWCOMMANDS;
 	prefs.display.errors = true;
+	MemPool_t pool = NULL;
 
 	while ((ch = getopt(argc, argv, "rm:")) != -1) {
 		switch (ch) {
@@ -1548,7 +1570,13 @@ int main(int argc, char *argv[])
 				prefs.maxtokenlength = atoi(optarg);
 		}
 	}
-	str = ufgets(stdin);
+	err = mempool_init(&pool);
+	if (err != 0)
+	{
+	    fprintf(stderr, "Failed to initialized memory pool\n");
+	    return err;
+	}
+	err = ufgets(pool, (void**)&str, stdin);
 	while(str != NULL && strcmp(str, "quit") != 0)
 	{
 		if (strlen(str) == 0)
@@ -1559,14 +1587,14 @@ int main(int argc, char *argv[])
 			if (!execCommand(str))
 				goto no_command;
 
-			free(str);
+			mempool_free(pool, str);
 			str = NULL;
 		}
 		else
 		{
 no_command:
-			numTokens = tokenize(str, &tokens);
-			free(str);
+			numTokens = tokenize(pool, str, &tokens);
+			mempool_free(pool, str);
 			str = NULL;
 			if (numTokens <= 0)
 			{
@@ -1586,10 +1614,10 @@ no_command:
 			}
 
 			// Convert to postfix
-			stackInit(&expr, numTokens);
+			stackInit(pool, &expr, numTokens);
 			if(prefs.display.postfix)
 				printf("\tPostfix stack:\n");
-			err = postfix(tokens, numTokens, &expr);
+			err = postfix(pool, tokens, numTokens, &expr);
 			if (err < 0)
 			{
 				// todo
@@ -1615,26 +1643,26 @@ no_command:
 					if (tokens[i] == stackTop(&expr))
 						tokens[i] = NULL;
 				}
-				free(stackPop(&expr));
+				mempool_free(pool, stackPop(&expr));
 			}
 
 			for(i = 0; i < numTokens; i++)
 			{
 				if (tokens[i] != NULL)
-					free(tokens[i]);
+					mempool_free(pool, tokens[i]);
 			}
-			free(tokens);
+			mempool_free(pool, tokens);
 			tokens = NULL;
 			numTokens = 0;
-			stackFree(&expr);
+			stackFree(pool, &expr);
 		}
 get_new_string:
-		str = ufgets(stdin);
+		err = ufgets(pool, (void**)&str, stdin);
 	}
 
-	free(str);
+	mempool_free(pool, str);
 	str = NULL;
-
+	mempool_close(pool);
 
 	return EXIT_SUCCESS;
 }

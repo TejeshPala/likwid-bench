@@ -42,3 +42,5 @@ likwid-bench
 /tests/**/test_stack
 /tests/**/test_topology
 /tests/**/test_calculator
+/tests/**/test_calculator_mempool
+/tests/**/test_mempool
