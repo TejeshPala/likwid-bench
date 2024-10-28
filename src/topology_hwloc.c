@@ -268,7 +268,7 @@ int cpustr_to_cpulist_expression_hwloc(bstring cpustr, int* list, int length)
     int c = sscanf(bdata(cpustr), "E:%c:%d:%d:%d", &domain, &count, &chunk, &stride);
     if (domain != 'N' && count == 0)
     {
-        c = sscanf(bdata(cpustr), "E:%c:%d:%d:%d:%d", &domain, &domIdx, &count, &chunk, &stride);
+        c = sscanf(bdata(cpustr), "E:%c%d:%d:%d:%d", &domain, &domIdx, &count, &chunk, &stride);
     }
 
     if (domain == 'X' && count == 0)
@@ -308,7 +308,6 @@ int cpustr_to_cpulist_expression_hwloc(bstring cpustr, int* list, int length)
             }
             break;
         case 'D':
-            hwloc_topology_set_type_filter(topo, HWLOC_OBJ_DIE, HWLOC_TYPE_FILTER_KEEP_ALL);
             obj = hwloc_get_obj_by_depth(topo, HWLOC_OBJ_DIE, domIdx);
             if (obj)
             {
@@ -405,7 +404,6 @@ int cpustr_to_cpulist_logical_hwloc(bstring cpustr, int* list, int length)
             }
             break;
         case 'D':
-            hwloc_topology_set_type_filter(topo, HWLOC_OBJ_DIE, HWLOC_TYPE_FILTER_KEEP_ALL);
             obj = hwloc_get_obj_by_depth(topo, HWLOC_OBJ_DIE, domIdx);
             if (obj)
             {

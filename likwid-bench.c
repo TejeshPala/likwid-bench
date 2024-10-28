@@ -274,6 +274,7 @@ int main(int argc, char** argv)
 #ifdef LIKWIDBENCH_USE_HWLOC
     hwloc_obj_t obj = NULL;
     hwloc_topology_init(&topo);
+    hwloc_topology_set_type_filter(topo, HWLOC_OBJ_DIE, HWLOC_TYPE_FILTER_KEEP_ALL);
     hwloc_topology_load(topo);
     collect_cpuinfo(topo, runcfg);
     print_cpuinfo(topo);
