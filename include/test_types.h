@@ -229,23 +229,17 @@ typedef struct {
 } RuntimeThreadConfig;
 
 typedef struct {
-    int* hwthreads;
-    int num_threads;
-    RuntimeThreadConfig* threads;
-    thread_barrier_t barrier;
-} RuntimeThreadgroupConfig;
-
-typedef struct {
     bstring str;
     int num_threads;
     int* hwthreads;
+    RuntimeThreadConfig* threads;
+    thread_barrier_t barrier;
     RuntimeWorkgroupResult* results;
     RuntimeWorkgroupResult* group_results;
     int num_streams;
     RuntimeStreamConfig* streams;
     int num_params;
     RuntimeParameterConfig* params;
-    RuntimeThreadgroupConfig* tgroups;
     RuntimeTestConfig testconfig;
 } RuntimeWorkgroupConfig;
 

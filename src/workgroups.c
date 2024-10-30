@@ -217,7 +217,7 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
             for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
             {
                 bstring t = bstrcpy(istream->dims->entry[k]);
-                printf("dimsize before %s\n", bdata(t));
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream %d: dimsize before %s, j, bdata(t));
                 replace_all(runcfg->global_results, t, NULL);
                 int res = 0;
                 int c = sscanf(bdata(t), "%d", &res);
@@ -225,7 +225,7 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
                 {
                     ostream->dimsizes[k] = res;
                 }
-                printf("dimsize after %ld\n", ostream->dimsizes[k]);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream %d: dimsize after %ld, j, ostream->dimsizes[k]);
                 ostream->dims++;
                 bdestroy(t);
             }
@@ -348,7 +348,6 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
     for (int w = 0; w < num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &wgroups[w];
-        RuntimeThreadgroupConfig* tgroup = &wgroups->tgroups[w];
         bvalues = calloc(bkeys->qty, sizeof(struct bstrList*));
         if (!bvalues)
         {
@@ -372,9 +371,9 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
             }
         }
 
-        for (int t = 0; t < tgroup->num_threads; t++)
+        for (int t = 0; t < wg->num_threads; t++)
         {
-            RuntimeThreadConfig* thread = &tgroup->threads[t];
+            RuntimeThreadConfig* thread = &wg->threads[t];
             RuntimeWorkgroupResult* result = &wg->results[t];
             if (wg->hwthreads[t] == thread->data->hwthread)
             {
@@ -407,7 +406,11 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
             bstrListDestroy(bvalues[id]);
         }
         free(bvalues);
-        print_workgroup(wg);
+        if (DEBUGLEV_DEVELOP == global_verbosity)
+        {
+            printf("Below are the results after initialization of Group Results for Workgroup: %d\n", w);
+            print_workgroup(wg);
+        }
     }
     err = _aggregate_results(bkeys, bgrp_values, runcfg->global_results);
     if (err != 0)
