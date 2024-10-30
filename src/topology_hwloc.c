@@ -308,7 +308,16 @@ int cpustr_to_cpulist_expression_hwloc(bstring cpustr, int* list, int length)
             }
             break;
         case 'D':
-            obj = hwloc_get_obj_by_depth(topo, HWLOC_OBJ_DIE, domIdx);
+            hwloc_obj_type_t dietype = HWLOC_OBJ_DIE;
+            if (hwloc_get_nbobjs_by_type(topo, dietype) == 0)
+            {
+                dietype = HWLOC_OBJ_PACKAGE;
+                obj = hwloc_get_obj_by_type(topo, dietype, domIdx);
+            }
+            else
+            {
+                obj = hwloc_get_obj_by_type(topo, HWLOC_OBJ_DIE, domIdx);
+            }
             if (obj)
             {
                 hwloc_bitmap_copy(cpuset, obj->cpuset);
@@ -404,7 +413,12 @@ int cpustr_to_cpulist_logical_hwloc(bstring cpustr, int* list, int length)
             }
             break;
         case 'D':
-            obj = hwloc_get_obj_by_depth(topo, HWLOC_OBJ_DIE, domIdx);
+            hwloc_obj_type_t dietype = HWLOC_OBJ_DIE;
+            if (hwloc_get_nbobjs_by_type(topo, dietype) == 0)
+            {
+                dietype = HWLOC_OBJ_PACKAGE;
+            }
+            obj = hwloc_get_obj_by_type(topo, dietype, domIdx);
             if (obj)
             {
                 hwloc_bitmap_copy(cpuset, obj->cpuset);
