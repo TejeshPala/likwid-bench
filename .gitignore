@@ -32,4 +32,14 @@
 
 # Executables
 likwid-bench
-/tests/**/test_*
+/tests/**/test_bstrlib_helper
+/tests/**/test_bitmap
+/tests/**/test_allocator
+/tests/**/test_map
+/tests/**/test_ptt2asm
+/tests/**/test_read_yaml_ptt
+/tests/**/test_results
+/tests/**/test_stack
+/tests/**/test_topology
+/tests/**/test_calculator
+/tests/**/test_bench

@@ -128,7 +128,7 @@ test_bstrlib_helper: test_bstrlib_helper.c $(BSTRLIB_HEADER) $(BSTRLIB_OBJ)
 	$(CC) $(INCLUDES) $(CFLAGS) test_bstrlib_helper.c $(BSTRLIB_OBJ) -o $@
 
 test_bench: test_bench.c $(BENCH_OBJ) $(BENCH_HEADER)
-	$(CC) $(INCLUDES) $(CFLAGS) test_bench.c $(BENCH_OBJ) -o $@
+	$(CC) $(INCLUDES) $(CFLAGS) test_bench.c $(BENCH_OBJ) -o $@ -lpthread
 
 run: $(TESTS)
 	@for T in $(TESTS); do echo "#### Running $$T ####"; ./$$T; if [ $$? -ne 0 ]; then exit 1; fi; done
