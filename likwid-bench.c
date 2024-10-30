@@ -433,7 +433,7 @@ int main(int argc, char** argv)
     /*
      * Start threads
      */
-    err = update_thread_group(runcfg);
+    err = update_threads(runcfg);
     if (err < 0)
     {
         ERROR_PRINT(Error updating thread groups);
@@ -448,7 +448,7 @@ int main(int argc, char** argv)
     if (err < 0)
     {   
         ERROR_PRINT(Error creating thread);
-        destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups);
+        destroy_threads(runcfg->num_wgroups, runcfg->wgroups);
         goto main_out;
     }
 
@@ -456,14 +456,31 @@ int main(int argc, char** argv)
     for (int w = 0; w < runcfg->num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
-        RuntimeThreadgroupConfig* group = wg->tgroups;
-        for (int i = 0; i < group->num_threads; i++)
+        for (int i = 0; i < wg->num_threads; i++)
         {
-            err = send_cmd(LIKWID_THREAD_COMMAND_INITIALIZE, &group->threads[i]);
+            err = send_cmd(LIKWID_THREAD_COMMAND_INITIALIZE, &wg->threads[i]);
             if (err < 0)
             {
                 ERROR_PRINT(Error communicating with threads);
-                destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups);
+                destroy_threads(runcfg->num_wgroups, runcfg->wgroups);
+                goto main_out;
+            }
+        }
+    }
+
+    /*
+     * Exit threads
+     */
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        for (int i = 0; i < wg->num_threads; i++)
+        {
+            err = send_cmd(LIKWID_THREAD_COMMAND_EXIT, &wg->threads[i]);
+            if (err < 0)
+            {
+                ERROR_PRINT(Error communicating with threads);
+                destroy_threads(runcfg->num_wgroups, runcfg->wgroups);
                 goto main_out;
             }
         }
@@ -472,13 +489,6 @@ int main(int argc, char** argv)
     /*
      * Run benchmark
      */
-    //int time_exec = bench(create_threads, runcfg->num_wgroups, runcfg->tgroups, runcfg);
-    //if (time_exec < 0)
-    //{
-    //    ERROR_PRINT(Error benchmarking the run);
-    //    goto main_out;
-    //}
-    // command loop for threads
 
     err = join_threads(runcfg->num_wgroups, runcfg->wgroups);
     if (err < 0)
@@ -501,7 +511,7 @@ int main(int argc, char** argv)
     /*
      * Destroy threads
      */
-    err = destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups);
+    err = destroy_threads(runcfg->num_wgroups, runcfg->wgroups);
     if (err != 0)
     {
         ERROR_PRINT(Error destroying thread groups);

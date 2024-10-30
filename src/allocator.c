@@ -114,7 +114,7 @@ int _allocate_arrays_1dim(RuntimeStreamConfig *sdata)
     size_t size = getstreamelems(sdata);
     size_t msize;
     if (msize < 0) return msize;
-    printf("_allocate_arrays_1dim %lu Bytes with stream name %s\n", getstreambytes(sdata), bdata(sdata->name));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, _allocate_arrays_1dim %lu Bytes with stream name %s, getstreambytes(sdata), bdata(sdata->name));
     switch(sdata->type)
     {
         DEFINE_1DIM_TYPE_CASE_ALLOC(TEST_STREAM_TYPE_DOUBLE, double, sdata->offsets[0])
@@ -163,7 +163,7 @@ static int _allocate_arrays_2dim(RuntimeStreamConfig *sdata)
     {
         return msize2;
     }
-    printf("_allocate_arrays_2dim s1 %lu s2 %lu of %lu Bytes\n", size1, size2, getstreambytes(sdata));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, _allocate_arrays_2dim s1 %lu s2 %lu of %lu Bytes, size1, size2, getstreambytes(sdata));
     switch(sdata->type)
     {
         DEFINE_2DIM_TYPE_CASE_ALLOC(TEST_STREAM_TYPE_DOUBLE, double, sdata->offsets[0], sdata->offsets[1])
@@ -226,7 +226,7 @@ static int _allocate_arrays_3dim(RuntimeStreamConfig *sdata)
     {
         return msize3;
     }
-    printf("_allocate_arrays_3dim s1 %lu s2 %lu s3 %lu of %lu Bytes\n", size1, size2, size3, getstreambytes(sdata));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, _allocate_arrays_3dim s1 %lu s2 %lu s3 %lu of %lu Bytes\n, size1, size2, size3, getstreambytes(sdata));
     switch(sdata->type)
     {
         DEFINE_3DIM_TYPE_CASE_ALLOC(TEST_STREAM_TYPE_DOUBLE, double, sdata->offsets[0], sdata->offsets[1], sdata->offsets[2])
@@ -315,7 +315,7 @@ void _release_arrays_1dim(RuntimeStreamConfig *sdata)
 {
     if (sdata && sdata->base_ptr)
     {
-        printf("release str %d\n", sdata->id);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, release str %d, sdata->id);
         free(sdata->base_ptr);
         sdata->ptr = NULL;
         sdata->base_ptr = NULL;
@@ -344,7 +344,7 @@ void _release_arrays_2dim(RuntimeStreamConfig *sdata)
     {
         size_t size1 = sdata->dimsizes[0];
         void* tmp = NULL;   
-        printf("release str %d\n", sdata->id);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, release str %d, sdata->id);
         switch(sdata->type)
         {
             DEFINE_2DIM_TYPE_CASE_RELEASE(TEST_STREAM_TYPE_DOUBLE, double)
@@ -389,7 +389,7 @@ void _release_arrays_3dim(RuntimeStreamConfig *sdata)
         size_t size2 = sdata->dimsizes[1];
         size_t size3 = sdata->dimsizes[2];
         void* tmp = NULL;
-        printf("release str %d\n", sdata->id);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, release str %d, sdata->id);
         switch(sdata->type)
         {
             DEFINE_3DIM_TYPE_CASE_RELEASE(TEST_STREAM_TYPE_DOUBLE, double)
