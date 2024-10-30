@@ -15,6 +15,11 @@
 #include "map.h"
 #include "calculator.h"
 
+#ifdef LIKWIDBENCH_USE_HWLOC
+#include "hwloc.h"
+#include "topology_hwloc.h"
+#endif
+
 void delete_workgroup(RuntimeWorkgroupConfig* wg)
 {
     if (wg->results)
@@ -76,7 +81,12 @@ int resolve_workgroup(RuntimeWorkgroupConfig* wg, int maxThreads)
         return -ENOMEM;
     }
 
-    int nthreads = cpustr_to_cpulist(wg->str, wg->hwthreads, maxThreads);
+    int nthreads = 0;
+#if defined(LIKWIDBENCH_USE_HWLOC) && !defined(LIKWIDBENCH_NO_HWLOC)
+    nthreads = cpustr_to_cpulist_hwloc(wg->str, wg->hwthreads, maxThreads);
+#else
+    nthreads = cpustr_to_cpulist(wg->str, wg->hwthreads, maxThreads);
+#endif
     if (nthreads < 0)
     {
         ERROR_PRINT(Failed to resolve workgroup string %s, bdata(wg->str));

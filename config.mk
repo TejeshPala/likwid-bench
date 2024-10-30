@@ -65,3 +65,24 @@ LIKWIDBENCH_KERNEL_FOLDER = $(shell pwd)/kernels
 ADDRESS_SANITIZER = true
 
 BUILD_DIR  = ./$(strip $(COMPILER))
+
+# HWLOC Configuration
+USE_INTERNAL_HWLOC ?= true
+ifeq ($(USE_INTERNAL_HWLOC),true)
+	# Internal hwloc configuration
+	HWLOC_FOLDER = $(shell pwd)/ext/hwloc
+	HWLOC_INCLUDE_DIR = $(HWLOC_FOLDER)/include
+	HWLOC_LIB_DIR = $(HWLOC_FOLDER)
+	HWLOC_LIB_NAME = likwid-bench-hwloc
+else
+	# Use system hwloc configuration
+	HWLOC_INCLUDE_DIR = /usr/include#NO SPACE
+	HWLOC_LIB_DIR = /usr/lib#NO SPACE
+	HWLOC_LIB_NAME = hwloc#NO SPACE, used later as -l$HWLOC_LIB_NAME
+	HWLOC_FOLDER = $(HWLOC_LIB_DIR)#NO SPACE
+endif
+
+STATIC_LIBHWLOC := lib$(HWLOC_LIB_NAME).a
+SHARED_LIBHWLOC := lib$(HWLOC_LIB_NAME).so
+
+RPATHS += -Wl,-rpath=$(HWLOC_LIB_DIR)

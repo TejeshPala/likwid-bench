@@ -10,11 +10,11 @@ MAKE_DIR   = ./make
 Q         ?= @
 
 include $(MAKE_DIR)/include_$(strip $(COMPILER)).mk $(MAKE_DIR)/test-float16.mk $(MAKE_DIR)/config-checks.mk
-INCLUDES  += -g -I$(INC_DIR) -I$(BUILD_DIR)
-LIBDIRS   += 
-LIBS      += -lm  -ldl
+INCLUDES  += -g -I$(INC_DIR) -I$(BUILD_DIR) -I$(HWLOC_INCLUDE_DIR)
+LIBDIRS   += -L$(HWLOC_LIB_DIR)
+LIBS      += -lm  -ldl $(HWLOC_LIB_DIR)/$(STATIC_LIBHWLOC)
 LFLAGS    += -pthread
-DEFINES   += -DWITH_BSTRING -DCALCULATOR_AS_LIB -DLIKWIDBENCH_KERNEL_FOLDER=$(LIKWIDBENCH_KERNEL_FOLDER)
+DEFINES   += -DWITH_BSTRING -DCALCULATOR_AS_LIB -DLIKWIDBENCH_KERNEL_FOLDER=$(LIKWIDBENCH_KERNEL_FOLDER) -DLIKWIDBENCH_USE_HWLOC # -DLIKWIDBENCH_NO_HWLOC
 
 VPATH     = $(SRC_DIR)
 ASM       = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.s,$(wildcard $(SRC_DIR)/*.c))
@@ -23,16 +23,20 @@ OBJ       = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o,$(wildcard $(SRC_DIR)/*.
 
 CPPFLAGS := $(CPPFLAGS) $(DEFINES) $(INCLUDES)
 
-$(TARGET): $(BUILD_DIR) $(OBJ) likwid-bench.c
+$(TARGET): $(BUILD_DIR) $(OBJ) $(HWLOC_LIB_DIR)/$(STATIC_LIBHWLOC) likwid-bench.c
 	@echo "===>  LINKING  $(TARGET)"
 	$(Q)$(LINKER) $(DEFINES) $(INCLUDES) $(LFLAGS) $(LIBDIRS) $(OBJ) likwid-bench.c -o $(TARGET) $(LIBS)
+
+$(HWLOC_LIB_DIR)/$(STATIC_LIBHWLOC):
+	@echo "===> BUILDING HWLOC"
+	$(Q)$(MAKE) -C $(HWLOC_FOLDER)
 
 asm:  $(BUILD_DIR) $(ASM)
 
 update_submodules:
 	$(Q)git submodule update --recursive
 
-$(BUILD_DIR)/%.o:  %.c
+$(BUILD_DIR)/%.o:  %.c $(HWLOC_LIB_DIR)/$(STATIC_LIBHWLOC)
 	@echo "===>  COMPILE  $@"
 	$(Q)$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
 	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) -MT $(@:.d=.o) -MM  $< > $(BUILD_DIR)/$*.d
@@ -61,9 +65,11 @@ clean:
 	@echo "===> CLEAN"
 	@rm -rf $(BUILD_DIR)
 	@rm -f tags
+	@$(MAKE) -C $(HWLOC_FOLDER) clean
 
 distclean: clean
 	@echo "===> DIST CLEAN"
 	@rm -f $(TARGET)
 	@rm -f tags
+	@$(MAKE) -C $(HWLOC_FOLDER) distclean
 

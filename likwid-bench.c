@@ -19,6 +19,11 @@
 #include "topology.h"
 #include "thread_group.h"
 
+#ifdef LIKWIDBENCH_USE_HWLOC
+#include "hwloc.h"
+#include "topology_hwloc.h"
+#endif
+
 #ifndef global_verbosity
 int global_verbosity = DEBUGLEV_ONLY_ERROR;
 #endif
@@ -265,6 +270,16 @@ int main(int argc, char** argv)
         ERROR_PRINT(Error reading %s, bdata(runcfg->pttfile));
         goto main_out;
     }
+
+#ifdef LIKWIDBENCH_USE_HWLOC
+    hwloc_obj_t obj = NULL;
+    hwloc_topology_init(&topo);
+    hwloc_topology_set_type_filter(topo, HWLOC_OBJ_DIE, HWLOC_TYPE_FILTER_KEEP_ALL);
+    hwloc_topology_load(topo);
+    collect_cpuinfo(topo, runcfg);
+    print_cpuinfo(topo);
+    print_topology(topo);
+#endif
 
     struct bstrList* flist = bstrListCreate();
     int res = get_feature_flags(1, &flist);
@@ -525,6 +540,11 @@ int main(int argc, char** argv)
      /*
      * Print everything
      */
+
+#ifdef LIKWIDBENCH_USE_HWLOC
+    hwloc_topology_destroy(topo);
+#endif
+     
      printf("Global Results\n");
      print_result(runcfg->global_results);
 
