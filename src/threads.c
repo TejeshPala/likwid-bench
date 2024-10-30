@@ -36,45 +36,41 @@
 #define gettid() pthread_self()
 #endif
 
-int destroy_tgroups(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
+int destroy_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
 {
     for (int w = 0; w < num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &wgroups[w];
-        if (wg->tgroups)
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying threads for workgroup %3d, w);
+        pthread_barrier_destroy(&wg->barrier.barrier);
+        if (wg->threads)
         {
-            RuntimeThreadgroupConfig* group = wg->tgroups;
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread groups for workgroup %3d, w);
-            pthread_barrier_destroy(&group->barrier.barrier);
-            if (group->threads)
+            for (int i = 0; i < wg->num_threads; i++)
             {
-                for (int i = 0; i < group->num_threads; i++)
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread %3d for workgroup %3d, i, w);
+                if (wg->threads[i].data)
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread group %3d for workgroup %3d, i, w);
-                    if (group->threads[i].data)
-                    {
-                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying data for thread %3d, group->threads[i].local_id);
-                        free(group->threads[i].data);
-                        group->threads[i].data = NULL;
-                    }
-                    if (group->threads[i].command)
-                    {
-                        if (group->threads[i].command->init_val)
-                        {
-                            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying init_val for thread %3d, group->threads[i].local_id);
-                            free(group->threads[i].command->init_val);
-                            group->threads[i].command->init_val = NULL;
-                        }
-                        pthread_mutex_destroy(&group->threads[i].command->mutex);
-                        pthread_cond_destroy(&group->threads[i].command->cond);
-                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying commands for thread %3d, group->threads[i].local_id);
-                        free(group->threads[i].command);
-                        group->threads[i].command = NULL;
-                    }
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying data for thread %3d, wg->threads[i].local_id);
+                    free(wg->threads[i].data);
+                    wg->threads[i].data = NULL;
                 }
-                free(group->threads);
+                if (wg->threads[i].command)
+                {
+                    if (wg->threads[i].command->init_val)
+                    {
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying init_val for thread %3d, wg->threads[i].local_id);
+                        free(wg->threads[i].command->init_val);
+                        wg->threads[i].command->init_val = NULL;
+                    }
+                    pthread_mutex_destroy(&wg->threads[i].command->mutex);
+                    pthread_cond_destroy(&wg->threads[i].command->cond);
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying commands for thread %3d, wg->threads[i].local_id);
+                    free(wg->threads[i].command);
+                    wg->threads[i].command = NULL;
+                }
             }
-            free(wg->tgroups);
+            free(wg->threads);
+            wg->threads = NULL;
         }
     }
     return 0;
@@ -203,30 +199,36 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
         switch ((StreamDimension)sdata->dims)
         {
             case STREAM_DIM_1D:
-                tmp.ptr = (char*)sdata->ptr + (offset * getsizeof(sdata->type));
-                tmp.dimsizes[0] = size * getsizeof(sdata->type);
-                break;
+                {
+                    tmp.ptr = (char*)sdata->ptr + (offset * getsizeof(sdata->type));
+                    tmp.dimsizes[0] = size * getsizeof(sdata->type);
+                    break;
+                }
             case STREAM_DIM_2D:
-                size_t rows = sdata->dimsizes[0] / getsizeof(sdata->type);
-                size_t cols = sdata->dimsizes[1] / getsizeof(sdata->type);
-                size_t start_rows = offset / cols;
-                size_t end_rows = (offset + size - 1) / cols;
-                tmp.ptr = (char*)sdata->ptr + (start_rows * cols);
-                tmp.dimsizes[0] = (end_rows - start_rows + 1) * getsizeof(sdata->type);
-                tmp.dimsizes[1] = cols * getsizeof(sdata->type);
-                break;
+                {
+                    size_t rows = sdata->dimsizes[0] / getsizeof(sdata->type);
+                    size_t cols = sdata->dimsizes[1] / getsizeof(sdata->type);
+                    size_t start_rows = offset / cols;
+                    size_t end_rows = (offset + size - 1) / cols;
+                    tmp.ptr = (char*)sdata->ptr + (start_rows * cols);
+                    tmp.dimsizes[0] = (end_rows - start_rows + 1) * getsizeof(sdata->type);
+                    tmp.dimsizes[1] = cols * getsizeof(sdata->type);
+                    break;
+                }
             case STREAM_DIM_3D:
-                size_t dim1 = sdata->dimsizes[0] / getsizeof(sdata->type);
-                size_t dim2 = sdata->dimsizes[1] / getsizeof(sdata->type);
-                size_t dim3 = sdata->dimsizes[2] / getsizeof(sdata->type);
-                size_t slice = dim2 * dim3;
-                size_t start = offset / slice;
-                size_t end = (offset + size - 1) / slice;
-                tmp.ptr = (char*)sdata->ptr + (start * slice);
-                tmp.dimsizes[0] = (end - start + 1) * getsizeof(sdata->type);
-                tmp.dimsizes[1] = dim2 * getsizeof(sdata->type);
-                tmp.dimsizes[2] = dim3 * getsizeof(sdata->type);
-                break;
+                {
+                    size_t dim1 = sdata->dimsizes[0] / getsizeof(sdata->type);
+                    size_t dim2 = sdata->dimsizes[1] / getsizeof(sdata->type);
+                    size_t dim3 = sdata->dimsizes[2] / getsizeof(sdata->type);
+                    size_t slice = dim2 * dim3;
+                    size_t start = offset / slice;
+                    size_t end = (offset + size - 1) / slice;
+                    tmp.ptr = (char*)sdata->ptr + (start * slice);
+                    tmp.dimsizes[0] = (end - start + 1) * getsizeof(sdata->type);
+                    tmp.dimsizes[1] = dim2 * getsizeof(sdata->type);
+                    tmp.dimsizes[2] = dim3 * getsizeof(sdata->type);
+                    break;
+                }
         }
         tmp.type = sdata->type;
         tmp.init = init_function;
@@ -256,17 +258,23 @@ int initialize_global(RuntimeThreadConfig* thread)
         switch ((StreamDimension)sdata->dims)
         {
             case STREAM_DIM_1D:
-                tmp.dimsizes[0] = sdata->dimsizes[0];
-                break;
+                {
+                    tmp.dimsizes[0] = sdata->dimsizes[0];
+                    break;
+                }
             case STREAM_DIM_2D:
-                tmp.dimsizes[0] = sdata->dimsizes[0];
-                tmp.dimsizes[1] = sdata->dimsizes[1];
-                break;
+                {
+                    tmp.dimsizes[0] = sdata->dimsizes[0];
+                    tmp.dimsizes[1] = sdata->dimsizes[1];
+                    break;
+                }
             case STREAM_DIM_3D:
-                tmp.dimsizes[0] = sdata->dimsizes[0];
-                tmp.dimsizes[1] = sdata->dimsizes[1];
-                tmp.dimsizes[2] = sdata->dimsizes[2];
-                break;
+                {
+                    tmp.dimsizes[0] = sdata->dimsizes[0];
+                    tmp.dimsizes[1] = sdata->dimsizes[1];
+                    tmp.dimsizes[2] = sdata->dimsizes[2];
+                    break;
+                }
         }
         tmp.type = sdata->type;
         tmp.init = init_function;
@@ -498,14 +506,13 @@ int join_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
     for (int w = 0; w < num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &wgroups[w];
-        RuntimeThreadgroupConfig* group = wg->tgroups;
-        for (int i = 0; i < group->num_threads; i++)
+        for (int i = 0; i < wg->num_threads; i++)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Joining thread %3d in workgroup %3d with thread ID %16ld, group->threads[i].local_id, w, group->threads[i].thread);
-            err = pthread_join(group->threads[i].thread, NULL);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Joining thread %3d in workgroup %3d with thread ID %16ld, wg->threads[i].local_id, w, wg->threads[i].thread);
+            err = pthread_join(wg->threads[i].thread, NULL);
             if (err != 0)
             {
-                ERROR_PRINT(Error joining thread %3d in workgroup %3d with error %s, group->threads[i].local_id, w, strerror(err));
+                ERROR_PRINT(Error joining thread %3d in workgroup %3d with error %s, wg->threads[i].local_id, w, strerror(err));
                 return -1;
             }
         }
@@ -524,10 +531,9 @@ int create_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
     for (int w = 0; w < num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &wgroups[w];
-        RuntimeThreadgroupConfig* group = wg->tgroups;
-        for (int i = 0; i < group->num_threads; i++)
+        for (int i = 0; i < wg->num_threads; i++)
         {
-            RuntimeThreadConfig* thread = &group->threads[i];
+            RuntimeThreadConfig* thread = &wg->threads[i];
             if (pthread_create(&thread->thread, NULL, _func_t, thread))
             {
                 ERROR_PRINT(Error creating thread %3d, thread->local_id);
@@ -537,7 +543,7 @@ int create_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
             err = _set_t_aff(thread->thread, thread->data->hwthread);
             if (err < 0)
             {
-                ERROR_PRINT(Failed to set thread affinity for group %3d thread %3d, w, thread->data->hwthread);
+                ERROR_PRINT(Failed to set thread affinity for workgroup %3d thread %3d, w, thread->data->hwthread);
                 err = -1;
                 return err;
             }
@@ -550,7 +556,7 @@ int create_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
     return 0;
 }
 
-int update_thread_group(RuntimeConfig* runcfg)
+int update_threads(RuntimeConfig* runcfg)
 {
     int err = 0;
     int total_threads = 0;
@@ -562,34 +568,22 @@ int update_thread_group(RuntimeConfig* runcfg)
     for (int w = 0; w < runcfg->num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
-        wg->tgroups = (RuntimeThreadgroupConfig*) malloc(sizeof(RuntimeThreadgroupConfig));
-        if (!wg->tgroups)
+        wg->threads = (RuntimeThreadConfig*) malloc(wg->num_threads * sizeof(RuntimeThreadConfig));
+        if (!wg->threads)
         {
-            ERROR_PRINT(Failed to allocate memory for thread groups);
+            ERROR_PRINT(Failed to allocate memory for threads);
             err = -ENOMEM;
             goto free;
         }
 
-        RuntimeThreadgroupConfig* group = wg->tgroups;
-        group->num_threads = wg->num_threads;
-        // printf("Num threads: %d\n", group->num_threads);
-        group->hwthreads = wg->hwthreads;
-        group->threads = (RuntimeThreadConfig*) malloc(group->num_threads * sizeof(RuntimeThreadConfig));
-        if (!group->threads)
-        {
-            ERROR_PRINT(Failed to allocate memory for threads in group);
-            err = -ENOMEM;
-            goto free;
-        }
-
-        err = pthread_barrier_init(&group->barrier.barrier, NULL, group->num_threads);
+        err = pthread_barrier_init(&wg->barrier.barrier, NULL, wg->num_threads);
         if (err != 0)
         {
             ERROR_PRINT(Failed to initialize barrier %s, strerror(err));
             goto free;
         }
 
-        for (int i = 0; i < group->num_threads; i++)
+        for (int i = 0; i < wg->num_threads; i++)
         {
             bstring bsizes = bstrcpy(t->sizes->entry[0]);
             bstring boffsets = bstrcpy(t->offsets->entry[0]);
@@ -602,11 +596,11 @@ int update_thread_group(RuntimeConfig* runcfg)
                     ERROR_PRINT(Unable initialize thread results);
                     return err;
                 }
-                bstring bthreads = bformat("%d", group->num_threads);
+                bstring bthreads = bformat("%d", wg->num_threads);
                 add_variable(&t_results, &bnumthreads, bthreads);
                 bdestroy(bthreads);
             }
-            RuntimeThreadConfig* thread = &group->threads[i];
+            RuntimeThreadConfig* thread = &wg->threads[i];
             thread->command = (RuntimeThreadCommand*)malloc(sizeof(RuntimeThreadCommand));
             if (!thread->command)
             {
@@ -662,8 +656,8 @@ int update_thread_group(RuntimeConfig* runcfg)
                     break;
             }
 
-            thread->num_threads = group->num_threads;
-            thread->local_id = group->hwthreads[i];
+            thread->num_threads = wg->num_threads;
+            thread->local_id = wg->hwthreads[i];
             thread->global_id = total_threads + i;
             if (bsizes != NULL && boffsets != NULL)
             {
@@ -692,7 +686,7 @@ int update_thread_group(RuntimeConfig* runcfg)
                 err = calculator_calc(bdata(boffsets), &offsets_value);
                 if (err == 0)
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Calculated formula '%s' - sizes value: %lf, bdata(boffsets), offsets_value);
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Calculated formula '%s' - offsets value: %lf, bdata(boffsets), offsets_value);
                 }
                 else
                 {
@@ -711,7 +705,7 @@ int update_thread_group(RuntimeConfig* runcfg)
             destroy_result(&t_results);
             thread->runtime = 0.0;
             thread->cycles = 0;
-            thread->barrier = &group->barrier;
+            thread->barrier = &wg->barrier;
             // printf("Num threads: %d\n", group->num_threads);
             thread->data = (_thread_data*)malloc(sizeof(_thread_data));
             if (!thread->data)
@@ -730,65 +724,12 @@ int update_thread_group(RuntimeConfig* runcfg)
             // printf("Threadid: %d\n", thread->data->hwthread);
         }
 
-        total_threads += group->num_threads;
+        total_threads += wg->num_threads;
     }
 
     return 0;
 
 free:
-    destroy_tgroups(runcfg->num_wgroups, runcfg->wgroups);
+    destroy_threads(runcfg->num_wgroups, runcfg->wgroups);
     return err;
-}
-
-double bench(int (*fn)(int num_wgroups, RuntimeThreadgroupConfig* thread_groups), int num_wgroups, RuntimeThreadgroupConfig* thread_groups, RuntimeConfig* runcfg)
-{
-    double s = 0.0;
-    double e = 0.0;
-    double runtime = 0.0;
-    int iter = 1;
-    
-    if (runcfg->runtime > 0)
-    {
-        do
-        {
-            s = get_time_s();
-            for (int k = 0; k < iter; ++k)
-            {
-                fn(num_wgroups, thread_groups);
-            }
-            e = get_time_s();
-            runtime = e - s;
-            iter *= 2;
-        } while (runtime < runcfg->runtime);
-        iter /= 2;
-    }
-
-    if (runcfg->iterations > 0)
-    {
-        iter = (runcfg->iterations > MIN_ITERATIONS) ? runcfg->iterations : MIN_ITERATIONS;
-        if (runcfg->iterations < MIN_ITERATIONS)
-        {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Overwriting iterations to %d, MIN_ITERATIONS);
-        }
-        while (1)
-        {
-            s = get_time_s();
-            for (int k = 0; k < iter; ++k)
-            {
-                fn(num_wgroups, thread_groups);
-            }
-            e = get_time_s();
-            runtime = e - s;
-            if (runtime < MIN_RUNTIME)
-            {
-                iter *= 2;
-            }
-            else
-            {
-                break;
-            }
-        }
-    }
-
-    return runtime / iter;
 }
