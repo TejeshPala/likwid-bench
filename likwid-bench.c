@@ -91,20 +91,23 @@ void free_runtime_config(RuntimeConfig* runcfg)
                     for (int j = 0; j < runcfg->wgroups[i].num_threads; j++)
                     {
                         destroy_result(&runcfg->wgroups[i].results[j]);
-                        if (runcfg->wgroups[i].threads[j].data)
+                        if (runcfg->wgroups[i].threads)
                         {
-                            free(runcfg->wgroups[i].threads[j].data);
-                            runcfg->wgroups[i].threads[j].data = NULL;
-                        }
-                        if (runcfg->wgroups[i].threads[j].command)
-                        {
-                            if (runcfg->wgroups[i].threads[j].command->init_val)
+                            if (runcfg->wgroups[i].threads[j].data)
                             {
-                                free(runcfg->wgroups[i].threads[j].command->init_val);
-                                runcfg->wgroups[i].threads[j].command->init_val = NULL;
+                                free(runcfg->wgroups[i].threads[j].data);
+                                runcfg->wgroups[i].threads[j].data = NULL;
                             }
-                            free(runcfg->wgroups[i].threads[j].command);
-                            runcfg->wgroups[i].threads[j].command = NULL;
+                            if (runcfg->wgroups[i].threads[j].command)
+                            {
+                                if (runcfg->wgroups[i].threads[j].command->init_val)
+                                {
+                                    free(runcfg->wgroups[i].threads[j].command->init_val);
+                                    runcfg->wgroups[i].threads[j].command->init_val = NULL;
+                                }
+                                free(runcfg->wgroups[i].threads[j].command);
+                                runcfg->wgroups[i].threads[j].command = NULL;
+                            }
                         }
                     }
                     free(runcfg->wgroups[i].threads);
@@ -514,24 +517,6 @@ int main(int argc, char** argv)
         for (int i = 0; i < wg->num_threads; i++)
         {
             err = send_cmd(LIKWID_THREAD_COMMAND_INITIALIZE, &wg->threads[i]);
-            if (err < 0)
-            {
-                ERROR_PRINT(Error communicating with threads);
-                destroy_threads(runcfg->num_wgroups, runcfg->wgroups);
-                goto main_out;
-            }
-        }
-    }
-
-    /*
-     * Exit threads
-     */
-    for (int w = 0; w < runcfg->num_wgroups; w++)
-    {
-        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
-        for (int i = 0; i < wg->num_threads; i++)
-        {
-            err = send_cmd(LIKWID_THREAD_COMMAND_EXIT, &wg->threads[i]);
             if (err < 0)
             {
                 ERROR_PRINT(Error communicating with threads);
