@@ -587,6 +587,7 @@ int update_threads(RuntimeConfig* runcfg)
     TestConfigThread* t = runcfg->tcfg->threads;
     static struct tagbstring bnumthreads = bsStatic("NUM_THREADS");
     static struct tagbstring bthreadid = bsStatic("THREAD_ID");
+    static struct tagbstring biter = bsStatic("ITER");
 
     if (runcfg->iterations >= 0)
     {
@@ -595,7 +596,9 @@ int update_threads(RuntimeConfig* runcfg)
         {
             DEBUG_PRINT(DEBUGLEV_DEVELOP, Overwriting iterations to %d, MIN_ITERATIONS);
         }
+        runcfg->iterations = iter;
     }
+    bstring brun_iters = bformat("%ld", runcfg->iterations);
     // printf("Num Workgroups: %d\n", runcfg->num_wgroups);
     for (int w = 0; w < runcfg->num_wgroups; w++)
     {
@@ -617,6 +620,16 @@ int update_threads(RuntimeConfig* runcfg)
 
         for (int i = 0; i < wg->num_threads; i++)
         {
+            err = update_variable(&wg->results[i], &biter, brun_iters);
+            if (err == 0)
+            {
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Variable updated for thread %d for key %s with value %lf, i, bdata(&biter), (double)runcfg->iterations);
+            }
+            err = update_variable(runcfg->global_results, &biter, brun_iters);
+            if (err == 0)
+            {
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Variable updated in global results for key %s with value %lf, bdata(&biter), (double)runcfg->iterations);
+            }
             bstring bsizes = bstrcpy(t->sizes->entry[0]);
             bstring boffsets = bstrcpy(t->offsets->entry[0]);
             RuntimeWorkgroupResult t_results;
@@ -758,6 +771,7 @@ int update_threads(RuntimeConfig* runcfg)
 
         total_threads += wg->num_threads;
     }
+    bdestroy(brun_iters);
 
     return 0;
 

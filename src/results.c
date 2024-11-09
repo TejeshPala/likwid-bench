@@ -562,6 +562,40 @@ int add_variable(RuntimeWorkgroupResult* result, bstring name, bstring value)
     return 0;
 }
 
+int update_variable(RuntimeWorkgroupResult* result, bstring name, bstring value)
+{
+    int err = 0;
+    bstring v;
+    if ((!result) || (!result->variables) || (!name))
+    {
+        return -EINVAL;
+    }
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Searching for variable %s, bdata(name));
+    bstring old_v;
+    err = get_bmap_by_key(result->variables, name, (void**)&old_v);
+    if (err == 0)
+    {
+        v = bstrcpy(value);
+        if (v)
+        {
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Updating value %s -> %s, bdata(name), bdata(v));
+            err = update_bmap(result->variables, name, (void*)v, (void**)&old_v);
+            bdestroy(old_v);
+            if (err < 0)
+            {
+                ERROR_PRINT(Failed updating variable %s = %s, bdata(name), bdata(v));
+                return 0;
+            }
+        }
+    }
+    else
+    {
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Unable to update %s, bdata(name));
+        return -ENOENT;
+    }
+    return 0;
+}
+
 int get_value(RuntimeWorkgroupResult* result, bstring name, double* value)
 {
     int err = 0;
@@ -699,6 +733,14 @@ int fill_results(RuntimeConfig* runcfg)
         {
             bstring barraysize = bformat("%lld", convertToBytes(p->value));
             add_variable(runcfg->global_results, &bsizen, barraysize);
+            for (int i = 0; i < runcfg->num_wgroups; i++)
+            {
+                RuntimeWorkgroupConfig *wgroup = &runcfg->wgroups[i];
+                for (int j = 0; j < wgroup->num_threads; j++)
+                {
+                    add_variable(&wgroup->results[j], &bsizen, barraysize);
+                }
+            }
             bdestroy(barraysize);
         }
         else
@@ -708,12 +750,25 @@ int fill_results(RuntimeConfig* runcfg)
 
     }
 
+    bstring biter;
     if (runcfg->iterations >= 0)
     {
-	    bstring biter = bformat("%d", runcfg->iterations);
-	    add_variable(runcfg->global_results, &biterations, biter);
-	    bdestroy(biter);
+	    biter = bformat("%d", runcfg->iterations);
     }
+    else
+    {
+	    biter = bformat("%d", 0);
+    }
+    add_variable(runcfg->global_results, &biterations, biter);
+    for (int i = 0; i < runcfg->num_wgroups; i++)
+    {
+        RuntimeWorkgroupConfig *wgroup = &runcfg->wgroups[i];
+        for (int j = 0; j < wgroup->num_threads; j++)
+        {
+            add_variable(&wgroup->results[j], &biterations, biter);
+        }
+    }
+    bdestroy(biter);
 
     for (int i = 0; i < runcfg->tcfg->num_constants; i++)
     {
@@ -724,6 +779,15 @@ int fill_results(RuntimeConfig* runcfg)
     {
         TestConfigVariable* v = &runcfg->tcfg->vars[i];
         add_variable(runcfg->global_results, v->name, v->value);
+
+        for (int i = 0; i < runcfg->num_wgroups; i++)
+        {
+            RuntimeWorkgroupConfig *wgroup = &runcfg->wgroups[i];
+            for (int j = 0; j < wgroup->num_threads; j++)
+            {
+                add_variable(&wgroup->results[j], v->name, v->value);
+            }
+        }
     }
     for (int i = 0; i < runcfg->num_wgroups; i++)
     {
