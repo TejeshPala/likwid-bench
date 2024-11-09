@@ -56,7 +56,7 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->tmpfolder = bfromcstr("");
     runcfg->kernelfolder = bfromcstr("");
     runcfg->arraysize = bfromcstr("");
-    runcfg->iterations = -1;
+    runcfg->iterations = 0;
     runcfg->runtime = -1.0;
     *config = runcfg;
     return 0;
