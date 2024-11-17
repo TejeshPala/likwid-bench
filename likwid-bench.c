@@ -459,7 +459,7 @@ int main(int argc, char** argv)
      * Generate assembly
      */
     runcfg->codelines = bstrListCreate();
-    err = generate_code(runcfg->tcfg, runcfg->codelines);
+    err = generate_code(runcfg, runcfg->codelines);
     if (err < 0)
     {
         ERROR_PRINT(Error generating code);

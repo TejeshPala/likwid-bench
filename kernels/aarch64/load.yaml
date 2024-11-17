@@ -19,11 +19,6 @@
         - N
       options:
         - perthread
-  - STR1:
-      dimensions: 1
-      datatype: double
-      dimsizes:
-        - N
 - Variables:
   UOPS_PER_ITER: 1
   BYTES_PER_ELEM: 8

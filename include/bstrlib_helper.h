@@ -17,6 +17,7 @@ bstring bstrListGet(struct bstrList * sl, int idx);
 
 struct bstrList* bstrListCopy(struct bstrList * sl);
 int bstrListRemove(struct bstrList * sl, bstring str);
+int bstrListRemoveDup(struct bstrList * sl);
 
 void bstrListPrint(struct bstrList * sl);
 int bstrListSort(struct bstrList* in, struct bstrList** out);

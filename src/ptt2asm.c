@@ -37,6 +37,7 @@
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
 #include "error.h"
+#include "allocator.h"
 
 #include "ptt2asm.h"
 
@@ -326,7 +327,7 @@ static int _analyse_keyword(TestConfig_t config, struct bstrList* openkeys, stru
 }
 
 
-int prepare_ptt(TestConfig_t config, struct bstrList* out)
+int prepare_ptt(TestConfig_t config, struct bstrList* out, struct bstrList* regs)
 {
     int i = 0;
     // Just for debugging
@@ -467,6 +468,23 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out)
             }
             if (found) break;
         }
+
+        for (int i = 0; i < pttin->qty; i++)
+        {
+            for (int j = 0; j < Registers[j].data[0] != '\0'; j++)
+            {
+                if (binstr(pttin->entry[i], 0, &Registers[j]) != BSTR_ERR)
+                {
+                    bstrListAdd(regs, &Registers[j]);
+                }
+            }
+        }
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, List of registers used before duplication removal);
+        if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(regs);
+        bstrListRemoveDup(regs);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, List of registers used after duplication removal);
+        if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(regs);
+
         // Destroy input, not needed anymore
         bstrListDestroy(pttin);
         // Is there still a keyword?
@@ -500,16 +518,101 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out)
     return 0;
 }
 
-static int _generate_replacement_lists(TestConfig_t config, struct bstrList* keys, struct bstrList* values, int* maxKeyLength)
+static int _generate_replacement_lists(RuntimeConfig* runcfg, struct bstrList* keys, struct bstrList* values, int* maxKeyLength, struct bstrList* regsused)
 {
+    TestConfig_t config = runcfg->tcfg;
     int maxs = 0;
+    struct bstrList* regsavail = bstrListCreate();
+    struct tagbstring bstrptr = bsStatic("# STREAMPTRFORREPLACMENT");
+    struct tagbstring bnewline = bsStatic("\n");
     bstrListAddChar(keys, "NAME");
     bstrListAdd(values, config->name);
+
+    for (int r = 0; Registers[r].data[0] != '\0'; r++)
+    {
+        bstrListAdd(regsavail, &Registers[r]);
+    }
+    for (int i = 0; i < regsused->qty; i++)
+    {
+        for (int r = 0; r < regsavail->qty; r++)
+        {
+            if (bstrncmp(&Registers[r], regsused->entry[i], blength(&Registers[r])) == BSTR_OK)
+            {
+                bstrListRemove(regsavail, &Registers[r]);
+            }
+        }
+    }
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, List of registers available);
+    if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(regsavail);
+
 
     // Runtime parameters missing
     // - STREAM data
     // - Infos from the command line parameters
     // - Infos about threading
+    struct bstrList* blines = bstrListCreate();
+    int str_count = 0;
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        if (wg->num_streams > regsavail->qty)
+        {
+            ERROR_PRINT(The Number of stream %d is higher than the %d registers available in workgroup %d, wg->num_streams, regsavail->qty, w);
+            bstrListDestroy(regsavail);
+            bstrListDestroy(blines);
+            return -EINVAL;
+        }
+        for (int s = 0; s < wg->num_streams; s++)
+        {
+            RuntimeStreamConfig* str = &wg->streams[s];
+            for (int i = 0; i < regsavail->qty && str->name; i++)
+            {
+                str_count++;
+                bstrListAdd(keys, str->name);
+                bstring reg = bformat("%s", bdata(regsavail->entry[i]));
+                bstring ptr = bformat("%p", str->ptr);
+                bstrListAdd(values, reg);
+#if defined(__x86_64) || defined(__x86_64__)
+                bstring line = bformat("mov %s, %s", bdata(regsavail->entry[i]), bdata(ptr));
+#elif defined(__ARM_ARCH_8A) || defined(__aarch64__) || defined(__arm__)
+                bstring line = bformat("ldr %s, =%s", bdata(regsavail->entry[i]), bdata(ptr));
+#elif defined(_ARCH_PPC) || defined(__powerpc) || defined(__ppc__) || defined(__PPC__)
+                bstring line = bformat("mov %s, %s", bdata(regsavail->entry[i]), bdata(ptr)); // to be replaced
+#endif
+                bstrListAdd(blines, line);
+                if (bstrListRemove(regsavail, reg) == BSTR_OK)
+                {
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Register '%s' removed: List of registers available, bdata(reg));
+                    if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(regsavail);
+                }
+                bdestroy(reg);
+                bdestroy(ptr);
+                bdestroy(line);
+                break;
+            }
+
+            TestConfigStream *tstr = &runcfg->tcfg->streams[s];
+            for (int d = 0; d < str->dims; d++)
+            {
+                bstring k = bformat("#%s", bdata(tstr->dims->entry[d]));
+                bstring v = bformat("%ld", getstreamelems(str));
+                bstrListAdd(keys, k);
+                bstrListAdd(values, v);
+                bdestroy(k);
+                bdestroy(v);
+            }
+        }
+    }
+    if (str_count > 0)
+    {
+        bstrListAdd(keys, &bstrptr);
+        bstring val = bjoin(blines, &bnewline);
+        bstrListAdd(values, val);
+        bdestroy(val);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, The streams line '%s' for replacement is, bdata(&bstrptr))
+        if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(blines);
+    }
+    bstrListDestroy(blines);
 
     for (int i = 0; i < config->num_constants; i++)
     {
@@ -534,21 +637,24 @@ static int _generate_replacement_lists(TestConfig_t config, struct bstrList* key
         if (m > maxs) maxs = m;
     }
     *maxKeyLength = maxs;
+    bstrListDestroy(regsavail);
     return 0;
 }
 
-int generate_code(TestConfig_t config, struct bstrList* out)
+int generate_code(RuntimeConfig* runcfg, struct bstrList* out)
 {
+    TestConfig_t config = runcfg->tcfg;
     struct bstrList* tmp = bstrListCreate();
+    struct bstrList* regsused = bstrListCreate();
     header(tmp, config->name);
-    prepare_ptt(config, tmp);
+    prepare_ptt(config, tmp, regsused);
     footer(tmp, config->name);
 
     // Now we have the function code but still with variables
     struct bstrList* keys = bstrListCreate();
     struct bstrList* values = bstrListCreate();
     int maxLength = 0;
-    int err = _generate_replacement_lists(config, keys, values, &maxLength);
+    int err = _generate_replacement_lists(runcfg, keys, values, &maxLength, regsused);
     
     for (int i = 0; i < tmp->qty; i++)
     {
@@ -556,8 +662,9 @@ int generate_code(TestConfig_t config, struct bstrList* out)
         {
             for (int j = 0; j < keys->qty; j++)
             {
-                if (blength(keys->entry[j]) == l)
+                if (blength(keys->entry[j]) == l && binstr(tmp->entry[i], 0, keys->entry[j]) != BSTR_ERR)
                 {
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing '%s' with '%s' in '%s', bdata(keys->entry[j]), bdata(values->entry[j]), bdata(tmp->entry[i]));
                     bfindreplace(tmp->entry[i], keys->entry[j], values->entry[j], 0);
                 }
             }
@@ -572,5 +679,6 @@ int generate_code(TestConfig_t config, struct bstrList* out)
         bstrListAdd(out, tmp->entry[i]);
     }
     bstrListDestroy(tmp);
+    bstrListDestroy(regsused);
     return 0;
 }

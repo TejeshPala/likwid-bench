@@ -105,6 +105,32 @@ bstring bstrListGet(struct bstrList * sl, int idx)
 	return sl->entry[idx];
 }
 
+int bstrListRemoveDup(struct bstrList * sl)
+{
+    int i = 0;
+    if (!sl) return BSTR_ERR;
+    for (i = 0; i < sl->qty; i++)
+    {
+        bstring curr = bstrListGet(sl, i);
+        if (!curr) return BSTR_ERR;
+        for (int j = i + 1; j < sl->qty; )
+        {
+            if (bstrncmp(curr, bstrListGet(sl, j), blength(curr)) == BSTR_OK)
+            {
+                if (bstrListDel(sl, j) != BSTR_OK)
+                {
+                    return BSTR_ERR;
+                }
+            }
+            else
+            {
+                j++;
+            }
+        }
+    }
+    return BSTR_OK;
+}
+
 struct bstrList* bstrListCopy(struct bstrList * sl)
 {
     int i = 0;
