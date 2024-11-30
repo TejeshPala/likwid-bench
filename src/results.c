@@ -599,19 +599,42 @@ int update_variable(RuntimeWorkgroupResult* result, bstring name, bstring value)
 int get_value(RuntimeWorkgroupResult* result, bstring name, double* value)
 {
     int err = 0;
-    double* f = NULL;
+    bstring v = NULL;
+    if ((!result) || (!result->values) || (!name) || (!value))
+    {
+        return -EINVAL;
+    }
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Searching for value %s, bdata(name));
+    err = get_bmap_by_key(result->values, name, (void**)&v);
+    if (err == -ENOENT || v == NULL)
+    {
+        ERROR_PRINT(Value for name %s does not exist, bdata(name));
+        return err;
+    }
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Retrived value for %s is %s, bdata(name), bdata(v));
+    char* endptr;
+    *value = strtod(bdata(v), &endptr);
+    return 0;
+}
+
+int get_variable(RuntimeWorkgroupResult* result, bstring name, uint64_t* value)
+{
+    int err = 0;
+    bstring v = NULL;
     if ((!result) || (!result->values) || (!name) || (!value))
     {
         return -EINVAL;
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Searching for variable %s, bdata(name));
-    err = get_bmap_by_key(result->variables, name, (void**)&f);
-    if (err == -ENOENT || f == NULL)
+    err = get_bmap_by_key(result->variables, name, (void**)&v);
+    if (err == -ENOENT || v == NULL)
     {
-        ERROR_PRINT(Value for name %s does not exist, bdata(name));
+        ERROR_PRINT(Variable for name %s does not exist, bdata(name));
         return err;
     }
-    *value = *f;
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Retrived variable for %s is %s, bdata(name), bdata(v));
+    char* endptr;
+    *value = strtol(bdata(v), &endptr, 10);
     return 0;
 }
 
@@ -767,6 +790,12 @@ int fill_results(RuntimeConfig* runcfg)
         {
             add_variable(&wgroup->results[j], &biterations, biter);
         }
+        bstring x = bformat("%d", wgroup->num_threads);
+        add_variable(wgroup->group_results, &bnumthreads, x);
+        bdestroy(x);
+        x = bformat("%d", i);
+        add_variable(wgroup->group_results, &bgroupid, x);
+        bdestroy(x);
     }
     bdestroy(biter);
 

@@ -413,7 +413,10 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     struct tagbstring barraysize = bsStatic("--arraysize");
     struct tagbstring biterations = bsStatic("--iterations");
     struct tagbstring bruntime = bsStatic("--runtime");
+    struct tagbstring boutput = bsStatic("--output");
+    struct tagbstring bcsv = bsStatic("--csv");
     struct tagbstring btrue = bsStatic("1");
+    struct tagbstring bcsvext = bsStatic(".csv");
     for (int i = 0; i < options->num_options; i++)
     {
         CliOption* opt = &options->options[i];
@@ -491,6 +494,29 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
             DEBUG_PRINT(DEBUGLEV_DETAIL, Runtime(in seconds) set as %.15f, runcfg->runtime);
         }
 
+        if (bstrcmp(opt->name, &boutput) == BSTR_OK && bstrcmp(opt->value, &btrue) == BSTR_OK)
+        {
+            runcfg->output = 1;
+        }
+
+        if (bstrcmp(opt->name, &bcsv) == BSTR_OK && blength(opt->value) > 0)
+        {
+            if (binstr(opt->value, 0, &bcsvext) != BSTR_ERR)
+            {
+                bformata(runcfg->csv, "%s", bdata(opt->value));
+            }
+            else
+            {
+                ERROR_PRINT(%s is not a valid name. Enter '%s' extension for the csv output, bdata(opt->value), bdata(&bcsvext));
+                return -EINVAL;
+            }
+        }
+    }
+
+    if (runcfg->output == 1 && blength(runcfg->csv) > 0)
+    {
+        ERROR_PRINT(Both print results and csv output is not possible. Please use either '-o or -O' options);
+        return -EINVAL;
     }
     
     if (runcfg->runtime != -1.0 && runcfg->iterations != -1)

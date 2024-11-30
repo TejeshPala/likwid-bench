@@ -40,7 +40,8 @@ TESTS = test_read_yaml_ptt \
 	test_allocator \
 	test_bitmap \
 	test_calculator \
-	test_bstrlib_helper
+	test_bstrlib_helper \
+	test_table
 
 # External stuff
 BSTRLIB_OBJ := ../src/bstrlib.c ../src/bstrlib_helper.c
@@ -85,6 +86,9 @@ BITMAP_HEADER := ../include/bitmap.h
 HELPER_OBJ := ../src/helper.c
 HELPER_HEADER := ../include/helper.h
 
+TABLE_OBJ := ../src/table.c
+TABLE_HEADER := ../include/table.h
+
 all: $(TESTS)
 
 test_read_yaml_ptt: test_read_yaml_ptt.c $(READ_YAML_OBJ) $(READ_YAML_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
@@ -122,6 +126,9 @@ test_bitmap: test_bitmap.c $(BITMAP_OBJ) $(BITMAP_HEADER)
 
 test_bstrlib_helper: test_bstrlib_helper.c $(BSTRLIB_HEADER) $(BSTRLIB_OBJ)
 	$(CC) $(INCLUDES) $(CFLAGS) test_bstrlib_helper.c $(BSTRLIB_OBJ) -o $@
+
+test_table: test_table.c $(TABLE_OBJ) $(TABLE_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) test_table.c $(TABLE_OBJ)  $(BSTRLIB_OBJ) -o $@
 
 run: $(TESTS)
 	@for T in $(TESTS); do echo "#### Running $$T ####"; ./$$T; if [ $$? -ne 0 ]; then exit 1; fi; done

@@ -18,6 +18,7 @@
 #include "results.h"
 #include "topology.h"
 #include "thread_group.h"
+#include "table.h"
 
 #ifndef global_verbosity
 int global_verbosity = DEBUGLEV_ONLY_ERROR;
@@ -58,6 +59,8 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->arraysize = bfromcstr("");
     runcfg->iterations = 0;
     runcfg->runtime = -1.0;
+    runcfg->csv = bfromcstr("");
+    runcfg->output = 0;
     *config = runcfg;
     return 0;
 }
@@ -167,6 +170,7 @@ void free_runtime_config(RuntimeConfig* runcfg)
             }
         }
 
+        bdestroy(runcfg->csv);
         free(runcfg);
     }
 }
@@ -368,10 +372,6 @@ int main(int argc, char** argv)
         ERROR_PRINT(Error resolving workgroups);
         goto main_out;
     }
-    for (int i = 0; i < runcfg->num_wgroups; i++)
-    {
-        print_workgroup(&runcfg->wgroups[i]);
-    }
 
     /*
      * Evaluate variables, constants, ... for remaining operations
@@ -426,7 +426,7 @@ int main(int argc, char** argv)
     }
     for (int i = 0; i < runcfg->codelines->qty; i++)
     {
-        DEBUG_PRINT(global_verbosity, "CODE: %s\n", bdata(runcfg->codelines->entry[i]));
+        DEBUG_PRINT(DEBUGLEV_DETAIL, "CODE: %s\n", bdata(runcfg->codelines->entry[i]));
     }
 
 
@@ -519,14 +519,47 @@ int main(int argc, char** argv)
     }
 
     /*
-     * Calculate metrics
+     * * Calculate metrics
      */
 
-     /*
-     * Print everything
+    /*
+     * * Print everything
      */
-     printf("Global Results\n");
-     print_result(runcfg->global_results);
+    if (DEBUGLEV_DEVELOP == global_verbosity)
+    {
+        printf("Workgroup Results\n");
+        for (int i = 0; i < runcfg->num_wgroups; i++)
+        {
+            print_workgroup(&runcfg->wgroups[i]);
+        }
+
+        printf("Global Results\n");
+        print_result(runcfg->global_results);
+    }
+
+    Table* thread = NULL;
+    Table* wgroup = NULL;
+    Table* global = NULL;
+    int max_cols = 0;
+    update_table(runcfg, &thread, &wgroup, &global, &max_cols);
+    if (runcfg->output)
+    {
+        printf("Thread Results\n");
+        table_print(thread);
+        printf("Workgroup Results\n");
+        table_print(wgroup);
+        printf("Global Results\n");
+        table_print(global);
+    }
+    if (blength(runcfg->csv) > 0)
+    {
+        table_to_csv(thread, bdata(runcfg->csv), max_cols);
+        table_to_csv(wgroup, bdata(runcfg->csv), max_cols);
+        table_to_csv(global, bdata(runcfg->csv), max_cols);
+    }
+    table_destroy(thread);
+    table_destroy(wgroup);
+    table_destroy(global);
 
 main_out:
     DEBUG_PRINT(DEBUGLEV_DEVELOP, MAIN_OUT);
