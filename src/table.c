@@ -82,20 +82,20 @@ int table_addrow(Table* table, struct bstrList* row)
     return 0;
 }
 
-#define PRINT_BORDER(table) \
+#define PRINT_BORDER(table, file) \
     for (int c = 0; c < table->num_cols; c++) \
     { \
-        printf("+"); \
-        for (int w = 0; w < table->col_widths[c] + 2; w++) printf("-"); \
+        fprintf(file, "+"); \
+        for (int w = 0; w < table->col_widths[c] + 2; w++) fprintf(file, "-"); \
     } \
-    printf("+\n");
+    fprintf(file, "+\n");
 
-#define PRINT_ROW(table, data) \
+#define PRINT_ROW(table, data, file) \
     for (int c = 0; c < table->num_cols; c++) \
     { \
-        printf("| %-*s ", table->col_widths[c], bdata(data->entry[c])); \
+        fprintf(file, "| %-*s ", table->col_widths[c], bdata(data->entry[c])); \
     } \
-    printf("|\n");
+    fprintf(file, "|\n");
 
 int table_print(Table* table)
 {
@@ -105,25 +105,33 @@ int table_print(Table* table)
         return -EINVAL;
     }
 
+    FILE* file = stdout;
+
+    if (!file)
+    {
+        ERROR_PRINT(Failed to use stdout);
+        return -errno;
+    }
+
     // Top border
-    PRINT_BORDER(table);
+    PRINT_BORDER(table, file);
 
     // Headers
-    PRINT_ROW(table, table->headers);
+    PRINT_ROW(table, table->headers, file);
 
     // Header body seperator
-    PRINT_BORDER(table);
+    PRINT_BORDER(table, file);
 
     // Rows
     for (int r = 0; r < table->rows->qty; r++)
     {
         struct bstrList* cells = bsplit(table->rows->entry[r], '|');
-        PRINT_ROW(table, cells);
+        PRINT_ROW(table, cells, file);
         bstrListDestroy(cells);
     }
 
     // Bottom border
-    PRINT_BORDER(table);
+    PRINT_BORDER(table, file);
     return 0;
 }
 
@@ -200,14 +208,14 @@ int table_to_csv(Table* table, const char* fname, int max_cols)
     return err;
 }
 
-int table_print_csv()
+int table_print_csv(const char* fname)
 {
     int err = 0;
-    FILE* file = stdout;
+    FILE* file = fopen(fname, "r");
     if (!file)
     {
         err = errno;
-        ERROR_PRINT(Failed to stdout);
+        ERROR_PRINT(Failed to open file %s, fname);
         return err;
     }
 
@@ -225,7 +233,7 @@ int table_print_csv()
             err = table_create(fields, &table);
             if (!table)
             {
-                ERROR_PRINT(Failed to create table from stdin headers);
+                ERROR_PRINT(Failed to create table from '%s' headers, fname);
                 bstrListDestroy(fields);
                 fclose(file);
                 err = errno;
@@ -245,13 +253,13 @@ int table_print_csv()
 
     if (table)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Printing CSV from stdin);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Printing CSV '%s' file, fname);
         table_print(table);
         table_destroy(table);
     }
     else
     {
-        ERROR_PRINT(No data read from stdin);
+        ERROR_PRINT(No data read from CSV '%s' file, fname);
         return -EINVAL;
     }
     return err;
