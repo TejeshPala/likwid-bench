@@ -494,12 +494,7 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
             DEBUG_PRINT(DEBUGLEV_DETAIL, Runtime(in seconds) set as %.15f, runcfg->runtime);
         }
 
-        if (bstrcmp(opt->name, &boutput) == BSTR_OK && bstrcmp(opt->value, &btrue) == BSTR_OK)
-        {
-            runcfg->output = 1;
-        }
-
-        if (bstrcmp(opt->name, &bcsv) == BSTR_OK && blength(opt->value) > 0)
+        if (bstrcmp(opt->name, &boutput) == BSTR_OK && blength(opt->value) > 0)
         {
             if (binstr(opt->value, 0, &bcsvext) != BSTR_ERR)
             {
@@ -511,14 +506,13 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
                 return -EINVAL;
             }
         }
+
+        if (bstrcmp(opt->name, &bcsv) == BSTR_OK && bstrcmp(opt->value, &btrue) == BSTR_OK)
+        {
+            runcfg->output = 1;
+        }
     }
 
-    if (runcfg->output == 1 && blength(runcfg->csv) > 0)
-    {
-        ERROR_PRINT(Both print results and csv output is not possible. Please use either '-o or -O' options);
-        return -EINVAL;
-    }
-    
     if (runcfg->runtime != -1.0 && runcfg->iterations != -1)
     {
         ERROR_PRINT(Runtime and Iterations cannot be set at a time);

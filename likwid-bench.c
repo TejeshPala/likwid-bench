@@ -542,7 +542,7 @@ int main(int argc, char** argv)
     Table* global = NULL;
     int max_cols = 0;
     update_table(runcfg, &thread, &wgroup, &global, &max_cols);
-    if (runcfg->output)
+    if (blength(runcfg->csv) == 0 && runcfg->output == 1)
     {
         printf("Thread Results\n");
         table_print(thread);
@@ -551,7 +551,7 @@ int main(int argc, char** argv)
         printf("Global Results\n");
         table_print(global);
     }
-    if (blength(runcfg->csv) > 0)
+    if (blength(runcfg->csv) > 0 && runcfg->output == 1)
     {
         table_to_csv(thread, bdata(runcfg->csv), max_cols);
         table_to_csv(wgroup, bdata(runcfg->csv), max_cols);
