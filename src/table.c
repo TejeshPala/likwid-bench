@@ -200,14 +200,14 @@ int table_to_csv(Table* table, const char* fname, int max_cols)
     return err;
 }
 
-int table_print_csv(const char* fname)
+int table_print_csv()
 {
     int err = 0;
-    FILE* file = fopen(fname, "r");
+    FILE* file = stdout;
     if (!file)
     {
         err = errno;
-        ERROR_PRINT(Failed to open file %s, fname);
+        ERROR_PRINT(Failed to stdout);
         return err;
     }
 
@@ -225,7 +225,7 @@ int table_print_csv(const char* fname)
             err = table_create(fields, &table);
             if (!table)
             {
-                ERROR_PRINT(Failed to create table from '%s' headers, fname);
+                ERROR_PRINT(Failed to create table from stdin headers);
                 bstrListDestroy(fields);
                 fclose(file);
                 err = errno;
@@ -245,13 +245,13 @@ int table_print_csv(const char* fname)
 
     if (table)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Printing CSV '%s' file, fname);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Printing CSV from stdin);
         table_print(table);
         table_destroy(table);
     }
     else
     {
-        ERROR_PRINT(No data read from CSV '%s' file, fname);
+        ERROR_PRINT(No data read from stdin);
         return -EINVAL;
     }
     return err;

@@ -13,6 +13,7 @@
 #include "bstrlib_helper.h"
 #include "error.h"
 #include "helper.h"
+#include "test_strings.h"
 
 
 static BenchResults* bench_results = NULL;
@@ -740,13 +741,6 @@ void destroy_result(RuntimeWorkgroupResult* result)
 int fill_results(RuntimeConfig* runcfg)
 {
     int total_threads = 0;
-    struct tagbstring bsizen = bsStatic("N");
-    struct tagbstring biterations = bsStatic("ITER");
-    struct tagbstring bnumthreads = bsStatic("NUM_THREADS");
-    struct tagbstring bgroupid = bsStatic("GROUP_ID");
-    struct tagbstring bthreadid = bsStatic("THREAD_ID");
-    struct tagbstring bthreadcpu = bsStatic("THREAD_CPU"); 
-    struct tagbstring bglobalid = bsStatic("GLOBAL_ID");
 
     for (int i = 0; i < runcfg->num_params; i++)
     {

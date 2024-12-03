@@ -15,6 +15,7 @@
 #include "map.h"
 #include "calculator.h"
 #include "table.h"
+#include "test_strings.h"
 
 #undef MAX
 #define MAX(a, b) ((a > b) ? (a) : (b))
@@ -473,11 +474,6 @@ int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** 
     collect_keys(&runcfg->wgroups[0].group_results[0], bwgroup_keys);
     collect_keys(runcfg->global_results, bglobal_keys);
 
-    struct tagbstring bthreadid = bsStatic("THREAD_ID");
-    struct tagbstring bthreadcpu = bsStatic("THREAD_CPU");
-    struct tagbstring bgroupid = bsStatic("GROUP_ID");
-    struct tagbstring bglobalid = bsStatic("GLOBAL_ID");
-    struct tagbstring bnumthreads = bsStatic("NUM_THREADS");
     bstrListAdd(bthread_keys, &bthreadid);
     bstrListAdd(bthread_keys, &bthreadcpu);
     bstrListAdd(bthread_keys, &bgroupid);
