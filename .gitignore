@@ -8,6 +8,7 @@
 *.obj
 *.elf
 *.csv
+*.json
 
 # Linker output
 *.ilk

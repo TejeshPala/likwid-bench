@@ -208,6 +208,77 @@ int table_to_csv(Table* table, const char* fname, int max_cols)
     return err;
 }
 
+int table_to_json(Table* table, const char* fname, const char* tname)
+{
+    int err = 0;
+    int place_holder = (strcmp(tname, "global_results") == 0) ? 1 : 0; // check for last table name
+    int indent = 0;
+    if (!table)
+    {
+        ERROR_PRINT(Inavlid Table);
+        return -EINVAL;
+    }
+
+    FILE* file = fopen(fname, "ab");
+    if (file == NULL)
+    {
+        err = errno;
+        ERROR_PRINT(Unable to write to file %s, fname);
+        return err;
+    }
+
+    fseek(file, 0, SEEK_END);
+    long size = ftell(file);
+    if (size == 0)
+    {
+        fprintf(file, "{\n");
+        indent = 1;
+    }
+
+    indent = 1;
+    write_indent(file, indent);
+    fprintf(file, "\"%s\": [\n", tname);
+    indent++;
+
+    for (int r = 0; r < table->rows->qty; r++)
+    {
+        write_indent(file, indent);
+        fprintf(file, "{\n");
+        indent++;
+        struct bstrList* cells = bsplit(table->rows->entry[r], '|');
+        for (int c = 0; c < table->num_cols; c++)
+        {
+            write_indent(file, indent);
+            fprintf(file, "\"%s\": %s", bdata(table->headers->entry[c]), bdata(cells->entry[c]));
+            if (c < table->num_cols - 1)
+            {
+                fprintf(file, ",");
+            }
+            fprintf(file, "\n");
+        }
+        indent--;
+        write_indent(file, indent);
+        fprintf(file, "}%s\n", r < table->rows->qty - 1 ? "," : "");
+        bstrListDestroy(cells);
+    }
+
+    indent--;
+    write_indent(file, indent);
+
+    fprintf(file, "]%s\n", (place_holder == 0) ? "," : "");
+
+    if (place_holder == 1)
+    {
+        indent--;
+        write_indent(file, indent);
+        fprintf(file, "}\n");
+    }
+
+    fclose(file);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Results are saved to file '%s', fname);
+    return err;
+}
+
 int table_print_csv(const char* fname)
 {
     int err = 0;

@@ -60,6 +60,7 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->iterations = 0;
     runcfg->runtime = -1.0;
     runcfg->csv = bfromcstr("");
+    runcfg->json = bfromcstr("");
     runcfg->output = 0;
     *config = runcfg;
     return 0;
@@ -171,6 +172,7 @@ void free_runtime_config(RuntimeConfig* runcfg)
         }
 
         bdestroy(runcfg->csv);
+        bdestroy(runcfg->json);
         free(runcfg);
     }
 }
@@ -542,7 +544,7 @@ int main(int argc, char** argv)
     Table* global = NULL;
     int max_cols = 0;
     update_table(runcfg, &thread, &wgroup, &global, &max_cols);
-    if (blength(runcfg->csv) == 0 && runcfg->output == 1)
+    if ((blength(runcfg->csv) == 0 && blength(runcfg->json) == 0) && runcfg->output == 1)
     {
         printf("Thread Results\n");
         table_print(thread);
@@ -556,6 +558,12 @@ int main(int argc, char** argv)
         table_to_csv(thread, bdata(runcfg->csv), max_cols);
         table_to_csv(wgroup, bdata(runcfg->csv), max_cols);
         table_to_csv(global, bdata(runcfg->csv), max_cols);
+    }
+    if (blength(runcfg->json) > 0 && runcfg->output == 1)
+    {
+        table_to_json(thread, bdata(runcfg->json), "thread_results");
+        table_to_json(wgroup, bdata(runcfg->json), "workgroup_results");
+        table_to_json(global, bdata(runcfg->json), "global_results");
     }
     table_destroy(thread);
     table_destroy(wgroup);

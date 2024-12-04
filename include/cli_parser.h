@@ -66,10 +66,11 @@ static ConstCliOption _basecliopts[] = {
     {"runtime", 'r', required_argument, "Possible Units: ms, s, m, h. Default: s. Runtime"},
     {"output", 'o', required_argument, "Store results to CSV file '-O -o example.csv'"},
     {"csv", 'O', no_argument, "Print results in fancy Table format instead of CSV"},
+    {"json", 'J', no_argument, "Store results to JSON file '-J -o example.json'"},
 };
 
 static ConstCliOptions basecliopts = {
-    .num_options = 10,
+    .num_options = 11,
     .options = _basecliopts,
 };
 

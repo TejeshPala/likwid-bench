@@ -415,8 +415,10 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     struct tagbstring bruntime = bsStatic("--runtime");
     struct tagbstring boutput = bsStatic("--output");
     struct tagbstring bcsv = bsStatic("--csv");
+    struct tagbstring bjson = bsStatic("--json");
     struct tagbstring btrue = bsStatic("1");
     struct tagbstring bcsvext = bsStatic(".csv");
+    struct tagbstring bjsonext = bsStatic(".json");
     for (int i = 0; i < options->num_options; i++)
     {
         CliOption* opt = &options->options[i];
@@ -500,14 +502,18 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
             {
                 bformata(runcfg->csv, "%s", bdata(opt->value));
             }
+            else if (binstr(opt->value, 0, &bjsonext) != BSTR_ERR)
+            {
+                bformata(runcfg->json, "%s", bdata(opt->value));
+            }
             else
             {
-                ERROR_PRINT(%s is not a valid name. Enter '%s' extension for the csv output, bdata(opt->value), bdata(&bcsvext));
+                ERROR_PRINT(%s is not a valid name. Enter '%s' or '%s' extension for the file output, bdata(opt->value), bdata(&bcsvext), bdata(&bjsonext));
                 return -EINVAL;
             }
         }
 
-        if (bstrcmp(opt->name, &bcsv) == BSTR_OK && bstrcmp(opt->value, &btrue) == BSTR_OK)
+        if ((bstrcmp(opt->name, &bcsv) == BSTR_OK || bstrcmp(opt->name, &bjson) == BSTR_OK) && bstrcmp(opt->value, &btrue) == BSTR_OK)
         {
             runcfg->output = 1;
         }
