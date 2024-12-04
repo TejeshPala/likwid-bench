@@ -42,3 +42,5 @@ likwid-bench
 /tests/**/test_stack
 /tests/**/test_topology
 /tests/**/test_calculator
+/tests/**/test_timer-gettime
+/tests/**/test_timer-rdtsc
