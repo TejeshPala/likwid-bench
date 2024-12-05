@@ -614,7 +614,8 @@ int get_value(RuntimeWorkgroupResult* result, bstring name, double* value)
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Retrived value for %s is %s, bdata(name), bdata(v));
     char* endptr;
-    *value = strtod(bdata(v), &endptr);
+    const char* cval = bdata(v);
+    *value = strtod(cval, &endptr);
     return 0;
 }
 
@@ -635,7 +636,8 @@ int get_variable(RuntimeWorkgroupResult* result, bstring name, uint64_t* value)
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Retrived variable for %s is %s, bdata(name), bdata(v));
     char* endptr;
-    *value = strtol(bdata(v), &endptr, 10);
+    const char* cval = bdata(v);
+    *value = strtol(cval, &endptr, 10);
     return 0;
 }
 

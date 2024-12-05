@@ -28,9 +28,9 @@ static void write_indent(FILE* file, int level)
 int table_destroy(Table* table);
 int table_create(struct bstrList* headers, Table** table);
 int table_addrow(Table* table, struct bstrList* row);
-int table_print(Table* table);
-int table_to_csv(Table* table, const char* fname, int max_cols);
-int table_to_json(Table* table, const char* fname, const char* tname);
+int table_print(FILE* output, Table* table);
+int table_to_csv(FILE* output, Table* table, const char* fname, int max_cols);
+int table_to_json(FILE* output, Table* table, const char* fname, const char* tname);
 int table_print_csv(const char* fname);
 
 

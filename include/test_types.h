@@ -246,9 +246,9 @@ typedef struct {
     int verbosity;
     int iterations;
     double runtime;
-    bstring csv;
-    bstring json;
-    int output;
+    int csv;
+    int json;
+    bstring output;
     int num_wgroups;
     RuntimeWorkgroupConfig* wgroups;
     int num_params;

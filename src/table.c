@@ -97,7 +97,7 @@ int table_addrow(Table* table, struct bstrList* row)
     } \
     fprintf(file, "|\n");
 
-int table_print(Table* table)
+int table_print(FILE* output, Table* table)
 {
     if (!table)
     {
@@ -105,11 +105,11 @@ int table_print(Table* table)
         return -EINVAL;
     }
 
-    FILE* file = stdout;
+    FILE* file = output;
 
     if (!file)
     {
-        ERROR_PRINT(Failed to use stdout);
+        ERROR_PRINT(Failed to use given output);
         return -errno;
     }
 
@@ -141,7 +141,7 @@ int table_print(Table* table)
         fprintf(file, ","); \
     }
 
-int table_to_csv(Table* table, const char* fname, int max_cols)
+int table_to_csv(FILE* output, Table* table, const char* fname, int max_cols)
 {
     int err = 0;
     if (!table)
@@ -150,7 +150,7 @@ int table_to_csv(Table* table, const char* fname, int max_cols)
         return -EINVAL;
     }
 
-    FILE* file = fopen(fname, "ab");
+    FILE* file = output;
     if (file == NULL)
     {
         err = errno;
@@ -208,7 +208,7 @@ int table_to_csv(Table* table, const char* fname, int max_cols)
     return err;
 }
 
-int table_to_json(Table* table, const char* fname, const char* tname)
+int table_to_json(FILE* output, Table* table, const char* fname, const char* tname)
 {
     int err = 0;
     int place_holder = (strcmp(tname, "global_results") == 0) ? 1 : 0; // check for last table name
@@ -219,7 +219,7 @@ int table_to_json(Table* table, const char* fname, const char* tname)
         return -EINVAL;
     }
 
-    FILE* file = fopen(fname, "ab");
+    FILE* file = output;
     if (file == NULL)
     {
         err = errno;
@@ -325,7 +325,7 @@ int table_print_csv(const char* fname)
     if (table)
     {
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Printing CSV '%s' file, fname);
-        table_print(table);
+        table_print(stdout, table);
         table_destroy(table);
     }
     else

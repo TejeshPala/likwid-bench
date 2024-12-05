@@ -55,8 +55,8 @@ int main(int argc, char* argv)
     bstrListAdd(row4, &tempty);
     table_addrow(table, row4);
 
-    table_to_csv(table, fname, 2);
-    table_print_csv(fname);
+    table_to_csv(stdout, table, fname, 2);
+    table_print_csv(stdout, fname);
 
 /*
     char cmd[1024];

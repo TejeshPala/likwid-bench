@@ -64,9 +64,9 @@ static ConstCliOption _basecliopts[] = {
     {"tmpfolder", 'D', required_argument, "Temporary folder for the object files"},
     {"iterations", 'i', required_argument, "Iterations"},
     {"runtime", 'r', required_argument, "Possible Units: ms, s, m, h. Default: s. Runtime"},
-    {"output", 'o', required_argument, "Store results to CSV file '-O -o example.csv'"},
-    {"csv", 'O', no_argument, "Print results in fancy Table format instead of CSV"},
-    {"json", 'J', no_argument, "Store results to JSON file '-J -o example.json'"},
+    {"output", 'o', required_argument, "Set output: 'stdout', 'stderr' or a filename"},
+    {"csv", 'O', no_argument, "Output results in CSV format"},
+    {"json", 'J', no_argument, "Output results in JSON format"},
 };
 
 static ConstCliOptions basecliopts = {
