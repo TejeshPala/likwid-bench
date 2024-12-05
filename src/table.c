@@ -203,7 +203,6 @@ int table_to_csv(FILE* output, Table* table, const char* fname, int max_cols)
         fprintf(file, "\n");
         bstrListDestroy(cells);
     }
-    fclose(file);
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Results are saved to file '%s', fname);
     return err;
 }
@@ -274,7 +273,6 @@ int table_to_json(FILE* output, Table* table, const char* fname, const char* tna
         fprintf(file, "}\n");
     }
 
-    fclose(file);
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Results are saved to file '%s', fname);
     return err;
 }

@@ -41,22 +41,27 @@ int main(int argc, char* argv)
     bstrListAdd(row2, &two);
     table_addrow(table, row2);
 
-    table_print(table);
+    table_print(stdout, table);
 
     struct bstrList* row3 = bstrListCreate();
     bstrListAdd(row3, &name);
     bstrListAdd(row3, &three);
     table_addrow(table, row3);
 
-    table_print(table);
+    table_print(stdout, table);
 
     struct bstrList* row4 = bstrListCreate();
     bstrListAdd(row4, &tempty);
     bstrListAdd(row4, &tempty);
     table_addrow(table, row4);
 
-    table_to_csv(stdout, table, fname, 2);
-    table_print_csv(stdout, fname);
+    FILE* fp = fopen(fname, "w");
+    if (fp)
+    {
+        table_to_csv(fp, table, fname, 2);
+        fclose(fp);
+        table_print_csv(fname);
+    }
 
 /*
     char cmd[1024];
