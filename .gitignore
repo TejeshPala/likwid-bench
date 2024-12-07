@@ -7,6 +7,8 @@
 *.ko
 *.obj
 *.elf
+*.csv
+*.json
 
 # Linker output
 *.ilk
@@ -42,3 +44,4 @@ likwid-bench
 /tests/**/test_stack
 /tests/**/test_topology
 /tests/**/test_calculator
+/tests/**/test_table

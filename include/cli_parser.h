@@ -64,10 +64,13 @@ static ConstCliOption _basecliopts[] = {
     {"tmpfolder", 'D', required_argument, "Temporary folder for the object files"},
     {"iterations", 'i', required_argument, "Iterations"},
     {"runtime", 'r', required_argument, "Possible Units: ms, s, m, h. Default: s. Runtime"},
+    {"output", 'o', required_argument, "Set output: 'stdout', 'stderr' or a filename"},
+    {"csv", 'O', no_argument, "Output results in CSV format"},
+    {"json", 'J', no_argument, "Output results in JSON format"},
 };
 
 static ConstCliOptions basecliopts = {
-    .num_options = 8,
+    .num_options = 11,
     .options = _basecliopts,
 };
 

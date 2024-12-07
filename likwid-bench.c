@@ -18,6 +18,7 @@
 #include "results.h"
 #include "topology.h"
 #include "thread_group.h"
+#include "table.h"
 
 #ifndef global_verbosity
 int global_verbosity = DEBUGLEV_ONLY_ERROR;
@@ -58,6 +59,9 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->arraysize = bfromcstr("");
     runcfg->iterations = 0;
     runcfg->runtime = -1.0;
+    runcfg->csv = 0;
+    runcfg->json = 0;
+    runcfg->output = bfromcstr("stdout");
     *config = runcfg;
     return 0;
 }
@@ -167,6 +171,7 @@ void free_runtime_config(RuntimeConfig* runcfg)
             }
         }
 
+        bdestroy(runcfg->output);
         free(runcfg);
     }
 }
@@ -368,10 +373,6 @@ int main(int argc, char** argv)
         ERROR_PRINT(Error resolving workgroups);
         goto main_out;
     }
-    for (int i = 0; i < runcfg->num_wgroups; i++)
-    {
-        print_workgroup(&runcfg->wgroups[i]);
-    }
 
     /*
      * Evaluate variables, constants, ... for remaining operations
@@ -426,7 +427,7 @@ int main(int argc, char** argv)
     }
     for (int i = 0; i < runcfg->codelines->qty; i++)
     {
-        DEBUG_PRINT(global_verbosity, "CODE: %s\n", bdata(runcfg->codelines->entry[i]));
+        DEBUG_PRINT(DEBUGLEV_DETAIL, "CODE: %s\n", bdata(runcfg->codelines->entry[i]));
     }
 
 
@@ -519,14 +520,87 @@ int main(int argc, char** argv)
     }
 
     /*
-     * Calculate metrics
+     * * Calculate metrics
      */
 
-     /*
-     * Print everything
+    /*
+     * * Print everything
      */
-     printf("Global Results\n");
-     print_result(runcfg->global_results);
+    if (DEBUGLEV_DEVELOP == global_verbosity)
+    {
+        printf("Workgroup Results\n");
+        for (int i = 0; i < runcfg->num_wgroups; i++)
+        {
+            print_workgroup(&runcfg->wgroups[i]);
+        }
+
+        printf("Global Results\n");
+        print_result(runcfg->global_results);
+    }
+
+    Table* thread = NULL;
+    Table* wgroup = NULL;
+    Table* global = NULL;
+    int max_cols = 0;
+    update_table(runcfg, &thread, &wgroup, &global, &max_cols);
+    FILE* output = NULL;
+    int fileout = 0;
+    if (blength(runcfg->output) > 0)
+    {
+        struct tagbstring bstdout = bsStatic("stdout");
+        struct tagbstring bstderr = bsStatic("stderr");
+        if (bstrnicmp(runcfg->output, &bstdout, blength(&bstdout)) == BSTR_OK)
+        {
+            output = stdout;
+        }
+        else if (bstrnicmp(runcfg->output, &bstdout, blength(&bstdout)) == BSTR_OK)
+        {
+            output = stderr;
+        }
+        else
+        {
+            output = fopen(bdata(runcfg->output), "a");
+            if (!output)
+            {
+                fprintf(stderr, "Cannot open file %s to write results. Using stdout.\n", bdata(runcfg->output));
+                output = stdout;
+            }
+            else
+            {
+                fileout = 1;
+            }
+        }
+    }
+
+    if (runcfg->csv == 0 && runcfg->json == 0)
+    {
+        fprintf(output, "Thread Results\n");
+        table_print(output, thread);
+        fprintf(output, "Workgroup Results\n");
+        table_print(output, wgroup);
+        fprintf(output, "Global Results\n");
+        table_print(output, global);
+    }
+    else if (runcfg->csv > 0)
+    {
+        table_to_csv(output, thread, bdata(runcfg->output), max_cols);
+        table_to_csv(output, wgroup, bdata(runcfg->output), max_cols);
+        table_to_csv(output, global, bdata(runcfg->output), max_cols);
+    }
+    else if (runcfg->json > 0)
+    {
+        table_to_json(output, thread, bdata(runcfg->output), "thread_results");
+        table_to_json(output, wgroup, bdata(runcfg->output), "workgroup_results");
+        table_to_json(output, global, bdata(runcfg->output), "global_results");
+    }
+    table_destroy(thread);
+    table_destroy(wgroup);
+    table_destroy(global);
+
+    if (fileout && output)
+    {
+        fclose(output);
+    }
 
 main_out:
     DEBUG_PRINT(DEBUGLEV_DEVELOP, MAIN_OUT);
