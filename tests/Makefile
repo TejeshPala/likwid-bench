@@ -41,6 +41,8 @@ TESTS = test_read_yaml_ptt \
 	test_bitmap \
 	test_calculator \
 	test_bstrlib_helper \
+	test_timer-rdtsc \
+	test_timer-gettime \
 	test_table
 
 # External stuff
@@ -86,6 +88,9 @@ BITMAP_HEADER := ../include/bitmap.h
 HELPER_OBJ := ../src/helper.c
 HELPER_HEADER := ../include/helper.h
 
+TIMER_OBJ := ../src/timer.c
+TIMER_HEADER := ../include/timer.h
+
 TABLE_OBJ := ../src/table.c
 TABLE_HEADER := ../include/table.h
 
@@ -126,6 +131,12 @@ test_bitmap: test_bitmap.c $(BITMAP_OBJ) $(BITMAP_HEADER)
 
 test_bstrlib_helper: test_bstrlib_helper.c $(BSTRLIB_HEADER) $(BSTRLIB_OBJ)
 	$(CC) $(INCLUDES) $(CFLAGS) test_bstrlib_helper.c $(BSTRLIB_OBJ) -o $@
+
+test_timer-rdtsc: test_timer-rdtsc.c $(TIMER_OBJ) $(TIMER_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) test_timer-rdtsc.c $(TIMER_OBJ) -o $@
+
+test_timer-gettime: test_timer-gettime.c $(TIMER_OBJ) $(TIMER_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) test_timer-gettime.c $(TIMER_OBJ) -o $@
 
 test_table: test_table.c $(TABLE_OBJ) $(TABLE_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) test_table.c $(TABLE_OBJ)  $(BSTRLIB_OBJ) -o $@
