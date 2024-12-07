@@ -413,6 +413,9 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     struct tagbstring barraysize = bsStatic("--arraysize");
     struct tagbstring biterations = bsStatic("--iterations");
     struct tagbstring bruntime = bsStatic("--runtime");
+    struct tagbstring boutput = bsStatic("--output");
+    struct tagbstring bcsv = bsStatic("--csv");
+    struct tagbstring bjson = bsStatic("--json");
     struct tagbstring btrue = bsStatic("1");
     for (int i = 0; i < options->num_options; i++)
     {
@@ -431,12 +434,12 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
         {
             runcfg->help = 1;
         }
-        if (bstrcmp(opt->name, &bverbose) == BSTR_OK && blength(opt->value) > 0)
+        else if (bstrcmp(opt->name, &bverbose) == BSTR_OK && blength(opt->value) > 0)
         {
             const char* cval = bdata(opt->value);
             runcfg->verbosity = atoi(cval);
         }
-        if (bstrcmp(opt->name, &btest) == BSTR_OK && blength(opt->value) > 0)
+        else if (bstrcmp(opt->name, &btest) == BSTR_OK && blength(opt->value) > 0)
         {
             bstring path = bformat("%s/%s.yaml", bdata(runcfg->kernelfolder), bdata(opt->value));
             const char* cpath = bdata(path);
@@ -454,12 +457,12 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
             }
             bdestroy(path);
         }
-        if (bstrcmp(opt->name, &bfile) == BSTR_OK && blength(opt->value) > 0)
+        else if (bstrcmp(opt->name, &bfile) == BSTR_OK && blength(opt->value) > 0)
         {
             btrunc(runcfg->pttfile, 0);
             bconcat(runcfg->pttfile, opt->value);
         }
-        if (bstrcmp(opt->name, &btmpfolder) == BSTR_OK && blength(opt->value) > 0)
+        else if (bstrcmp(opt->name, &btmpfolder) == BSTR_OK && blength(opt->value) > 0)
         {
             const char* cval = bdata(opt->value);
             if (access(cval, W_OK|X_OK))
@@ -472,27 +475,36 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
                 bconcat(runcfg->tmpfolder, opt->value);
             }
         }
-
-        if (bstrcmp(opt->name, &barraysize) == BSTR_OK && blength(opt->value) > 0)
+        else if (bstrcmp(opt->name, &barraysize) == BSTR_OK && blength(opt->value) > 0)
         {
             btrunc(runcfg->arraysize, 0);
             bconcat(runcfg->arraysize, opt->value);
         }
-
-        if (bstrcmp(opt->name, &biterations) == BSTR_OK && blength(opt->value) > 0)
+        else if (bstrcmp(opt->name, &biterations) == BSTR_OK && blength(opt->value) > 0)
         {
             int (*myatoi)(const char *nptr) = atoi;
             runcfg->iterations = myatoi(bdata(opt->value));
         }
-
-        if (bstrcmp(opt->name, &bruntime) == BSTR_OK && blength(opt->value) > 0)
+        else if (bstrcmp(opt->name, &bruntime) == BSTR_OK && blength(opt->value) > 0)
         {
             runcfg->runtime =  convertToSeconds(opt->value);
             DEBUG_PRINT(DEBUGLEV_DETAIL, Runtime(in seconds) set as %.15f, runcfg->runtime);
         }
-
+        else if (bstrcmp(opt->name, &boutput) == BSTR_OK && blength(opt->value) > 0)
+        {
+            btrunc(runcfg->output, 0);
+            bconcat(runcfg->output, opt->value);
+        }
+        else if (bstrncmp(opt->name, &bcsv, blength(&bcsv)) == BSTR_OK && blength(opt->value) > 0)
+        {
+            runcfg->csv = 1;
+        }
+        else if (bstrncmp(opt->name, &bjson, blength(&bjson)) == BSTR_OK && blength(opt->value) > 0)
+        {
+            runcfg->json = 1;
+        }
     }
-    
+
     if (runcfg->runtime != -1.0 && runcfg->iterations != -1)
     {
         ERROR_PRINT(Runtime and Iterations cannot be set at a time);

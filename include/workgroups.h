@@ -32,6 +32,7 @@
 
 #include "test_types.h"
 #include "bstrlib.h"
+#include "table.h"
 
 void delete_workgroup(RuntimeWorkgroupConfig* wg);
 void release_streams(int num_wgroups, RuntimeWorkgroupConfig* wgroups);
@@ -41,5 +42,6 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg);
 void print_workgroup(RuntimeWorkgroupConfig* wgroup);
 int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfig* wgroups);
 
+int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** global, int* max_cols);
 
 #endif /* WORKGROUP_H */
