@@ -41,7 +41,10 @@ TESTS = test_read_yaml_ptt \
 	test_bitmap \
 	test_calculator \
 	test_bench \
-	test_bstrlib_helper
+	test_bstrlib_helper \
+	test_timer-rdtsc \
+	test_timer-gettime \
+	test_table
 
 # External stuff
 BSTRLIB_OBJ := ../src/bstrlib.c ../src/bstrlib_helper.c
@@ -89,6 +92,12 @@ HELPER_HEADER := ../include/helper.h
 BENCH_OBJ := ../src/bench.c
 BENCH_HEADER := ../include/bench.h
 
+TIMER_OBJ := ../src/timer.c
+TIMER_HEADER := ../include/timer.h
+
+TABLE_OBJ := ../src/table.c
+TABLE_HEADER := ../include/table.h
+
 all: $(TESTS)
 
 test_read_yaml_ptt: test_read_yaml_ptt.c $(READ_YAML_OBJ) $(READ_YAML_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
@@ -129,6 +138,15 @@ test_bstrlib_helper: test_bstrlib_helper.c $(BSTRLIB_HEADER) $(BSTRLIB_OBJ)
 
 test_bench: test_bench.c $(BENCH_OBJ) $(BENCH_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) test_bench.c $(BENCH_OBJ) -o $@ -lpthread
+
+test_timer-rdtsc: test_timer-rdtsc.c $(TIMER_OBJ) $(TIMER_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) test_timer-rdtsc.c $(TIMER_OBJ) -o $@
+
+test_timer-gettime: test_timer-gettime.c $(TIMER_OBJ) $(TIMER_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) test_timer-gettime.c $(TIMER_OBJ) -o $@
+
+test_table: test_table.c $(TABLE_OBJ) $(TABLE_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) test_table.c $(TABLE_OBJ)  $(BSTRLIB_OBJ) -o $@
 
 run: $(TESTS)
 	@for T in $(TESTS); do echo "#### Running $$T ####"; ./$$T; if [ $$? -ne 0 ]; then exit 1; fi; done

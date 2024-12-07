@@ -14,6 +14,12 @@
 #include "allocator.h"
 #include "map.h"
 #include "calculator.h"
+#include "table.h"
+#include "test_strings.h"
+
+#undef MAX
+#define MAX(a, b) ((a > b) ? (a) : (b))
+
 
 void delete_workgroup(RuntimeWorkgroupConfig* wg)
 {
@@ -203,7 +209,6 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
     }
     memset(wg->streams, 0, runcfg->tcfg->num_streams * sizeof(RuntimeStreamConfig));
 
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Allocating %d streams, runcfg->tcfg->num_streams);
     for (int j = 0; j < runcfg->tcfg->num_streams; j++)
     {
         TestConfigStream *istream = &runcfg->tcfg->streams[j];
@@ -452,3 +457,139 @@ void print_workgroup(RuntimeWorkgroupConfig* wg)
     }
 }
 
+int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** global, int* max_cols)
+{
+    struct bstrList* bthread_keys = bstrListCreate();
+    struct bstrList* bwgroup_keys = bstrListCreate();
+    struct bstrList* bglobal_keys = bstrListCreate();
+    struct bstrList* bthread_keys_sorted = NULL;
+    struct bstrList* bwgroup_keys_sorted = NULL;
+    struct bstrList* bglobal_keys_sorted = NULL;
+    Table* ithread = NULL;
+    Table* iwgroup = NULL;
+    Table* iglobal = NULL;
+
+    collect_keys(&runcfg->wgroups[0].results[0], bthread_keys);
+    collect_keys(&runcfg->wgroups[0].group_results[0], bwgroup_keys);
+    collect_keys(runcfg->global_results, bglobal_keys);
+
+    bstrListAdd(bthread_keys, &bthreadid);
+    bstrListAdd(bthread_keys, &bthreadcpu);
+    bstrListAdd(bthread_keys, &bgroupid);
+    bstrListAdd(bthread_keys, &bglobalid);
+    bstrListAdd(bthread_keys, &bnumthreads);
+    bstrListAdd(bwgroup_keys, &bgroupid);
+    bstrListAdd(bwgroup_keys, &bnumthreads);
+    bstrListAdd(bglobal_keys, &bnumthreads);
+
+    bstrListSort(bthread_keys, &bthread_keys_sorted);
+    bstrListSort(bwgroup_keys, &bwgroup_keys_sorted);
+    bstrListSort(bglobal_keys, &bglobal_keys_sorted);
+
+    *max_cols = MAX(bthread_keys->qty, MAX(bwgroup_keys->qty, bglobal_keys->qty));
+
+    bstrListDestroy(bthread_keys);
+    bstrListDestroy(bwgroup_keys);
+    bstrListDestroy(bglobal_keys);
+
+    table_create(bthread_keys_sorted, &ithread);
+    table_create(bwgroup_keys_sorted, &iwgroup);
+    table_create(bglobal_keys_sorted, &iglobal);
+
+    for (int i = 0; i < runcfg->num_wgroups; i++)
+    {
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[i];
+        for (int t = 0; t < wg->num_threads; t++)
+        {
+            RuntimeWorkgroupResult* result = &wg->results[t];
+            struct bstrList* btmp1 = bstrListCreate();
+            for (int k = 0; k < bthread_keys_sorted->qty; k++)
+            {
+                if (biseq(bthread_keys_sorted->entry[k], &bthreadid) || biseq(bthread_keys_sorted->entry[k], &bthreadcpu) || biseq(bthread_keys_sorted->entry[k], &bgroupid) || biseq(bthread_keys_sorted->entry[k], &bglobalid) || biseq(bthread_keys_sorted->entry[k], &bnumthreads))
+                {
+                    uint64_t val;
+                    if (get_variable(result, bthread_keys_sorted->entry[k], &val) == 0)
+                    {
+                        bstring bval = bformat("%ld", val);
+                        bstrListAdd(btmp1, bval);
+                        bdestroy(bval);
+                    }
+                }
+                else
+                {
+                    double val;
+                    if (get_value(result, bthread_keys_sorted->entry[k], &val) == 0)
+                    {
+                        bstring bval = bformat("%lf", val);
+                        bstrListAdd(btmp1, bval);
+                        bdestroy(bval);
+                    }
+                }
+            }
+            table_addrow(ithread, btmp1);
+            bstrListDestroy(btmp1);
+        }
+
+        struct bstrList* btmp2 = bstrListCreate();
+        for (int k = 0; k < bwgroup_keys_sorted->qty; k++)
+        {
+            if (biseq(bwgroup_keys_sorted->entry[k], &bgroupid) || biseq(bwgroup_keys_sorted->entry[k], &bnumthreads))
+            {
+                uint64_t val;
+                if (get_variable(wg->group_results, bwgroup_keys_sorted->entry[k], &val) == 0)
+                {
+                    bstring bval = bformat("%ld", val);
+                    bstrListAdd(btmp2, bval);
+                    bdestroy(bval);
+                }
+            }
+            else
+            {
+                double val;
+                if (get_value(wg->group_results, bwgroup_keys_sorted->entry[k], &val) == 0)
+                {
+                    bstring bval = bformat("%lf", val);
+                    bstrListAdd(btmp2, bval);
+                    bdestroy(bval);
+                }
+            }
+        }
+        table_addrow(iwgroup, btmp2);
+        bstrListDestroy(btmp2);
+    }
+
+    struct bstrList* btmp3 = bstrListCreate();
+    for (int k = 0; k < bglobal_keys_sorted->qty; k++)
+    {
+        if (biseq(bglobal_keys_sorted->entry[k], &bnumthreads))
+        {
+            uint64_t val;
+            if (get_variable(runcfg->global_results, bglobal_keys_sorted->entry[k], &val) == 0)
+            {
+                bstring bval = bformat("%ld", val);
+                bstrListAdd(btmp3, bval);
+                bdestroy(bval);
+            }
+        }
+        else
+        {
+            double val;
+            if (get_value(runcfg->global_results, bglobal_keys_sorted->entry[k], &val) == 0)
+            {
+                bstring bval = bformat("%lf", val);
+                bstrListAdd(btmp3, bval);
+                bdestroy(bval);
+            }
+        }
+    }
+    table_addrow(iglobal, btmp3);
+    bstrListDestroy(btmp3);
+
+    *thread = ithread;
+    *wgroup = iwgroup;
+    *global = iglobal;
+
+    bstrListDestroy(bthread_keys_sorted);
+    bstrListDestroy(bwgroup_keys_sorted);
+    bstrListDestroy(bglobal_keys_sorted);
+}
