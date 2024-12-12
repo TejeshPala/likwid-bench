@@ -183,8 +183,11 @@ typedef struct {
         void (*run)();
     } cmdfunc;
     int done;
+    pthread_attr_t attr;
     pthread_mutex_t mutex;
+    pthread_mutexattr_t m_attr;
     pthread_cond_t cond;
+    pthread_condattr_t c_attr;
     bool initialization;
     int num_streams;
     RuntimeStreamConfig* tstreams;

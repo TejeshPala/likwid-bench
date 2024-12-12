@@ -44,6 +44,7 @@ int destroy_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
         RuntimeWorkgroupConfig* wg = &wgroups[w];
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying threads for workgroup %3d, w);
         pthread_barrier_destroy(&wg->barrier.barrier);
+        pthread_barrierattr_destroy(&wg->barrier.b_attr);
         if (wg->threads)
         {
             for (int i = 0; i < wg->num_threads; i++)
@@ -63,8 +64,11 @@ int destroy_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
                         free(wg->threads[i].command->init_val);
                         wg->threads[i].command->init_val = NULL;
                     }
+                    pthread_attr_destroy(&wg->threads[i].command->attr);
                     pthread_mutex_destroy(&wg->threads[i].command->mutex);
+                    pthread_mutexattr_destroy(&wg->threads[i].command->m_attr);
                     pthread_cond_destroy(&wg->threads[i].command->cond);
+                    pthread_condattr_destroy(&wg->threads[i].command->c_attr);
                     DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying commands for thread %3d, wg->threads[i].local_id);
                     free(wg->threads[i].command);
                     wg->threads[i].command = NULL;
@@ -301,7 +305,7 @@ void* _func_t(void* arg)
     while (keep_running)
     {
         pthread_mutex_lock(&thread->command->mutex);
-        while(thread->command->done)
+        while(thread->command->done || thread->command->cmd == LIKWID_THREAD_COMMAND_NOOP)
         {
             struct timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts);
@@ -322,7 +326,6 @@ void* _func_t(void* arg)
             }
             // pthread_cond_wait(&thread->command->cond, &thread->command->mutex);
         }
-
         LikwidThreadCommand c_cmd = thread->command->cmd;
         pthread_mutex_unlock(&thread->command->mutex);
 
@@ -357,6 +360,10 @@ void* _func_t(void* arg)
 
             case LIKWID_THREAD_COMMAND_RUN:
                 DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is set with RUN command, thread->local_id, thread->global_id);
+                pthread_mutex_lock(&thread->command->mutex);
+                thread->command->done = 1;
+                pthread_cond_broadcast(&thread->command->cond);
+                pthread_mutex_unlock(&thread->command->mutex);
                 int err = run_benchmark(thread);
                 if (err != 0)
                 {
@@ -365,7 +372,7 @@ void* _func_t(void* arg)
                 break;
 
             case LIKWID_THREAD_COMMAND_EXIT:
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d exits, thread->local_id, thread->global_id);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is set with EXIT command, thread->local_id, thread->global_id);
                 keep_running = false;
                 goto exit_thread;
                 break;
@@ -391,7 +398,6 @@ exit_thread:
     thread->command->done = 1;
     pthread_cond_signal(&thread->command->cond);
     pthread_mutex_unlock(&thread->command->mutex);
-
     DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d has completed, thread->local_id, thread->global_id);
     pthread_exit(NULL);
     return NULL;
@@ -415,7 +421,7 @@ int _prepare_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread)
     thread->command->cmd = cmd;
     /* Initially when threads are created it is created with done status as 1
      * once after creation, as we send the cmd - the status is set to 0
-     * later invocation chnages the status to 1
+     * later invocation changes the status to 1
      * */
     thread->command->done = 0;
     err = pthread_cond_signal(&thread->command->cond);
@@ -451,6 +457,7 @@ int _send_signal(RuntimeThreadConfig* thread)
         pthread_mutex_unlock(&thread->command->mutex);
         return err;
     }
+
     pthread_mutex_unlock(&thread->command->mutex);
     return err;
 }
@@ -557,7 +564,7 @@ int create_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
         for (int i = 0; i < wg->num_threads; i++)
         {
             RuntimeThreadConfig* thread = &wg->threads[i];
-            if (pthread_create(&thread->thread, NULL, _func_t, thread))
+            if (pthread_create(&thread->thread, &thread->command->attr, _func_t, thread))
             {
                 ERROR_PRINT(Error creating thread %3d, thread->local_id);
                 err = -1;
@@ -611,7 +618,22 @@ int update_threads(RuntimeConfig* runcfg)
             goto free;
         }
 
-        err = pthread_barrier_init(&wg->barrier.barrier, NULL, wg->num_threads);
+        err = pthread_barrierattr_init(&wg->barrier.b_attr);
+        if (err != 0)
+        {
+            ERROR_PRINT(Failed to initialize barrier attribute %s, strerror(err));
+            goto free;
+        }
+
+        err = pthread_barrierattr_setpshared(&wg->barrier.b_attr, PTHREAD_PROCESS_PRIVATE);
+        if (err != 0)
+        {
+            ERROR_PRINT(Failed to set barrier attributes %s, strerror(err));
+            pthread_barrierattr_destroy(&wg->barrier.b_attr);
+            goto free;
+        }
+
+        err = pthread_barrier_init(&wg->barrier.barrier, &wg->barrier.b_attr, wg->num_threads);
         if (err != 0)
         {
             ERROR_PRINT(Failed to initialize barrier %s, strerror(err));
@@ -654,8 +676,22 @@ int update_threads(RuntimeConfig* runcfg)
                 goto free;
             }
 
-            pthread_mutex_init(&thread->command->mutex, NULL);
-            pthread_cond_init(&thread->command->cond, NULL);
+            err = pthread_attr_init(&thread->command->attr);
+            if (err != 0)
+            {
+                ERROR_PRINT(Failed to initialize attribute %s, strerror(err));
+                goto free;
+            }
+            pthread_attr_setdetachstate(&thread->command->attr, PTHREAD_CREATE_JOINABLE);
+
+            pthread_mutexattr_init(&thread->command->m_attr);
+            pthread_condattr_init(&thread->command->c_attr);
+
+            pthread_mutexattr_settype(&thread->command->m_attr, PTHREAD_MUTEX_RECURSIVE);
+            pthread_condattr_setpshared(&thread->command->c_attr, PTHREAD_PROCESS_PRIVATE);
+
+            pthread_mutex_init(&thread->command->mutex, &thread->command->m_attr);
+            pthread_cond_init(&thread->command->cond, &thread->command->c_attr);
             thread->command->done = 1;
             thread->command->num_streams = wg->num_streams;
             thread->command->tstreams = wg->streams;

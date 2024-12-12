@@ -536,7 +536,7 @@ int main(int argc, char** argv)
         for (int i = 0; i < wg->num_threads; i++)
         {
             RuntimeThreadConfig* thread =  &wg->threads[i];
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting threads run command function to %p, wg->testconfig.function);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting thread %d run command function to %p, thread->local_id, wg->testconfig.function);
             thread->command->cmdfunc.run = wg->testconfig.function;
             err = send_cmd(LIKWID_THREAD_COMMAND_RUN, thread);
             if (err < 0)

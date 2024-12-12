@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <error.h>
+#include <time.h>
 
 #include <pthread.h>
 #include <test_types.h>
@@ -24,7 +25,7 @@
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
     clock_gettime(CLOCK_MONOTONIC, &stop); \
     data->runtime = (double)(((double)(stop.tv_sec - start.tv_sec)) + (((double)(stop.tv_nsec - start.tv_nsec))*1E-9)); \
-    if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
+    if (data->barrier) pthread_barrier_wait(&data->barrier->barrier);
 
 int run_benchmark(RuntimeThreadConfig* data)
 {
@@ -57,11 +58,14 @@ int run_benchmark(RuntimeThreadConfig* data)
      * load them from stack
      * */
 
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Start benchmark execution);
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Start benchmark execution: %s, ctime(&ts.tv_sec));
 
     // not sure whether we need to give the sizes here. Since we compile the code, we could add the sizes there directly
     // as constants
-    switch ( data->command->num_streams ) {
+    switch (data->command->num_streams)
+    {
         case 1:
             EXECUTE(func(data->command->tstreams[0].dimsizes[0], data->command->tstreams[0].ptr));
             break;
@@ -342,7 +346,7 @@ int run_benchmark(RuntimeThreadConfig* data)
             break;
     }
 
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Execution took %f seconds, data->runtime);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Thread %d execution took %f seconds, data->local_id, data->runtime);
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier);
 
     if (CPU_COUNT(&runset) > 0)
