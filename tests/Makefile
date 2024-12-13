@@ -136,8 +136,8 @@ test_bitmap: test_bitmap.c $(BITMAP_OBJ) $(BITMAP_HEADER)
 test_bstrlib_helper: test_bstrlib_helper.c $(BSTRLIB_HEADER) $(BSTRLIB_OBJ)
 	$(CC) $(INCLUDES) $(CFLAGS) test_bstrlib_helper.c $(BSTRLIB_OBJ) -o $@
 
-test_bench: test_bench.c $(BENCH_OBJ) $(BENCH_HEADER)
-	$(CC) $(INCLUDES) $(CFLAGS) test_bench.c $(BENCH_OBJ) -o $@ -lpthread
+test_bench: test_bench.c $(BENCH_OBJ) $(BENCH_HEADER) $(TIMER_OBJ) $(TIMER_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) test_bench.c $(BENCH_OBJ) $(TIMER_OBJ) -o $@ -lpthread
 
 test_timer-rdtsc: test_timer-rdtsc.c $(TIMER_OBJ) $(TIMER_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) test_timer-rdtsc.c $(TIMER_OBJ) -o $@

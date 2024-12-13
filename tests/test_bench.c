@@ -1,12 +1,14 @@
+#include <errno.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <errno.h>
 
-#include <pthread.h>
-#include <bench.h>
-#include <error.h>
-#include <test_types.h>
+#include "bench.h"
+#include "error.h"
+#include "test_types.h"
+#include "timer.h"
+
 
 int global_verbosity = DEBUGLEV_ONLY_ERROR;
 
