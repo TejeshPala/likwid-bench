@@ -104,11 +104,12 @@ int allocate_workgroup_stuff(RuntimeWorkgroupConfig* wg)
     }
     static struct tagbstring bstats[] =
     {
-        bsStatic("iters"),
         bsStatic("cycles"),
+        bsStatic("freq"),
+        bsStatic("iters"),
         bsStatic("time"),
     };
-    int num_stats = 3;
+    int num_stats = 4;
     double value = 0.0;
     wg->results = malloc(wg->num_threads * sizeof(RuntimeWorkgroupResult));
     if (!wg->results)
@@ -310,6 +311,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
 {
     int err = 0;
     struct bstrList* bkeys = bstrListCreate();
+    struct bstrList* bkeys_sorted = NULL;
     struct bstrList** bgrp_values = NULL;
     struct bstrList** bvalues = NULL;
     if (!bkeys)
@@ -327,14 +329,16 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
             return -EINVAL;
         }
     }
-    bgrp_values = calloc(bkeys->qty, sizeof(struct bstrList*));
+    bstrListSort(bkeys, &bkeys_sorted);
+    bstrListDestroy(bkeys);
+    bgrp_values = calloc(bkeys_sorted->qty, sizeof(struct bstrList*));
     if (!bgrp_values)
     {
         ERROR_PRINT(Unable to allocate memory for group values);
-        bstrListDestroy(bkeys);
+        bstrListDestroy(bkeys_sorted);
         return -ENOMEM;
     }
-    for (int id = 0; id < bkeys->qty; id++)
+    for (int id = 0; id < bkeys_sorted->qty; id++)
     {
         bgrp_values[id] = bstrListCreate();
         if (!bgrp_values[id])
@@ -345,7 +349,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
                 bstrListDestroy(bgrp_values[j]);
             }
             free(bgrp_values);
-            bstrListDestroy(bkeys);
+            bstrListDestroy(bkeys_sorted);
             return -ENOMEM;
         }
     }
@@ -353,14 +357,14 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
     for (int w = 0; w < num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &wgroups[w];
-        bvalues = calloc(bkeys->qty, sizeof(struct bstrList*));
+        bvalues = calloc(bkeys_sorted->qty, sizeof(struct bstrList*));
         if (!bvalues)
         {
             ERROR_PRINT(Unable to allocate memory for values of %d workgroup, w);
-            bstrListDestroy(bkeys);
+            bstrListDestroy(bkeys_sorted);
             return -ENOMEM;
         }
-        for (int id = 0; id < bkeys->qty; id++)
+        for (int id = 0; id < bkeys_sorted->qty; id++)
         {
             bvalues[id] = bstrListCreate();
             if (!bvalues[id])
@@ -371,7 +375,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
                     bstrListDestroy(bvalues[j]);
                 }
                 free(bvalues);
-                bstrListDestroy(bkeys);
+                bstrListDestroy(bkeys_sorted);
                 return -ENOMEM;
             }
         }
@@ -382,17 +386,18 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
             RuntimeWorkgroupResult* result = &wg->results[t];
             if (wg->hwthreads[t] == thread->data->hwthread)
             {
-                uint64_t values[] = {thread->data->iters, thread->data->cycles, thread->data->min_runtime};
-                for (int id = 0; id < bkeys->qty; id ++)
+                // values in the list should be added as per sorted keys
+                double values[] = {(double)thread->data->cycles, (double)thread->data->freq, (double)thread->data->iters, thread->runtime};
+                for (int id = 0; id < bkeys_sorted->qty; id ++)
                 {
-                    double value = (double)values[id];
+                    double value = values[id];
                     bstring t_value = bformat("%lf", value);
                     // printf("t_value: %s\n", bdata(t_value));
                     // if (update_bmap(result->values, bkeys->entry[id], &value, NULL) != 0)
-                    err = update_value(result, bkeys->entry[id], value);
+                    err = update_value(result, bkeys_sorted->entry[id], value);
                     if (err == 0)
                     {
-                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Value updated for thread %d for key %s with value %lf, thread->data->hwthread, bdata(bkeys->entry[id]), value);
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Value updated for thread %d for key %s with value %lf, thread->data->hwthread, bdata(bkeys_sorted->entry[id]), value);
                     }
                     bstrListAdd(bvalues[id], t_value);
                     bstrListAdd(bgrp_values[id], t_value);
@@ -401,12 +406,12 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
             }
         }
 
-        err = _aggregate_results(bkeys, bvalues, wg->group_results);
+        err = _aggregate_results(bkeys_sorted, bvalues, wg->group_results);
         if (err != 0)
         {
             ERROR_PRINT(Error in aggregation of group results for workgroup %d, w);
         }
-        for (int id = 0; id < bkeys->qty; id ++)
+        for (int id = 0; id < bkeys_sorted->qty; id ++)
         {
             bstrListDestroy(bvalues[id]);
         }
@@ -417,17 +422,17 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
             print_workgroup(wg);
         }
     }
-    err = _aggregate_results(bkeys, bgrp_values, runcfg->global_results);
+    err = _aggregate_results(bkeys_sorted, bgrp_values, runcfg->global_results);
     if (err != 0)
     {
         ERROR_PRINT(Error in aggregation of global results);
     }
-    for (int id = 0; id < bkeys->qty; id ++)
+    for (int id = 0; id < bkeys_sorted->qty; id ++)
     {
         bstrListDestroy(bgrp_values[id]);
     }
     free(bgrp_values);
-    bstrListDestroy(bkeys);
+    bstrListDestroy(bkeys_sorted);
     return err;
 }
 

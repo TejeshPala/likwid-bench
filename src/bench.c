@@ -1,30 +1,38 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <error.h>
-#include <time.h>
-
+#include <errno.h>
 #include <pthread.h>
-#include <test_types.h>
-#include <bench.h>
 #include <sched.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
 
+#include "bench.h"
+#include "error.h"
+#include "timer.h"
+#include "test_types.h"
+
+
+#define DECLARE_TIMER TimerData timedata
 
 // todo markers
 // todo timer library with rdtsc? or perf?
 #define EXECUTE(func) \
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
-    clock_gettime(CLOCK_MONOTONIC, &start); \
+    if (timer_init(TIMER_RDTSC, &timedata) != 0) fprintf(stderr, "Timer initialization failed!\n"); \
+    timer_start(&timedata); \
     for (int i = 0; i < myData->iters; i++) \
     {   \
         func; \
     } \
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
-    clock_gettime(CLOCK_MONOTONIC, &stop); \
-    data->runtime = (double)(((double)(stop.tv_sec - start.tv_sec)) + (((double)(stop.tv_nsec - start.tv_nsec))*1E-9)); \
+    timer_stop(&timedata); \
+    timer_as_ns(&timedata, &myData->min_runtime); \
+    timer_as_cycles(&timedata, &myData->cycles); \
+    myData->freq = timedata.ci.freq; \
+    timer_close(&timedata); \
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier);
 
 int run_benchmark(RuntimeThreadConfig* data)
@@ -33,7 +41,7 @@ int run_benchmark(RuntimeThreadConfig* data)
     cpu_set_t runset;
     thread_data_t myData = data->data;
     BenchFuncPrototype func = data->command->cmdfunc.run;
-    struct timespec start = {0, 0}, stop = {0, 0};
+    DECLARE_TIMER;
 
     // not sure whether this is required or the threads are already pinned
     // but helpful for testing
@@ -346,7 +354,9 @@ int run_benchmark(RuntimeThreadConfig* data)
             break;
     }
 
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Thread %d execution took %f seconds, data->local_id, data->runtime);
+    data->runtime = (double)myData->min_runtime / NANOS_PER_SEC;
+    data->cycles = myData->cycles;
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Thread %3d execution took %.6f seconds, data->local_id, data->runtime);
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier);
 
     if (CPU_COUNT(&runset) > 0)

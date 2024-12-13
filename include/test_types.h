@@ -210,6 +210,7 @@ typedef enum {
 typedef struct {
     uint64_t iters;
     uint64_t cycles;
+    uint64_t freq;
     uint64_t min_runtime;
     //const TestConfig_t test;
     int hwthread;
