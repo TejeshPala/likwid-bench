@@ -71,7 +71,7 @@ static ConstCliOption _basecliopts[] = {
 };
 
 static ConstCliOptions basecliopts = {
-    .num_options = 11,
+    .num_options = 12,
     .options = _basecliopts,
 };
 
