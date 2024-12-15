@@ -408,7 +408,7 @@ int main(int argc, char** argv)
     /*
      * Analyse workgroups
      */
-    err = resolve_workgroups(runcfg->num_wgroups, runcfg->wgroups);
+    err = resolve_workgroups(runcfg->detailed, runcfg->num_wgroups, runcfg->wgroups);
     if (err < 0)
     {
         ERROR_PRINT(Error resolving workgroups);

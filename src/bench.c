@@ -68,7 +68,7 @@ int run_benchmark(RuntimeThreadConfig* data)
 
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Start benchmark execution: %s, ctime(&ts.tv_sec));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Thread %d starts benchmark execution: %s, data->local_id, ctime(&ts.tv_sec));
 
     // not sure whether we need to give the sizes here. Since we compile the code, we could add the sizes there directly
     // as constants

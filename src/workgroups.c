@@ -95,21 +95,27 @@ int resolve_workgroup(RuntimeWorkgroupConfig* wg, int maxThreads)
     return 0;
 }
 
-int allocate_workgroup_stuff(RuntimeWorkgroupConfig* wg)
+int allocate_workgroup_stuff(int detailed, RuntimeWorkgroupConfig* wg)
 {
     int err = 0;
     if ((!wg) || (wg->num_threads <= 0) || (!wg->hwthreads))
     {
         return -EINVAL;
     }
-    static struct tagbstring bstats[] =
+
+    struct tagbstring* bstats;
+    int num_stats;
+    if (detailed == 1)
     {
-        bsStatic("cycles"),
-        bsStatic("freq"),
-        bsStatic("iters"),
-        bsStatic("time"),
-    };
-    int num_stats = 4;
+        bstats = bstats1;
+        num_stats = 4;
+    }
+    else
+    {
+        bstats = bstats2;
+        num_stats = 2;
+    }
+
     double value = 0.0;
     wg->results = malloc(wg->num_threads * sizeof(RuntimeWorkgroupResult));
     if (!wg->results)
@@ -165,7 +171,7 @@ int allocate_workgroup_stuff(RuntimeWorkgroupConfig* wg)
     return err;
 }
 
-int resolve_workgroups(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
+int resolve_workgroups(int detailed, int num_wgroups, RuntimeWorkgroupConfig* wgroups)
 {
     int hwthreads = get_num_hw_threads();
     if (hwthreads <= 0)
@@ -178,7 +184,7 @@ int resolve_workgroups(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
         int err = resolve_workgroup(&wgroups[i], hwthreads);
         if (err == 0)
         {
-            err = allocate_workgroup_stuff(&wgroups[i]);
+            err = allocate_workgroup_stuff(detailed, &wgroups[i]);
             if (err != 0)
             {
                 delete_workgroup(&wgroups[i]);
@@ -387,7 +393,19 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
             if (wg->hwthreads[t] == thread->data->hwthread)
             {
                 // values in the list should be added as per sorted keys
-                double values[] = {(double)thread->data->cycles, (double)thread->data->freq, (double)thread->data->iters, thread->runtime};
+                double values[4];
+                if (runcfg->detailed == 1)
+                {
+                    values[0] = (double)thread->data->cycles;
+                    values[1] = (double)thread->data->freq;
+                    values[2] = (double)thread->data->iters;
+                    values[3] = thread->runtime;
+                }
+                else
+                {
+                    values[0] = (double)thread->data->iters;
+                    values[1] = thread->runtime;
+                }
                 for (int id = 0; id < bkeys_sorted->qty; id ++)
                 {
                     double value = values[id];
