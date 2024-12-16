@@ -212,35 +212,45 @@ int bisinteger(bstring b)
 int bisnumber(bstring b)
 {
     int count = 0;
+    int has_digits = 0;
     if (bchar(b, 0) == '-')
     {
         count++;
     }
-    int i = count;
-    for (; i < blength(b); i++)
+    while (count < blength(b) && isdigit(bchar(b, count)))
     {
-        if (!isdigit(bchar(b, i)))
-            break;
         count++;
+        has_digits = 1;
     }
-    if (i < blength(b) - 1)
+    if (count < blength(b) && bchar(b, count) == '.')
     {
-        if (bchar(b, i) == 'E' || bchar(b, i) == 'e')
+        count++;
+        while (count < blength(b) && isdigit(bchar(b, count)))
         {
-            i++;
             count++;
-            if (bchar(b, i) == '-')
-            {
-                i++;
-                count++;
-            }
-            for (i = count; i < blength(b); i++)
-            {
-                if (!isdigit(bchar(b, i)))
-                    break;
-                count++;
-            }
+            has_digits = 1;
         }
+    }
+
+    if (!has_digits)
+        return 0;
+
+    if (count < blength(b) && ((bchar(b, count) == 'E' || bchar(b, count) == 'e')))
+    {
+        count++;
+        if (count < blength(b) && (bchar(b, count) == '-' || bchar(b, count) == '+'))
+        {
+            count++;
+        }
+
+        int exp_digits = 0;
+        while (count < blength(b) && isdigit(bchar(b, count)))
+        {
+            count++;
+            exp_digits = 1;
+        }
+        if (!exp_digits)
+            return 0;
     }
     return count == blength(b);
 }
