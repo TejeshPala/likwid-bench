@@ -6,7 +6,7 @@
     - sse2
 - Parameters:
   - N:
-      description: Size of array that should be loaded, Possible Values:kB, MB, GB, TB
+      description: Size of array that should be loaded, Possible Values: B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
       options:
         - bytes
         - required
