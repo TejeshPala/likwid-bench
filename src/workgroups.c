@@ -226,10 +226,16 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
                 DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream %d: dimsize before %s, j, bdata(t));
                 replace_all(runcfg->global_results, t, NULL);
                 size_t res = 0;
-                int c = sscanf(bdata(t), "%ld", &res);
+                int c = sscanf(bdata(t), "%lld", &res);
                 if (c == 1)
                 {
                     ostream->dimsizes[k] = res;
+                }
+                if (res == 0)
+                {
+                    ERROR_PRINT(Invalid dimension size %s -> %lld after conversion, bdata(istream->dims->entry[k]), res);
+                    bdestroy(t);
+                    return -EINVAL;
                 }
                 DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream %d: dimsize after %ld, j, ostream->dimsizes[k]);
                 ostream->dims++;
