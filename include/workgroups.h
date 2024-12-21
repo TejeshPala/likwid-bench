@@ -42,6 +42,6 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg);
 void print_workgroup(RuntimeWorkgroupConfig* wgroup);
 int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfig* wgroups);
 
-int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** global, int* max_cols);
+int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** global, int* max_cols, int transpose);
 
 #endif /* WORKGROUP_H */

@@ -542,7 +542,7 @@ int main(int argc, char** argv)
     Table* wgroup = NULL;
     Table* global = NULL;
     int max_cols = 0;
-    update_table(runcfg, &thread, &wgroup, &global, &max_cols);
+    update_table(runcfg, &thread, &wgroup, &global, &max_cols, 1);
     FILE* output = NULL;
     int fileout = 0;
     if (blength(runcfg->output) > 0)
@@ -575,17 +575,17 @@ int main(int argc, char** argv)
     if (runcfg->csv == 0 && runcfg->json == 0)
     {
         fprintf(output, "Thread Results\n");
-        table_print(output, thread);
+        table_print(output, thread, 1);
         fprintf(output, "Workgroup Results\n");
-        table_print(output, wgroup);
+        table_print(output, wgroup, 1);
         fprintf(output, "Global Results\n");
-        table_print(output, global);
+        table_print(output, global, 1);
     }
     else if (runcfg->csv > 0)
     {
-        table_to_csv(output, thread, bdata(runcfg->output), max_cols);
-        table_to_csv(output, wgroup, bdata(runcfg->output), max_cols);
-        table_to_csv(output, global, bdata(runcfg->output), max_cols);
+        table_to_csv(output, thread, bdata(runcfg->output), max_cols, 1);
+        table_to_csv(output, wgroup, bdata(runcfg->output), max_cols, 1);
+        table_to_csv(output, global, bdata(runcfg->output), max_cols, 1);
     }
     else if (runcfg->json > 0)
     {
