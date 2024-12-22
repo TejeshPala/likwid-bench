@@ -9,6 +9,7 @@
 
 double convertToSeconds(const_bstring input)
 {
+    double result = -1.0;
     double value = atof((char *)input->data);
     int len = blength(input);
     bstring unit;
@@ -27,29 +28,27 @@ double convertToSeconds(const_bstring input)
 
     if (biseq(unit, &bms))
     {
-        bdestroy(unit);
-        return value * 0.001;
+        result = value * 0.001;
     }
     else if (biseq(unit, &bs))
     {
-        bdestroy(unit);
-        return value;
+        result = value;
     }
     else if (biseq(unit, &bm))
     {
-        bdestroy(unit);
-        return value * 60;
+        result = value * 60;
     }
     else if (biseq(unit, &bh))
     {
-        bdestroy(unit);
-        return value * 3600;
+        result = value * 3600;
     }
     else
     {
-        bdestroy(unit);
-        return value; // default to use 's' when no unit is mentioned for --runtime/-r 
+        fprintf(stdout, "No unit mentioned for runtime. It uses %.6fs\n", value);
+        result = value; // default to use 's' when no unit is mentioned for --runtime/-r
     }
+    bdestroy(unit);
+    return result;
 }
 
 size_t convertToBytes(const_bstring input)
@@ -114,9 +113,8 @@ size_t convertToBytes(const_bstring input)
     }
     else
     {
-        bdestroy(unit);
-        fprintf(stderr, "Invalid unit. Valid array sizes are B, KB, MB, GB, TB, KiB, GiB, TiB. Retry again with valid input!\n");
-        return 0;
+	    result = (size_t)value;
+        fprintf(stdout, "No unit mentioned for array size. It uses %lldB\n", result);
     }
 
     bdestroy(unit);
