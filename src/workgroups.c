@@ -237,7 +237,7 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
                     bdestroy(t);
                     return -EINVAL;
                 }
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream %d: dimsize after %ld, j, ostream->dimsizes[k]);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream %d: dimsize after %lld, j, ostream->dimsizes[k]);
                 ostream->dims++;
                 bdestroy(t);
             }
