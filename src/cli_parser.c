@@ -516,7 +516,7 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
         }
     }
 
-    if (runcfg->runtime != -1.0 && runcfg->iterations != -1)
+    if (runcfg->runtime != -1.0 && runcfg->iterations != 0)
     {
         ERROR_PRINT(Runtime and Iterations cannot be set at a time);
         return -EINVAL;

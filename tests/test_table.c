@@ -41,14 +41,14 @@ int main(int argc, char* argv)
     bstrListAdd(row2, &two);
     table_addrow(table, row2);
 
-    table_print(stdout, table);
+    table_print(stdout, table, 1); // actual fmt
 
     struct bstrList* row3 = bstrListCreate();
     bstrListAdd(row3, &name);
     bstrListAdd(row3, &three);
     table_addrow(table, row3);
 
-    table_print(stdout, table);
+    table_print(stdout, table, 0); // tranposed fmt
 
     struct bstrList* row4 = bstrListCreate();
     bstrListAdd(row4, &tempty);
@@ -58,7 +58,7 @@ int main(int argc, char* argv)
     FILE* fp = fopen(fname, "w");
     if (fp)
     {
-        table_to_csv(fp, table, fname, 2);
+        table_to_csv(fp, table, fname, 2, 1);
         fclose(fp);
         table_print_csv(fname);
     }

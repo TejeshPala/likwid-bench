@@ -237,6 +237,12 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
                 {
                     ostream->dimsizes[k] = res;
                 }
+                if (res == 0)
+                {
+                    ERROR_PRINT(Invalid dimension size %s -> %lld after conversion, bdata(istream->dims->entry[k]), res);
+                    bdestroy(t);
+                    return -EINVAL;
+                }
                 DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream %d: dimsize after %lld, j, ostream->dimsizes[k]);
                 ostream->dims++;
                 bdestroy(t);
@@ -480,7 +486,7 @@ void print_workgroup(RuntimeWorkgroupConfig* wg)
     }
 }
 
-int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** global, int* max_cols)
+int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** global, int* max_cols, int transpose)
 {
     struct bstrList* bthread_keys = bstrListCreate();
     struct bstrList* bwgroup_keys = bstrListCreate();
@@ -509,7 +515,10 @@ int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** 
     bstrListSort(bwgroup_keys, &bwgroup_keys_sorted);
     bstrListSort(bglobal_keys, &bglobal_keys_sorted);
 
-    *max_cols = MAX(bthread_keys->qty, MAX(bwgroup_keys->qty, bglobal_keys->qty));
+    if (transpose != 1)
+    {
+        *max_cols = MAX(bthread_keys->qty, MAX(bwgroup_keys->qty, bglobal_keys->qty));
+    }
 
     bstrListDestroy(bthread_keys);
     bstrListDestroy(bwgroup_keys);
@@ -607,6 +616,11 @@ int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** 
     }
     table_addrow(iglobal, btmp3);
     bstrListDestroy(btmp3);
+
+    if (transpose == 1)
+    {
+        *max_cols = MAX(ithread->rows->qty, MAX(iwgroup->rows->qty, iglobal->rows->qty));
+    }
 
     *thread = ithread;
     *wgroup = iwgroup;

@@ -1,3 +1,5 @@
+#include <errno.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -7,6 +9,7 @@
 
 double convertToSeconds(const_bstring input)
 {
+    double result = -1.0;
     double value = atof((char *)input->data);
     int len = blength(input);
     bstring unit;
@@ -25,68 +28,103 @@ double convertToSeconds(const_bstring input)
 
     if (biseq(unit, &bms))
     {
-        bdestroy(unit);
-        return value * 0.001;
+        result = value * 0.001;
     }
     else if (biseq(unit, &bs))
     {
-        bdestroy(unit);
-        return value;
+        result = value;
     }
     else if (biseq(unit, &bm))
     {
-        bdestroy(unit);
-        return value * 60;
+        result = value * 60;
     }
     else if (biseq(unit, &bh))
     {
-        bdestroy(unit);
-        return value * 3600;
+        result = value * 3600;
     }
     else
     {
-        bdestroy(unit);
-        return value; // default to use 's' when no unit is mentioned for --runtime/-r 
+        fprintf(stdout, "No unit mentioned for runtime. It uses %.6fs\n", value);
+        result = value; // default to use 's' when no unit is mentioned for --runtime/-r
     }
+    bdestroy(unit);
+    return result;
 }
 
-long long convertToBytes(const_bstring input)
+size_t convertToBytes(const_bstring input)
 {
-    long long value = atoi((char *)input->data);
-    bstring unit = bmidstr(input, blength(input) - 2, 2);
+    char* endptr = NULL;
+    size_t result = 0;
+    unsigned long long value = strtoull((char *)input->data, &endptr, 10);
+    if (endptr == (char *)input->data || value > SIZE_MAX)
+    {
+        fprintf(stderr, "Invalid input. No valid number found in %s\n", (char *)input->data);
+        return 0;
+    }
 
+    bstring unit = bfromcstr(endptr);
     btoupper(unit);
 
+    struct tagbstring bb = bsStatic("B");
     struct tagbstring bkb = bsStatic("KB");
     struct tagbstring bmb = bsStatic("MB");
     struct tagbstring bgb = bsStatic("GB");
     struct tagbstring btb = bsStatic("TB");
+    struct tagbstring bkib = bsStatic("KIB");
+    struct tagbstring bmib = bsStatic("MIB");
+    struct tagbstring bgib = bsStatic("GIB");
+    struct tagbstring btib = bsStatic("TIB");
 
-    if (biseq(unit, &bkb))
+    if (biseq(unit, &bb))
     {
-        bdestroy(unit);
-	    return value * 1024LL;
+	    result = (size_t)value;
+    }
+    else if (biseq(unit, &bkb))
+    {
+	    result = (size_t)value * 1000ULL;
     }
     else if (biseq(unit, &bmb))
     {
-        bdestroy(unit);
-        return value * 1024LL * 1024LL;
+        result = (size_t)value * 1000ULL * 1000ULL;
     }
     else if (biseq(unit, &bgb))
     {
-        bdestroy(unit);
-        return value * 1024LL * 1024LL * 1024LL;
+        result = (size_t)value * 1000ULL * 1000ULL * 1000ULL;
     }
     else if (biseq(unit, &btb))
     {
-        bdestroy(unit);
-        return value * 1024LL * 1024LL * 1024LL * 1024LL;
+        result = (size_t)value * 1000ULL * 1000ULL * 1000ULL * 1000ULL;
+    }
+    else if (biseq(unit, &bkib))
+    {
+	    result = (size_t)value * 1024ULL;
+    }
+    else if (biseq(unit, &bmib))
+    {
+        result = (size_t)value * 1024ULL * 1024ULL;
+    }
+    else if (biseq(unit, &bgib))
+    {
+        result = (size_t)value * 1024ULL * 1024ULL * 1024ULL;
+    }
+    else if (biseq(unit, &btib))
+    {
+        result = (size_t)value * 1024ULL * 1024ULL * 1024ULL * 1024ULL;
     }
     else
     {
-        bdestroy(unit);
-        printf("Invalid unit. Valid array sizes are kB, MB, GB, TB. Retry again with valid input!\n");
-        exit(EXIT_FAILURE);
+	    result = (size_t)value;
+        fprintf(stdout, "No unit mentioned for array size. It uses %lldB\n", result);
     }
+
+    bdestroy(unit);
+
+    if (result < value && result > SIZE_MAX)
+    {
+        fprintf(stderr, "Size converted is too large for size_t\n");
+        return 0ULL;
+    }
+
+    return result;
 }
 

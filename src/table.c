@@ -125,7 +125,7 @@ int table_addrow(Table* table, struct bstrList* row)
     } \
     fprintf(file, "|\n");
 
-int table_print(FILE* output, Table* table)
+int table_print(FILE* output, Table* table, int transpose)
 {
     if (!table)
     {
@@ -141,25 +141,86 @@ int table_print(FILE* output, Table* table)
         return -errno;
     }
 
-    // Top border
-    PRINT_BORDER(table, file);
-
-    // Headers
-    PRINT_ROW(table, table->headers, file);
-
-    // Header body seperator
-    PRINT_BORDER(table, file);
-
-    // Rows
-    for (int r = 0; r < table->rows->qty; r++)
+    if (transpose)
     {
-        struct bstrList* cells = bsplit(table->rows->entry[r], '|');
-        PRINT_ROW(table, cells, file);
-        bstrListDestroy(cells);
-    }
+        int max_data_width = 0;
+        for (int c = 0; c < table->num_cols; c++)
+        {
+            if (table->col_widths[c] > max_data_width) max_data_width = table->col_widths[c];
+        }
+        max_data_width = max_data_width;
 
-    // Bottom border
-    PRINT_BORDER(table, file);
+        fprintf(file, "+"); // TOP BORDER
+        for (int w = 0; w < max_data_width + 2; w++) fprintf(file, "-");
+
+        for (int r = 0; r < table->rows->qty; r++)
+        {
+            fprintf(file, "+");
+            for (int w = 0; w < max_data_width + 2; w++) fprintf(file, "-");
+        }
+        fprintf(file, "+\n");
+
+        for (int c = 0; c < table->num_cols; c++)
+        {
+            fprintf(file, "| %-*s ", max_data_width, bdata(table->headers->entry[c]));
+            for (int r = 0; r < table->rows->qty; r++)
+            {
+                struct bstrList* cells = bsplit(table->rows->entry[r], '|');
+                if (cells && c < cells->qty)
+                {
+                    fprintf(file, "| %*s ", max_data_width, bdata(cells->entry[c]));
+                }
+                else
+                {
+                    fprintf(file, "| %-*s ", max_data_width, "");
+                }
+                if (cells) bstrListDestroy(cells);
+            }
+            fprintf(file, "|\n");
+            if (c < table->num_cols - 1)
+            {
+                fprintf(file, "+");
+                for (int w = 0; w < max_data_width + 2; w++) fprintf(file, "-");
+                for (int r = 0; r < table->rows->qty; r++)
+                {
+                    fprintf(file, "+");
+                    for (int w = 0; w < max_data_width + 2; w++) fprintf(file, "-");
+                }
+                fprintf(file, "+\n");
+            }
+        }
+
+        fprintf(file, "+");
+        for (int w = 0; w < max_data_width + 2; w++) fprintf(file, "-");
+        for (int r = 0; r < table->rows->qty; r++)
+        {
+            fprintf(file, "+");
+            for (int w = 0; w < max_data_width + 2; w++) fprintf(file, "-");
+        }
+        fprintf(file, "+\n");
+    }
+    else
+    {
+        // Top border
+        PRINT_BORDER(table, file);
+
+        // Headers
+        PRINT_ROW(table, table->headers, file);
+
+        // Header body seperator
+        PRINT_BORDER(table, file);
+
+        // Rows
+        for (int r = 0; r < table->rows->qty; r++)
+        {
+            struct bstrList* cells = bsplit(table->rows->entry[r], '|');
+            PRINT_ROW(table, cells, file);
+            bstrListDestroy(cells);
+        }
+
+        // Bottom border
+        PRINT_BORDER(table, file);
+    }
     return 0;
 }
 
@@ -169,12 +230,12 @@ int table_print(FILE* output, Table* table)
         fprintf(file, ","); \
     }
 
-int table_to_csv(FILE* output, Table* table, const char* fname, int max_cols)
+int table_to_csv(FILE* output, Table* table, const char* fname, int max_cols, int transpose)
 {
     int err = 0;
     if (!table)
     {
-        ERROR_PRINT(Inavlid Table);
+        ERROR_PRINT(Invalid Table);
         return -EINVAL;
     }
 
@@ -199,26 +260,32 @@ int table_to_csv(FILE* output, Table* table, const char* fname, int max_cols)
         }
     }
     
-    for (int c = 0; c < table->num_cols; c++)
+    if (transpose)
     {
-        fprintf(file, "%s", bdata(table->headers->entry[c]));
-        if (c < table->num_cols - 1)
-        {
-            fprintf(file, ",");
-        }
-    }
-    if (max_cols > table->num_cols)
-    {
-        SEPARATOR(max_cols - table->num_cols);
-    }
-    fprintf(file, "\n");
-
-    for (int r = 0; r < table->rows->qty; r++)
-    {
-        struct bstrList* cells = bsplit(table->rows->entry[r], '|');
         for (int c = 0; c < table->num_cols; c++)
         {
-            fprintf(file, "%s", bdata(cells->entry[c]));
+            fprintf(file, "%s", bdata(table->headers->entry[c]));
+            for (int r = 0; r < table->rows->qty; r++)
+            {
+                struct bstrList* cells = bsplit(table->rows->entry[r], '|');
+                if (cells && c < cells->qty)
+                {
+                    fprintf(file, ",%s", bdata(cells->entry[c]));
+                }
+                if (table->rows->qty < max_cols - 1)
+                {
+                    SEPARATOR(max_cols - table->rows->qty);
+                }
+                if (cells) bstrListDestroy(cells);
+            }
+            fprintf(file, "\n");
+        }
+    }
+    else
+    {
+        for (int c = 0; c < table->num_cols; c++)
+        {
+            fprintf(file, "%s", bdata(table->headers->entry[c]));
             if (c < table->num_cols - 1)
             {
                 fprintf(file, ",");
@@ -229,7 +296,25 @@ int table_to_csv(FILE* output, Table* table, const char* fname, int max_cols)
             SEPARATOR(max_cols - table->num_cols);
         }
         fprintf(file, "\n");
-        bstrListDestroy(cells);
+
+        for (int r = 0; r < table->rows->qty; r++)
+        {
+            struct bstrList* cells = bsplit(table->rows->entry[r], '|');
+            for (int c = 0; c < table->num_cols; c++)
+            {
+                fprintf(file, "%s", bdata(cells->entry[c]));
+                if (c < table->num_cols - 1)
+                {
+                    fprintf(file, ",");
+                }
+            }
+            if (max_cols > table->num_cols)
+            {
+                SEPARATOR(max_cols - table->num_cols);
+            }
+            fprintf(file, "\n");
+            bstrListDestroy(cells);
+        }
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, Results are saved to file '%s', fname);
     return err;
@@ -351,7 +436,7 @@ int table_print_csv(const char* fname)
     if (table)
     {
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Printing CSV '%s' file, fname);
-        table_print(stdout, table);
+        table_print(stdout, table, 1);
         table_destroy(table);
     }
     else
