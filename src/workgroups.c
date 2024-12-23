@@ -232,12 +232,12 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
                 DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream %d: dimsize before %s, j, bdata(t));
                 replace_all(runcfg->global_results, t, NULL);
                 size_t res = 0;
-                int c = sscanf(bdata(t), "%ld", &res);
+                int c = sscanf(bdata(t), "%lld", &res);
                 if (c == 1)
                 {
                     ostream->dimsizes[k] = res;
                 }
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream %d: dimsize after %ld, j, ostream->dimsizes[k]);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream %d: dimsize after %lld, j, ostream->dimsizes[k]);
                 ostream->dims++;
                 bdestroy(t);
             }
