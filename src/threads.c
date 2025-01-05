@@ -301,7 +301,7 @@ void* _func_t(void* arg)
 {
     RuntimeThreadConfig* thread = (RuntimeThreadConfig*)arg;
     bool keep_running = true;
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is running, thread->local_id, thread->global_id);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %3d with global thread %3d is running, thread->local_id, thread->global_id);
     while (keep_running)
     {
         pthread_mutex_lock(&thread->command->mutex);
@@ -315,11 +315,11 @@ void* _func_t(void* arg)
             {
                 if (err == ETIMEDOUT)
                 {
-                    ERROR_PRINT(Thread %d timedout waiting for command, thread->local_id);
+                    ERROR_PRINT(Thread %3d timedout waiting for command, thread->local_id);
                 }
                 else
                 {
-                    ERROR_PRINT(Thread %d failed to wait for command: %s, thread->local_id, strerror(err));
+                    ERROR_PRINT(Thread %3d failed to wait for command: %s, thread->local_id, strerror(err));
                 }
                 pthread_mutex_unlock(&thread->command->mutex);
                 goto exit_thread;
@@ -329,50 +329,52 @@ void* _func_t(void* arg)
         LikwidThreadCommand c_cmd = thread->command->cmd;
         pthread_mutex_unlock(&thread->command->mutex);
 
-        // DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d received cmd %d, thread->local_id, thread->global_id, c_cmd);
+        // DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %3d with global thread %3d received cmd %3d, thread->local_id, thread->global_id, c_cmd);
 
         switch(c_cmd)
         {
             case LIKWID_THREAD_COMMAND_INITIALIZE:
                 if (thread->global_id == 0 && !thread->command->initialization)
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Global Initialization on thread %d with global thread %d, thread->local_id, thread->global_id);
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Global Initialization on thread %3d with global thread %3d, thread->local_id, thread->global_id);
                     int err = initialize_global(thread);
                     if (err != 0)
                     {
-                        ERROR_PRINT(Global Initialization failed for thread %d with global thread %d, thread->local_id, thread->global_id);
+                        ERROR_PRINT(Global Initialization failed for thread %3d with global thread %3d, thread->local_id, thread->global_id);
                     }
                 }
                 else if (thread->command->initialization)
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Local Initialization on thread %d with global thread %d, thread->local_id, thread->global_id);
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Local Initialization on thread %3d with global thread %3d, thread->local_id, thread->global_id);
                     int err = initialize_local(thread, thread->local_id);
                     if (err != 0)
                     {
-                        ERROR_PRINT(Local Initialization failed for thread %d with global thread %d, thread->local_id, thread->global_id);
+                        ERROR_PRINT(Local Initialization failed for thread %3d with global thread %3d, thread->local_id, thread->global_id);
                     }
                 }
                 break;
 
             case LIKWID_THREAD_COMMAND_NOOP:
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is set with NOOP command, thread->local_id, thread->global_id);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %3d with global thread %3d is set with NOOP command, thread->local_id, thread->global_id);
                 break;
 
             case LIKWID_THREAD_COMMAND_RUN:
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is set with RUN command, thread->local_id, thread->global_id);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %3d with global thread %3d is set with RUN command, thread->local_id, thread->global_id);
                 pthread_mutex_lock(&thread->command->mutex);
                 thread->command->done = 1;
-                pthread_cond_broadcast(&thread->command->cond);
+                pthread_cond_signal(&thread->command->cond);
                 pthread_mutex_unlock(&thread->command->mutex);
                 int err = run_benchmark(thread);
                 if (err != 0)
                 {
-                    ERROR_PRINT(Running benchmark kernel failed for thread %d with global thread %d, thread->local_id, thread->global_id);
+                    ERROR_PRINT(Running benchmark kernel failed for thread %3d with global thread %3d, thread->local_id, thread->global_id);
                 }
+                keep_running = false;
+                goto exit_thread;
                 break;
 
             case LIKWID_THREAD_COMMAND_EXIT:
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d is set with EXIT command, thread->local_id, thread->global_id);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %3d with global thread %3d is set with EXIT command, thread->local_id, thread->global_id);
                 keep_running = false;
                 goto exit_thread;
                 break;
@@ -394,11 +396,13 @@ void* _func_t(void* arg)
     }
 
 exit_thread:
+    pthread_barrier_wait(&thread->barrier->barrier);
     pthread_mutex_lock(&thread->command->mutex);
     thread->command->done = 1;
     pthread_cond_signal(&thread->command->cond);
     pthread_mutex_unlock(&thread->command->mutex);
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d with global thread %d has completed, thread->local_id, thread->global_id);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %3d with global thread %3d has completed, thread->local_id, thread->global_id);
+    pthread_barrier_wait(&thread->barrier->barrier);
     pthread_exit(NULL);
     return NULL;
 }
