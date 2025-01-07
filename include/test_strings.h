@@ -10,7 +10,6 @@
 extern "C" {
 #endif
 
-static struct tagbstring bsizen = bsStatic("N");
 static struct tagbstring biterations = bsStatic("ITER");
 static struct tagbstring bnumthreads = bsStatic("NUM_THREADS");
 static struct tagbstring bgroupid = bsStatic("GROUP_ID");

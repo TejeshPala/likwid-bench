@@ -747,26 +747,30 @@ int fill_results(RuntimeConfig* runcfg)
     for (int i = 0; i < runcfg->num_params; i++)
     {
         RuntimeParameterConfig* p = &runcfg->params[i];
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Add runtime parameter %s, bdata(p->name));
-        if (biseq(p->name, &bsizen) && blength(p->value) > 0)
+        for (int s = 0; s < runcfg->tcfg->num_streams; s++)
         {
-            bstring barraysize = bformat("%lld", convertToBytes(p->value));
-            add_variable(runcfg->global_results, &bsizen, barraysize);
-            for (int i = 0; i < runcfg->num_wgroups; i++)
+            TestConfigStream *istream = &runcfg->tcfg->streams[s];
+            for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
             {
-                RuntimeWorkgroupConfig *wgroup = &runcfg->wgroups[i];
-                for (int j = 0; j < wgroup->num_threads; j++)
+                bstring btmp = bstrcpy(istream->dims->entry[k]);
+                if (biseq(p->name, btmp) && blength(p->value) > 0)
                 {
-                    add_variable(&wgroup->results[j], &bsizen, barraysize);
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Add runtime parameter %s, bdata(p->name));
+                    bstring barraysize = bformat("%lld", convertToBytes(p->value));
+                    add_variable(runcfg->global_results, btmp, barraysize);
+                    for (int w = 0; w < runcfg->num_wgroups; w++)
+                    {
+                        RuntimeWorkgroupConfig *wgroup = &runcfg->wgroups[w];
+                        for (int t = 0; t < wgroup->num_threads; t++)
+                        {
+                            add_variable(&wgroup->results[t], btmp, barraysize);
+                        }
+                    }
+                    bdestroy(barraysize);
                 }
+                bdestroy(btmp);
             }
-            bdestroy(barraysize);
         }
-        else
-        {
-           add_variable(runcfg->global_results, p->name, p->value);
-        }
-
     }
 
     bstring biter;
