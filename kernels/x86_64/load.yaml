@@ -2,7 +2,7 @@
 - Name: load
 - Description: Double-precision load, only scalar operations
 - RequireWorkgroup: true
-- FeatureFlag: 
+- FeatureFlag:
     - sse2
 - Parameters:
   - N:
@@ -26,7 +26,7 @@
   BYTES_PER_ITER: 64
   LOADS_PER_ITER: 8
   INST_PER_ITER: 8
-  UNROLL_FACTOR: 8 
+  UNROLL_FACTOR: 8
 
 - Metrics:
   Read bandwidth [MByte/s]: BYTES_PER_ITER*ITER/TIME
