@@ -340,7 +340,7 @@ int main(int argc, char** argv)
             for (int j = 0; j < flist->qty; j++)
             {
                 btrimws(flist->entry[j]);
-                if (bstrnicmp(runcfg->tcfg->flags->entry[i], flist->entry[j], blength(runcfg->tcfg->flags->entry[i])) == BSTR_OK && blength(runcfg->tcfg->flags->entry[i]) > 0)
+                if (blength(runcfg->tcfg->flags->entry[i]) > 0 && biseq(runcfg->tcfg->flags->entry[i], flist->entry[j]))
                 {
                     DEBUG_PRINT(DEBUGLEV_DEVELOP, Flag %s found on the system, bdata(runcfg->tcfg->flags->entry[i]));
                     found++;
