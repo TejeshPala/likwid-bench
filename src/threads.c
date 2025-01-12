@@ -147,13 +147,13 @@ void _print_aff(pthread_t thread)
         }
     }
 
-    printf("Threadid %16lu -> hwthread/affinity: ", thread);
+    printf("Threadid %16lu, Calling from CPU %d with PID %d, KTID %d, PPID %d-> hwthread/affinity: ", thread, sched_getcpu(), getpid(), (int)syscall(SYS_gettid), getppid());
 
     for (size_t t = 0; t < CPU_SETSIZE; t++)
     {
         if (CPU_ISSET(t, &cpuset))
         {
-            printf("%3ld ", t);
+            printf("%3lu ", t);
         }
     }
     printf("\n");
