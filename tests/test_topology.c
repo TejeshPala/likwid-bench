@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
     while (blength(&testconfigs[idx].cpustr) > 0)
     {
         int newlen = 0;
-        newlen = cpustr_to_cpulist(&testconfigs[idx].cpustr, list, length);
+        newlen = lb_cpustr_to_cpulist(&testconfigs[idx].cpustr, list, length);
         if (newlen < 0)
         {
             if (newlen == testconfigs[idx].expected)

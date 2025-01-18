@@ -717,7 +717,7 @@ int _hwthread_list_sort_by_core(int length, int* hwthreadList, int** outList)
 
 
 
-int cpustr_to_cpulist_physical(bstring cpustr, int* list, int length)
+int lb_cpustr_to_cpulist_physical(bstring cpustr, int* list, int length)
 {
     int idx = 0;
     struct bstrList* blist = bsplit(cpustr, ',');
@@ -813,7 +813,7 @@ static int resolve_list(bstring bstr, int* outLength, int** outList)
     return 0;
 }
 
-int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
+int lb_cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
 {
     struct tagbstring bcolon = bsStatic(":");
     int c = 0;
@@ -947,7 +947,7 @@ int cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
     return outcount;
 }
 
-int cpustr_to_cpulist_expression(bstring cpustr, int* list, int length)
+int lb_cpustr_to_cpulist_expression(bstring cpustr, int* list, int length)
 {
     int ret = 0;
     int outcount = 0;
@@ -1065,19 +1065,19 @@ int cpustr_to_cpulist_expression(bstring cpustr, int* list, int length)
     return outcount;
 }
 
-int cpustr_to_cpulist(bstring cpustr, int* list, int length)
+int lb_cpustr_to_cpulist(bstring cpustr, int* list, int length)
 {
     if (bchar(cpustr, 0) == 'E')
     {
-        return cpustr_to_cpulist_expression(cpustr, list, length);
+        return lb_cpustr_to_cpulist_expression(cpustr, list, length);
     }
     else if (bstrchrp(cpustr, ':', 0) >= 0)
     {
-        return cpustr_to_cpulist_logical(cpustr, list, length);
+        return lb_cpustr_to_cpulist_logical(cpustr, list, length);
     }
     else
     {
-        return cpustr_to_cpulist_physical(cpustr, list, length);
+        return lb_cpustr_to_cpulist_physical(cpustr, list, length);
     }
     return -EINVAL;
 }
