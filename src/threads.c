@@ -305,11 +305,12 @@ void* _func_t(void* arg)
     while (keep_running)
     {
         pthread_mutex_lock(&thread->command->mutex);
-        while(thread->command->done || thread->command->cmd == LIKWID_THREAD_COMMAND_NOOP)
+        while(thread->command->head == NULL)
         {
             struct timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts);
             ts.tv_sec += TIMEOUT_SECONDS;
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %3d with global thread %3d is waiting for command, thread->local_id, thread->global_id);
             int err = pthread_cond_timedwait(&thread->command->cond, &thread->command->mutex, &ts);
             if (err != 0)
             {
@@ -326,7 +327,14 @@ void* _func_t(void* arg)
             }
             // pthread_cond_wait(&thread->command->cond, &thread->command->mutex);
         }
-        LikwidThreadCommand c_cmd = thread->command->cmd;
+        Queue* q = thread->command->head;
+        LikwidThreadCommand c_cmd = q->cmd;
+        thread->command->head = q->next;
+        if (thread->command->head == NULL)
+        {
+            thread->command->tail = NULL;
+        }
+        free(q);
         pthread_mutex_unlock(&thread->command->mutex);
 
         // DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %3d with global thread %3d received cmd %3d, thread->local_id, thread->global_id, c_cmd);
@@ -369,8 +377,6 @@ void* _func_t(void* arg)
                 {
                     ERROR_PRINT(Running benchmark kernel failed for thread %3d with global thread %3d, thread->local_id, thread->global_id);
                 }
-                keep_running = false;
-                goto exit_thread;
                 break;
 
             case LIKWID_THREAD_COMMAND_EXIT:
@@ -407,14 +413,23 @@ exit_thread:
     return NULL;
 }
 
-int _prepare_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread)
+int send_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread)
 {
     int err = 0;
     if (thread == NULL)
     {   
         return -EINVAL;
     }
-    
+
+    Queue* q = (Queue*)malloc(sizeof(Queue));
+    if (q == NULL)
+    {
+        ERROR_PRINT(Failed to allocate memory for New Command);
+        return -ENOMEM;
+    }
+    q->cmd = cmd;
+    q->next = NULL;
+
     err = pthread_mutex_lock(&thread->command->mutex);
     if (err != 0)
     {
@@ -422,7 +437,15 @@ int _prepare_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread)
         return err;
     }
 
-    thread->command->cmd = cmd;
+    if (thread->command->tail == NULL)
+    {
+        thread->command->head = thread->command->tail = q;
+    }
+    else
+    {
+        thread->command->tail->next = q;
+        thread->command->tail = q;
+    }
     /* Initially when threads are created it is created with done status as 1
      * once after creation, as we send the cmd - the status is set to 0
      * later invocation changes the status to 1
@@ -433,99 +456,10 @@ int _prepare_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread)
     {
         ERROR_PRINT(Failed to signal condition for thread %d with error %s, thread->local_id, strerror(err));
         pthread_mutex_unlock(&thread->command->mutex);
+        free(q);
         return err;
     }
     pthread_mutex_unlock(&thread->command->mutex);
-    return err;
-}
-
-int _send_signal(RuntimeThreadConfig* thread)
-{
-    int err = 0;
-    if (thread == NULL)
-    {   
-        return -EINVAL;
-    }
-    
-    err = pthread_mutex_lock(&thread->command->mutex);
-    if (err != 0)
-    {
-        ERROR_PRINT(Failed to lock mutex for thread %d with error %s, thread->local_id, strerror(err));
-        return err;
-    }
-
-    err = pthread_cond_signal(&thread->command->cond);
-    if (err != 0)
-    {
-        ERROR_PRINT(Failed to signal condition for thread %d with error %s, thread->local_id, strerror(err));
-        pthread_mutex_unlock(&thread->command->mutex);
-        return err;
-    }
-
-    pthread_mutex_unlock(&thread->command->mutex);
-    return err;
-}
-
-int _wait(RuntimeThreadConfig* thread)
-{
-    int err = 0;
-    struct timespec ts;
-    if (thread == NULL)
-    {   
-        return -EINVAL;
-    }
-
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += TIMEOUT_SECONDS;
-    err = pthread_mutex_lock(&thread->command->mutex);
-    if (err != 0)
-    {
-        ERROR_PRINT(Failed to lock mutex for thread %d with error %s, thread->local_id, strerror(err));
-    }
-
-    while (!thread->command->done)
-    {
-        int err = pthread_cond_timedwait(&thread->command->cond, &thread->command->mutex, &ts);
-        if (err == ETIMEDOUT)
-        {
-            ERROR_PRINT(time out waiting for thread %d to complete command, thread->local_id);
-            pthread_mutex_unlock(&thread->command->mutex);
-            return err;
-        }
-        else if (err != 0)
-        {
-            ERROR_PRINT(Waiting for thread %d with error %s, thread->local_id, strerror(err));
-            pthread_mutex_unlock(&thread->command->mutex);
-            return err;
-        }
-        // pthread_cond_wait(&thread->command->cond, &thread->command->mutex);
-    }
-
-    pthread_mutex_unlock(&thread->command->mutex);
-    return err;
-}
-
-int send_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread)
-{
-    int err = 0;
-
-    err = _prepare_cmd(cmd, thread);
-    if (err != 0)
-    {
-        return err;
-    }
-
-    err = _send_signal(thread);
-    if (err != 0)
-    {
-        return err;
-    }
-
-    if (cmd != LIKWID_THREAD_COMMAND_NOOP)
-    {
-        err = _wait(thread);
-    }
-
     return err;
 }
 
@@ -679,6 +613,8 @@ int update_threads(RuntimeConfig* runcfg)
                 err = -ENOMEM;
                 goto free;
             }
+
+            thread->command->head = thread->command->tail = NULL;
 
             err = pthread_attr_init(&thread->command->attr);
             if (err != 0)

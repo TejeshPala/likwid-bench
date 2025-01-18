@@ -176,8 +176,15 @@ typedef enum {
     LIKWID_THREAD_COMMAND_VERIFY,
 } LikwidThreadCommand;
 
+typedef struct Queue {
+    LikwidThreadCommand cmd;
+    struct Queue* next;
+} Queue;
+
 typedef struct {
     LikwidThreadCommand cmd;
+    Queue* head;
+    Queue* tail;
     union {
         int (*exit)();
         void (*run)();

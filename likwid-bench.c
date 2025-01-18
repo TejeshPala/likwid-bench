@@ -553,7 +553,6 @@ int main(int argc, char** argv)
     /*
      * Exit threads
      */
-    /*
     for (int w = 0; w < runcfg->num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
@@ -568,7 +567,6 @@ int main(int argc, char** argv)
             }
         }
     }
-    */
 
     err = join_threads(runcfg->num_wgroups, runcfg->wgroups);
     if (err < 0)
