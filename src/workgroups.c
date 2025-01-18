@@ -82,7 +82,7 @@ int resolve_workgroup(RuntimeWorkgroupConfig* wg, int maxThreads)
         return -ENOMEM;
     }
 
-    int nthreads = cpustr_to_cpulist(wg->str, wg->hwthreads, maxThreads);
+    int nthreads = lb_cpustr_to_cpulist(wg->str, wg->hwthreads, maxThreads);
     if (nthreads < 0)
     {
         ERROR_PRINT(Failed to resolve workgroup string %s, bdata(wg->str));

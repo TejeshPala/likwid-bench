@@ -15,24 +15,24 @@
 #include "test_types.h"
 
 
-#define DECLARE_TIMER TimerData timedata
+#define DECLARE_TIMER TimerDataLB timedata
 
 // todo markers
 // todo timer library with rdtsc? or perf?
 #define EXECUTE(func) \
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
-    if (timer_init(TIMER_RDTSC, &timedata) != 0) fprintf(stderr, "Timer initialization failed!\n"); \
-    timer_start(&timedata); \
+    if (lb_timer_init(TIMER_RDTSC, &timedata) != 0) fprintf(stderr, "Timer initialization failed!\n"); \
+    lb_timer_start(&timedata); \
     for (int i = 0; i < myData->iters; i++) \
     {   \
         func; \
     } \
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
-    timer_stop(&timedata); \
-    timer_as_ns(&timedata, &myData->min_runtime); \
-    timer_as_cycles(&timedata, &myData->cycles); \
+    lb_timer_stop(&timedata); \
+    lb_timer_as_ns(&timedata, &myData->min_runtime); \
+    lb_timer_as_cycles(&timedata, &myData->cycles); \
     myData->freq = timedata.ci.freq; \
-    timer_close(&timedata); \
+    lb_timer_close(&timedata); \
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier);
 
 int run_benchmark(RuntimeThreadConfig* data)
