@@ -10,13 +10,27 @@
 extern "C" {
 #endif
 
-static struct tagbstring bsizen = bsStatic("N");
 static struct tagbstring biterations = bsStatic("ITER");
 static struct tagbstring bnumthreads = bsStatic("NUM_THREADS");
 static struct tagbstring bgroupid = bsStatic("GROUP_ID");
 static struct tagbstring bthreadid = bsStatic("THREAD_ID");
 static struct tagbstring bthreadcpu = bsStatic("THREAD_CPU"); 
 static struct tagbstring bglobalid = bsStatic("GLOBAL_ID");
+
+
+static struct tagbstring bstats1[] =
+{
+    bsStatic("cycles"),
+    bsStatic("freq"),
+    bsStatic("iters"),
+    bsStatic("time"),
+};
+
+static struct tagbstring bstats2[] =
+{
+    bsStatic("iters"),
+    bsStatic("time"),
+};
 
 #ifdef __cplusplus
 }

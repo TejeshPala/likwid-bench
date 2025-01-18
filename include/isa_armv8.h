@@ -59,10 +59,11 @@ static int is_sve(char* string)
 
 int header(struct bstrList* code, bstring funcname)
 {
+    struct tagbstring bstrptr = bsStatic("# STREAMPTRFORREPLACMENT");
     int sve = is_sve_bstr(funcname);
-    bstring glline = bformat(".global %s", funcname);
-    bstring typeline = bformat(".type %s, @function", funcname);
-    bstring label = bformat("%s :", funcname);
+    bstring glline = bformat(".global %s", bdata(funcname));
+    bstring typeline = bformat(".type %s, @function", bdata(funcname));
+    bstring label = bformat("%s :", bdata(funcname));
 
     if (sve)
     {
@@ -92,6 +93,9 @@ int header(struct bstrList* code, bstring funcname)
     bstrListAddChar(code, "stp d10, d11, [sp, 112]");
     bstrListAddChar(code, "stp d12, d14, [sp, 128]");
 
+    bstring streamline = bformat("%s", bdata(&bstrptr));
+    bstrListAdd(code, streamline);
+    bdestroy(streamline);
 
     bstrListAddChar(code, "\n");
 
@@ -120,7 +124,7 @@ int footer(struct bstrList* code, bstring funcname)
 
     bstrListAddChar(code, "ret");
 
-    bstring line = bformat(".size kernelfunction, .-kernelfunction");
+    bstring line = bformat(".size %s, .-%s", bdata(funcname), bdata(funcname));
     bstrListAdd(code, line);
     bdestroy(line);
 
@@ -144,7 +148,7 @@ int loopheader(struct bstrList* code, bstring loopname, bstring loopreg, bstring
     bstrListAdd(code, initline);
     bdestroy(initline);
 
-    bstring condline = bformat("mov %s, %s", bdata(condreg), bdata(cond));
+    bstring condline = bformat("mov %s, #%s", bdata(condreg), bdata(cond));
     bstrListAdd(code, condline);
     bdestroy(condline);
 
@@ -212,77 +216,33 @@ int loopfooter(struct bstrList* code, bstring loopname, bstring loopreg, bstring
 }
 
 
-static RegisterMap Registers[] = {
-    {"GPR1", "x1"},
-    {"GPR2", "x2"},
-    {"GPR3", "x3"},
-    {"GPR4", "x4"},
-    {"GPR5", "x5"},
-    {"GPR6", "x6"},
-    {"GPR7", "x7"},
-    {"GPR8", "x8"},
-    {"GPR9", "x9"},
-    {"GPR10", "x10"},
-    {"GPR11", "x11"},
-    {"GPR12", "x12"},
-    {"GPR13", "x13"},
-    {"GPR14", "x14"},
-    {"GPR15", "x15"},
-    {"GPR16", "x16"},
-    {"GPR17", "x17"},
-    {"GPR18", "x18"},
-    {"GPR19", "x19"},
-    {"GPR20", "x20"},
-    {"GPR21", "x21"},
-    {"GPR22", "x22"},
-    {"FPR1", "d0"},
-    {"FPR2", "d1"},
-    {"FPR3", "d2"},
-    {"FPR4", "d3"},
-    {"FPR5", "d4"},
-    {"FPR6", "d5"},
-    {"FPR7", "d6"},
-    {"FPR8", "d7"},
-    {"FPR9", "d8"},
-    {"FPR10", "d9"},
-    {"FPR11", "d10"},
-    {"FPR12", "d11"},
-    {"FPR13", "d12"},
-    {"FPR14", "d13"},
-    {"FPR15", "d14"},
-    {"FPR16", "d15"},
-    {"", ""},
+struct tagbstring Registers[] = {
+    bsStatic("x1"),
+    bsStatic("x2"),
+    bsStatic("x3"),
+    bsStatic("x4"),
+    bsStatic("x5"),
+    bsStatic("x6"),
+    bsStatic("x7"),
+    bsStatic("x8"),
+    bsStatic("x9"),
+    bsStatic("x10"),
+    bsStatic("x11"),
+    bsStatic("x12"),
+    bsStatic("x13"),
+    bsStatic("x14"),
+    bsStatic("x15"),
+    bsStatic("x16"),
+    bsStatic("x17"),
+    bsStatic("x18"),
+    bsStatic("x19"),
+    bsStatic("x20"),
+    bsStatic("x21"),
+    bsStatic("x22"),
+    bsStatic("")
 };
 
-static RegisterMap Arguments[] = {
-    {"ARG1", "x0"},
-    {"ARG2", "x1"},
-    {"ARG3", "x2"},
-    {"ARG4", "x3"},
-    {"ARG5", "x4"},
-    {"ARG6", "x5"},
-    {"ARG7", "x6"},
-    {"ARG8", "x7"},
-    {"ARG9", "[SPTR+32]"},
-    {"ARG10", "[SPTR+40]"},
-    {"ARG11", "[SPTR+48]"},
-    {"ARG12", "[SPTR+56]"},
-    {"ARG13", "[SPTR+64]"},
-    {"ARG14", "[SPTR+72]"},
-    {"ARG15", "[SPTR+80]"},
-    {"ARG16", "[SPTR+88]"},
-    {"ARG17", "[SPTR+96]"},
-    {"ARG18", "[SPTR+104]"},
-    {"ARG19", "[SPTR+112]"},
-    {"ARG20", "[SPTR+120]"},
-    {"ARG21", "[SPTR+128]"},
-    {"ARG22", "[SPTR+136]"},
-    {"ARG23", "[SPTR+144]"},
-    {"ARG24", "[SPTR+152]"},
-    {"", ""},
-};
-
-static RegisterMap Sptr = {"SPTR", "sp"};
-static RegisterMap Bptr = {"BPTR", "rbp"};
+struct tagbstring RegisterSptr = bsStatic("sp");
+struct tagbstring RegisterBptr = bsStatic("rbp");
 
 #endif /* LIKWID_BENCH_ISA_ARMV8_H */

@@ -105,6 +105,32 @@ bstring bstrListGet(struct bstrList * sl, int idx)
 	return sl->entry[idx];
 }
 
+int bstrListRemoveDup(struct bstrList * sl)
+{
+    int i = 0;
+    if (!sl) return BSTR_ERR;
+    for (i = 0; i < sl->qty; i++)
+    {
+        bstring curr = bstrListGet(sl, i);
+        if (!curr) return BSTR_ERR;
+        for (int j = i + 1; j < sl->qty; )
+        {
+            if (bstrncmp(curr, bstrListGet(sl, j), blength(curr)) == BSTR_OK)
+            {
+                if (bstrListDel(sl, j) != BSTR_OK)
+                {
+                    return BSTR_ERR;
+                }
+            }
+            else
+            {
+                j++;
+            }
+        }
+    }
+    return BSTR_OK;
+}
+
 struct bstrList* bstrListCopy(struct bstrList * sl)
 {
     int i = 0;
@@ -186,35 +212,45 @@ int bisinteger(bstring b)
 int bisnumber(bstring b)
 {
     int count = 0;
+    int has_digits = 0;
     if (bchar(b, 0) == '-')
     {
         count++;
     }
-    int i = count;
-    for (; i < blength(b); i++)
+    while (count < blength(b) && isdigit(bchar(b, count)))
     {
-        if (!isdigit(bchar(b, i)))
-            break;
         count++;
+        has_digits = 1;
     }
-    if (i < blength(b) - 1)
+    if (count < blength(b) && bchar(b, count) == '.')
     {
-        if (bchar(b, i) == 'E' || bchar(b, i) == 'e')
+        count++;
+        while (count < blength(b) && isdigit(bchar(b, count)))
         {
-            i++;
             count++;
-            if (bchar(b, i) == '-')
-            {
-                i++;
-                count++;
-            }
-            for (i = count; i < blength(b); i++)
-            {
-                if (!isdigit(bchar(b, i)))
-                    break;
-                count++;
-            }
+            has_digits = 1;
         }
+    }
+
+    if (!has_digits)
+        return 0;
+
+    if (count < blength(b) && ((bchar(b, count) == 'E' || bchar(b, count) == 'e')))
+    {
+        count++;
+        if (count < blength(b) && (bchar(b, count) == '-' || bchar(b, count) == '+'))
+        {
+            count++;
+        }
+
+        int exp_digits = 0;
+        while (count < blength(b) && isdigit(bchar(b, count)))
+        {
+            count++;
+            exp_digits = 1;
+        }
+        if (!exp_digits)
+            return 0;
     }
     return count == blength(b);
 }
@@ -235,6 +271,7 @@ bstring read_file(char *filename)
         ret = fread(buf, 1, sizeof(buf), fp);
         if (ret < 0) {
             fprintf(stderr, "fread(%p, 1, %lu, %p): %d, errno=%d\n", buf, sizeof(buf), fp, ret, errno);
+            fclose(fp);
             return content;
         }
         else if (ret == 0) {
@@ -242,7 +279,38 @@ bstring read_file(char *filename)
         }
         bcatblk(content, buf, ret);
     }
+    fclose(fp);
     return content;
+}
+
+int write_bstrList_to_file(struct bstrList* list, char* filename)
+{
+    int ret = 0;
+    char newline = '\n';
+    FILE* fp = NULL;
+    size_t (*myfwrite)(const void *ptr, size_t size, size_t nmemb, FILE *stream) = fwrite;
+    fp = fopen(filename, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "fopen(%s): errno=%d\n", filename, errno);
+        return -1;
+    }
+    for (int i = 0; i < list->qty; i++)
+    {
+        ret = myfwrite(bdata(list->entry[i]), 1, blength(list->entry[i]) * sizeof(char), fp);
+        if (ret < 0) {
+            fprintf(stderr, "fwrite(%p, 1, %lu, %p): %d, errno=%d\n", bdata(list->entry[i]), blength(list->entry[i]) * sizeof(char), fp, ret, errno);
+            fclose(fp);
+            return -1;
+        }
+        ret = myfwrite(&newline, 1, sizeof(char), fp);
+        if (ret < 0) {
+            fprintf(stderr, "fwrite(%p, 1, %lu, %p): %d, errno=%d\n", &newline, sizeof(char), fp, ret, errno);
+            fclose(fp);
+            return -1;
+        }
+    }
+    fclose(fp);
+    return 0;
 }
 
 int batoi(bstring b, int* value)

@@ -18,6 +18,7 @@
 #include "results.h"
 #include "topology.h"
 #include "thread_group.h"
+#include "dynload.h"
 #include "table.h"
 
 #ifndef global_verbosity
@@ -57,6 +58,7 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->tmpfolder = bfromcstr("");
     runcfg->kernelfolder = bfromcstr("");
     runcfg->arraysize = bfromcstr("");
+    runcfg->compiler = bfromcstr("");
     runcfg->iterations = 0;
     runcfg->runtime = -1.0;
     runcfg->csv = 0;
@@ -76,6 +78,8 @@ void free_runtime_config(RuntimeConfig* runcfg)
         bdestroy(runcfg->testname);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy tmpfolder in RuntimeConfig);
         bdestroy(runcfg->tmpfolder);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy compiler in RuntimeConfig);
+        bdestroy(runcfg->compiler);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy kernelfolder in RuntimeConfig);
         bdestroy(runcfg->kernelfolder);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy arraysize in RuntimeConfig);
@@ -91,17 +95,31 @@ void free_runtime_config(RuntimeConfig* runcfg)
                     for (int j = 0; j < runcfg->wgroups[i].num_threads; j++)
                     {
                         destroy_result(&runcfg->wgroups[i].results[j]);
+                        if (runcfg->wgroups[i].threads)
+                        {
+                            if (runcfg->wgroups[i].threads[j].data)
+                            {
+                                free(runcfg->wgroups[i].threads[j].data);
+                                runcfg->wgroups[i].threads[j].data = NULL;
+                            }
+                            if (runcfg->wgroups[i].threads[j].command)
+                            {
+                                if (runcfg->wgroups[i].threads[j].command->init_val)
+                                {
+                                    free(runcfg->wgroups[i].threads[j].command->init_val);
+                                    runcfg->wgroups[i].threads[j].command->init_val = NULL;
+                                }
+                                free(runcfg->wgroups[i].threads[j].command);
+                                runcfg->wgroups[i].threads[j].command = NULL;
+                            }
+                        }
                     }
+                    free(runcfg->wgroups[i].threads);
                     destroy_result(runcfg->wgroups[i].group_results);
                     free(runcfg->wgroups[i].group_results);
                     runcfg->wgroups[i].group_results = NULL;
                     free(runcfg->wgroups[i].results);
                     runcfg->wgroups[i].results = NULL;
-                }
-                if (runcfg->wgroups[i].threads)
-                {
-                    free(runcfg->wgroups[i].threads);
-                    runcfg->wgroups[i].threads = NULL;
                 }
                 if (runcfg->wgroups[i].hwthreads)
                 {
@@ -131,7 +149,28 @@ void free_runtime_config(RuntimeConfig* runcfg)
                         bdestroy(runcfg->wgroups[i].params[j].value);
                     }
                 }
+                if (runcfg->wgroups[i].testconfig.objfile)
+                {
+                    bdestroy(runcfg->wgroups[i].testconfig.objfile);
+                }
+                if (runcfg->wgroups[i].testconfig.compiler)
+                {
+                    bdestroy(runcfg->wgroups[i].testconfig.compiler);
+                }
+                if (runcfg->wgroups[i].testconfig.flags)
+                {
+                    bdestroy(runcfg->wgroups[i].testconfig.flags);
+                }
+                if (runcfg->wgroups[i].testconfig.functionname)
+                {
+                    bdestroy(runcfg->wgroups[i].testconfig.functionname);
+                }
+                if (runcfg->wgroups[i].testconfig.function)
+                {
+                    close_function(&runcfg->wgroups[i]);
+                }
             }
+            
             free(runcfg->wgroups);
             runcfg->wgroups = NULL;
             runcfg->num_wgroups = 0;
@@ -196,7 +235,9 @@ int main(int argc, char** argv)
     addConstCliOptions(&baseopts, &basecliopts);
 /*    bstring bccflags = bfromcstr("-fPIC -shared");*/
 
+    int precision = DEFAULTPRECISION + 1;
     calculator_init();
+    calculator_setprecision(precision);
     bstring arch = get_architecture();
 #ifdef LIKWIDBENCH_KERNEL_FOLDER
     bstring kernelfolder = bformat("%s/%s/", TOSTRING(LIKWIDBENCH_KERNEL_FOLDER), bdata(arch));
@@ -204,6 +245,7 @@ int main(int argc, char** argv)
     bstring kernelfolder = bformat("./");
 #endif
     bstring tmpfolder = bformat("/tmp/likwid-bench-%d/%s/", getpid(), bdata(arch));
+    bstring compiler = bfromcstr("gcc");
     bdestroy(arch);
     int (*ownaccess)(const char*, int) = access;
 
@@ -223,6 +265,7 @@ int main(int argc, char** argv)
     }
     bconcat(runcfg->kernelfolder, kernelfolder);
     bconcat(runcfg->tmpfolder, tmpfolder);
+    bconcat(runcfg->compiler, compiler);
 
     /*
      * Get command line arguments
@@ -297,7 +340,7 @@ int main(int argc, char** argv)
             for (int j = 0; j < flist->qty; j++)
             {
                 btrimws(flist->entry[j]);
-                if (bstrnicmp(runcfg->tcfg->flags->entry[i], flist->entry[j], blength(runcfg->tcfg->flags->entry[i])) == BSTR_OK && blength(runcfg->tcfg->flags->entry[i]) > 0)
+                if (blength(runcfg->tcfg->flags->entry[i]) > 0 && biseq(runcfg->tcfg->flags->entry[i], flist->entry[j]))
                 {
                     DEBUG_PRINT(DEBUGLEV_DEVELOP, Flag %s found on the system, bdata(runcfg->tcfg->flags->entry[i]));
                     found++;
@@ -367,7 +410,7 @@ int main(int argc, char** argv)
     /*
      * Analyse workgroups
      */
-    err = resolve_workgroups(runcfg->num_wgroups, runcfg->wgroups);
+    err = resolve_workgroups(runcfg->detailed, runcfg->num_wgroups, runcfg->wgroups);
     if (err < 0)
     {
         ERROR_PRINT(Error resolving workgroups);
@@ -419,7 +462,7 @@ int main(int argc, char** argv)
      * Generate assembly
      */
     runcfg->codelines = bstrListCreate();
-    err = generate_code(runcfg->tcfg, runcfg->codelines);
+    err = generate_code(runcfg, runcfg->codelines);
     if (err < 0)
     {
         ERROR_PRINT(Error generating code);
@@ -429,7 +472,6 @@ int main(int argc, char** argv)
     {
         DEBUG_PRINT(DEBUGLEV_DETAIL, "CODE: %s\n", bdata(runcfg->codelines->entry[i]));
     }
-
 
     /*
      * Start threads
@@ -442,9 +484,27 @@ int main(int argc, char** argv)
     }
 
     /*
+     * Update kernel code
+     */
+    for (int i = 0; i < runcfg->num_wgroups; i++)
+    {
+        err = dynload_create_runtime_test_config(runcfg, &runcfg->wgroups[i]);
+        if (err < 0)
+        {
+            ERROR_PRINT(Error generating function object);
+            goto main_out;
+        }
+        err = open_function(&runcfg->wgroups[i]);
+        if (err < 0)
+        {
+            ERROR_PRINT(Error opening function objects);
+            goto main_out;
+        }
+    }
+
+    /*
      * Prepare thread runtime info
      */
-
     err = create_threads(runcfg->num_wgroups, runcfg->wgroups);
     if (err < 0)
     {   
@@ -460,6 +520,27 @@ int main(int argc, char** argv)
         for (int i = 0; i < wg->num_threads; i++)
         {
             err = send_cmd(LIKWID_THREAD_COMMAND_INITIALIZE, &wg->threads[i]);
+            if (err < 0)
+            {
+                ERROR_PRINT(Error communicating with threads);
+                destroy_threads(runcfg->num_wgroups, runcfg->wgroups);
+                goto main_out;
+            }
+        }
+    }
+
+    /*
+     * Run benchmark
+     */
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        for (int i = 0; i < wg->num_threads; i++)
+        {
+            RuntimeThreadConfig* thread =  &wg->threads[i];
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting thread %d run command function to %p, thread->local_id, wg->testconfig.function);
+            thread->command->cmdfunc.run = wg->testconfig.function;
+            err = send_cmd(LIKWID_THREAD_COMMAND_RUN, thread);
             if (err < 0)
             {
                 ERROR_PRINT(Error communicating with threads);
@@ -486,10 +567,6 @@ int main(int argc, char** argv)
             }
         }
     }
-
-    /*
-     * Run benchmark
-     */
 
     err = join_threads(runcfg->num_wgroups, runcfg->wgroups);
     if (err < 0)
@@ -614,6 +691,10 @@ main_out:
     if (tmpfolder)
     {
         bdestroy(tmpfolder);
+    }
+    if (compiler)
+    {
+        bdestroy(compiler);
     }
     if (args)
     {

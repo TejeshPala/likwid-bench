@@ -95,7 +95,7 @@ typedef struct {
     int (*parse)(TestConfig_t config, struct bstrList* code, struct bstrList* out);
 } PttKeywordInternal;
 
-int prepare_ptt(TestConfig_t config, struct bstrList* out);
-int generate_code(TestConfig_t config, struct bstrList* out);
+int prepare_ptt(TestConfig_t config, struct bstrList* out, struct bstrList* regs);
+int generate_code(RuntimeConfig* runcfg, struct bstrList* out);
 
 #endif /* PTT2ASM_H */

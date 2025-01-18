@@ -69,13 +69,41 @@ int table_addrow(Table* table, struct bstrList* row)
     for (int c = 0; c < table->num_cols; c++)
     {
         if (c > 0) bconchar(brow, '|');
-        bconcat(brow, row->entry[c]);
+        bstring btmp = bstrcpy(row->entry[c]);
 
-        int cell = blength(row->entry[c]);
-        if (cell > table->col_widths[c])
+        if (bisinteger(btmp))
         {
-            table->col_widths[c] = cell;
+            int ivalue;
+            if (batoi(btmp, &ivalue) == BSTR_OK && ivalue >= 0)
+            {
+                bstring btmpd = bformat("%d", ivalue);
+                bconcat(brow, btmpd);
+                int cell = blength(btmpd);
+                if (cell > table->col_widths[c])
+                {
+                    table->col_widths[c] = cell;
+                }
+                bdestroy(btmpd);
+            }
         }
+        else if (bisnumber(btmp))
+        {
+            int ivalue;
+            double dvalue;
+            if (batod(btmp, &dvalue) == BSTR_OK && dvalue >= 0.0)
+            {
+                bstring btmpd = (dvalue < 1.0) ? bformat("%.6f", dvalue): bformat("%g", dvalue);
+                bconcat(brow, btmpd);
+                int cell = blength(btmpd);
+                if (cell > table->col_widths[c])
+                {
+                    table->col_widths[c] = cell;
+                }
+                bdestroy(btmpd);
+            }
+        }
+
+        bdestroy(btmp);
     }
     bstrListAdd(table->rows, brow);
     bdestroy(brow);

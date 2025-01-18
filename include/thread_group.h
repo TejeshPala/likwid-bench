@@ -42,7 +42,7 @@
 
 #define MIN_ITERATIONS 100
 #define MIN_RUNTIME 0.2
-#define TIMEOUT_SECONDS 30
+#define TIMEOUT_SECONDS 60
 
 int send_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread);
 int destroy_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups);

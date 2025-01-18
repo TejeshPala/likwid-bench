@@ -40,6 +40,7 @@ TESTS = test_read_yaml_ptt \
 	test_allocator \
 	test_bitmap \
 	test_calculator \
+	test_bench \
 	test_bstrlib_helper \
 	test_timer-rdtsc \
 	test_timer-gettime \
@@ -88,6 +89,9 @@ BITMAP_HEADER := ../include/bitmap.h
 HELPER_OBJ := ../src/helper.c
 HELPER_HEADER := ../include/helper.h
 
+BENCH_OBJ := ../src/bench.c
+BENCH_HEADER := ../include/bench.h
+
 TIMER_OBJ := ../src/timer.c
 TIMER_HEADER := ../include/timer.h
 
@@ -105,8 +109,8 @@ test_results: test_results.c ../src/results.c $(RESULTS_OBJ) $(RESULTS_HEADER) $
 test_topology: test_topology.c $(TOPOLOGY_OBJ) $(TOPOLOGY_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(BITMAP_OBJ) $(BITMAP_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) test_topology.c $(TOPOLOGY_OBJ) $(BSTRLIB_OBJ) $(BITMAP_OBJ) -o $@
 
-test_ptt2asm: test_ptt2asm.c $(PTT2ASM_OBJ) $(PTT2ASM_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(PTT_KEYWORDS_HEADER)
-	$(CC) $(INCLUDES) $(CFLAGS) test_ptt2asm.c $(PTT2ASM_OBJ) $(BSTRLIB_OBJ) -o $@
+test_ptt2asm: test_ptt2asm.c $(PTT2ASM_OBJ) $(PTT2ASM_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(PTT_KEYWORDS_HEADER) $(ALLOCATOR_OBJ) $(ALLOCATOR_HEADER) $(BITMAP_HEADER) $(BITMAP_OBJ)
+	$(CC) $(INCLUDES) $(CFLAGS) test_ptt2asm.c $(PTT2ASM_OBJ) $(BSTRLIB_OBJ) $(ALLOCATOR_OBJ) $(BITMAP_OBJ) -o $@
 
 test_workgroups: test_workgroups.c $(RESULTS_OBJ) $(RESULTS_HEADER) $(BSTRLIB_OBJ) $(BSTRLIB_HEADER) $(TOPOLOGY_OBJ) $(TOPOLOGY_HEADER) $(WORKGROUPS_OBJ) $(WORKGROUPS_HEADER) $(MAP_OBJ) $(MAP_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) -DWITH_BSTRING test_workgroups.c $(TOPOLOGY_OBJ) $(BSTRLIB_OBJ) $(WORKGROUPS_OBJ) $(MAP_OBJ) $(RESULTS_OBJ) -o $@
@@ -131,6 +135,9 @@ test_bitmap: test_bitmap.c $(BITMAP_OBJ) $(BITMAP_HEADER)
 
 test_bstrlib_helper: test_bstrlib_helper.c $(BSTRLIB_HEADER) $(BSTRLIB_OBJ)
 	$(CC) $(INCLUDES) $(CFLAGS) test_bstrlib_helper.c $(BSTRLIB_OBJ) -o $@
+
+test_bench: test_bench.c $(BENCH_OBJ) $(BENCH_HEADER) $(TIMER_OBJ) $(TIMER_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) test_bench.c $(BENCH_OBJ) $(TIMER_OBJ) -o $@ -lpthread
 
 test_timer-rdtsc: test_timer-rdtsc.c $(TIMER_OBJ) $(TIMER_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) test_timer-rdtsc.c $(TIMER_OBJ) -o $@

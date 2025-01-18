@@ -160,8 +160,8 @@ typedef struct {
 } RuntimeParameterConfig;
 
 typedef struct {
-    bstring asmfile;
     bstring objfile;
+    bstring functionname;
     bstring flags;
     bstring compiler;
     void* dlhandle;
@@ -176,14 +176,25 @@ typedef enum {
     LIKWID_THREAD_COMMAND_VERIFY,
 } LikwidThreadCommand;
 
+typedef struct Queue {
+    LikwidThreadCommand cmd;
+    struct Queue* next;
+} Queue;
+
 typedef struct {
     LikwidThreadCommand cmd;
+    Queue* head;
+    Queue* tail;
     union {
         int (*exit)();
+        void (*run)();
     } cmdfunc;
     int done;
+    pthread_attr_t attr;
     pthread_mutex_t mutex;
+    pthread_mutexattr_t m_attr;
     pthread_cond_t cond;
+    pthread_condattr_t c_attr;
     bool initialization;
     int num_streams;
     RuntimeStreamConfig* tstreams;
@@ -206,6 +217,7 @@ typedef enum {
 typedef struct {
     uint64_t iters;
     uint64_t cycles;
+    uint64_t freq;
     uint64_t min_runtime;
     //const TestConfig_t test;
     int hwthread;
@@ -239,6 +251,7 @@ typedef struct {
     RuntimeStreamConfig* streams;
     int num_params;
     RuntimeParameterConfig* params;
+    RuntimeTestConfig testconfig;
 } RuntimeWorkgroupConfig;
 
 typedef struct {
@@ -248,6 +261,7 @@ typedef struct {
     double runtime;
     int csv;
     int json;
+    int detailed;
     bstring output;
     int num_wgroups;
     RuntimeWorkgroupConfig* wgroups;
@@ -255,6 +269,7 @@ typedef struct {
     RuntimeParameterConfig* params;
     bstring testname;
     bstring pttfile;
+    bstring compiler;
     bstring kernelfolder;
     bstring tmpfolder;
     bstring arraysize;

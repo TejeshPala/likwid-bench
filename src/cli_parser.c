@@ -416,7 +416,9 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     struct tagbstring boutput = bsStatic("--output");
     struct tagbstring bcsv = bsStatic("--csv");
     struct tagbstring bjson = bsStatic("--json");
+    struct tagbstring bdetailed = bsStatic("--detailed");
     struct tagbstring btrue = bsStatic("1");
+    struct tagbstring bcompiler = bsStatic("--compiler");
     for (int i = 0; i < options->num_options; i++)
     {
         CliOption* opt = &options->options[i];
@@ -480,6 +482,11 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
             btrunc(runcfg->arraysize, 0);
             bconcat(runcfg->arraysize, opt->value);
         }
+        else if (bstrcmp(opt->name, &bcompiler) == BSTR_OK && blength(opt->value) > 0)
+        {
+            btrunc(runcfg->compiler, 0);
+            bconcat(runcfg->compiler, opt->value);
+        }
         else if (bstrcmp(opt->name, &biterations) == BSTR_OK && blength(opt->value) > 0)
         {
             int (*myatoi)(const char *nptr) = atoi;
@@ -502,6 +509,10 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
         else if (bstrncmp(opt->name, &bjson, blength(&bjson)) == BSTR_OK && blength(opt->value) > 0)
         {
             runcfg->json = 1;
+        }
+        else if (bstrncmp(opt->name, &bdetailed, blength(&bdetailed)) == BSTR_OK && blength(opt->value) > 0)
+        {
+            runcfg->detailed = 1;
         }
     }
 

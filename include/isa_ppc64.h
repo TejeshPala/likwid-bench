@@ -39,6 +39,7 @@
 
 int header(struct bstrList* code, bstring funcname)
 {
+    struct tagbstring bstrptr = bsStatic("# STREAMPTRFORREPLACMENT");
     bstring glline = bformat(".globl %s", bdata(funcname));
     bstring typeline = bformat(".type %s, @function", bdata(funcname));
     bstring label = bformat("%s :", bdata(funcname));
@@ -72,8 +73,11 @@ int header(struct bstrList* code, bstring funcname)
     bstrListAdd(code, Llabel);
     bstrListAdd(code, localentry);
 
-
     bstrListAddChar(code, "\n");
+
+    bstring streamline = bformat("%s", bdata(&bstrptr));
+    bstrListAdd(code, streamline);
+    bdestroy(streamline);
 
     bdestroy(glline);
     bdestroy(typeline);
@@ -86,7 +90,7 @@ int header(struct bstrList* code, bstring funcname)
 int footer(struct bstrList* code, bstring funcname)
 {
     bstrListAddChar(code, "blr");
-    bstring line = bformat(".size %s, .-%s", funcname, funcname);
+    bstring line = bformat(".size %s, .-%s", bdata(funcname), bdata(funcname));
     bstrListAdd(code, line);
     bdestroy(line);
 
@@ -161,85 +165,40 @@ int loopfooter(struct bstrList* code, bstring loopname, bstring loopreg, bstring
 }
 
 
-static RegisterMap Registers[] = {
-    {"GPR1", "r3"},
-    {"GPR2", "r4"},
-    {"GPR3", "r5"},
-    {"GPR4", "r6"},
-    {"GPR5", "r7"},
-    {"GPR6", "r8"},
-    {"GPR7", "r9"},
-    {"GPR8", "r10"},
-    {"GPR9", "r11"},
-    {"GPR10", "r12"},
-    {"GPR11", "r13"},
-    {"GPR12", "r14"},
-    {"GPR13", "r15"},
-    {"GPR14", "r16"},
-    {"GPR15", "17"},
-    {"GPR16", "18"},
-    {"GPR17", "19"},
-    {"GPR18", "20"},
-    {"GPR19", "21"},
-    {"GPR20", "22"},
-    {"GPR21", "23"},
-    {"GPR22", "24"},
-    {"GPR23", "25"},
-    {"GPR24", "26"},
-    {"GPR25", "27"},
-    {"GPR26", "28"},
-    {"GPR27", "29"},
-    {"GPR28", "30"},
-    {"GPR29", "31"},
-    {"FPR1", "vec0"},
-    {"FPR2", "vec1"},
-    {"FPR3", "vec2"},
-    {"FPR4", "vec3"},
-    {"FPR5", "vec4"},
-    {"FPR6", "vec5"},
-    {"FPR7", "vec6"},
-    {"FPR8", "vec7"},
-    {"FPR9", "vec8"},
-    {"FPR10", "vec9"},
-    {"FPR11", "vec10"},
-    {"FPR12", "vec11"},
-    {"FPR13", "12"},
-    {"FPR14", "13"},
-    {"FPR15", "14"},
-    {"FPR16", "15"},
-    {"FPR17", "16"},
-    {"FPR18", "17"},
-    {"FPR19", "18"},
-    {"FPR20", "19"},
-    {"FPR21", "20"},
-    {"FPR22", "21"},
-    {"FPR23", "22"},
-    {"FPR24", "23"},
-    {"FPR25", "24"},
-    {"FPR26", "25"},
-    {"FPR27", "26"},
-    {"FPR28", "27"},
-    {"FPR29", "28"},
-    {"FPR30", "29"},
-    {"FPR31", "30"},
-    {"FPR32", "31"},
-    {"", ""},
+struct tagbstring  Registers[] = {
+    bsStatic("r3"),
+    bsStatic("r4"),
+    bsStatic("r5"),
+    bsStatic("r6"),
+    bsStatic("r7"),
+    bsStatic("r8"),
+    bsStatic("r9"),
+    bsStatic("r10"),
+    bsStatic("r11"),
+    bsStatic("r12"),
+    bsStatic("r13"),
+    bsStatic("r14"),
+    bsStatic("r15"),
+    bsStatic("r16"),
+    bsStatic("17"),
+    bsStatic("18"),
+    bsStatic("19"),
+    bsStatic("20"),
+    bsStatic("21"),
+    bsStatic("22"),
+    bsStatic("23"),
+    bsStatic("24"),
+    bsStatic("25"),
+    bsStatic("26"),
+    bsStatic("27"),
+    bsStatic("28"),
+    bsStatic("29"),
+    bsStatic("30"),
+    bsStatic("31"),
+    bsStatic("")
 };
 
-static RegisterMap Arguments[] = {
-    {"ARG1", "r3"},
-    {"ARG2", "r4"},
-    {"ARG3", "r5"},
-    {"ARG4", "r6"},
-    {"ARG5", "r7"},
-    {"ARG6", "r8"},
-    {"ARG7", "r9"},
-    {"ARG8", "r10"},
-    {"ARG9", "[BPTR+56]"},
-    {"", ""},
-};
-
-static RegisterMap Sptr = {"SPTR", "SP"};
-static RegisterMap Bptr = {"BPTR", "rbp"};
+struct tagbstring  RegisterSptr = bsStatic("SP");
+struct tagbstring  RegisterBptr = bsStatic("rbp");
 
 #endif /* LIKWID_BENCH_ISA_PPC64_H */

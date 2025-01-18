@@ -63,14 +63,16 @@ static ConstCliOption _basecliopts[] = {
     {"kfolder", 'K', required_argument, "Folder with test files to search for test name"},
     {"tmpfolder", 'D', required_argument, "Temporary folder for the object files"},
     {"iterations", 'i', required_argument, "Iterations"},
+    {"compiler", 'C', required_argument, "Select compiler (gcc, icc, icx, clang)"},
     {"runtime", 'r', required_argument, "Possible Units: ms, s, m, h. Default: s. Runtime"},
     {"output", 'o', required_argument, "Set output: 'stdout', 'stderr' or a filename"},
     {"csv", 'O', no_argument, "Output results in CSV format"},
     {"json", 'J', no_argument, "Output results in JSON format"},
+    {"detailed", 'd', no_argument, "Output detailed results (cycles and frequency will be printed)"}
 };
 
 static ConstCliOptions basecliopts = {
-    .num_options = 11,
+    .num_options = 13,
     .options = _basecliopts,
 };
 

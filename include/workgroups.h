@@ -37,7 +37,7 @@
 void delete_workgroup(RuntimeWorkgroupConfig* wg);
 void release_streams(int num_wgroups, RuntimeWorkgroupConfig* wgroups);
 int resolve_workgroup(RuntimeWorkgroupConfig* wg, int maxThreads);
-int resolve_workgroups(int num_wgroups, RuntimeWorkgroupConfig* wgroups);
+int resolve_workgroups(int detailed, int num_wgroups, RuntimeWorkgroupConfig* wgroups);
 int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg);
 void print_workgroup(RuntimeWorkgroupConfig* wgroup);
 int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfig* wgroups);

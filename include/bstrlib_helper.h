@@ -17,6 +17,7 @@ bstring bstrListGet(struct bstrList * sl, int idx);
 
 struct bstrList* bstrListCopy(struct bstrList * sl);
 int bstrListRemove(struct bstrList * sl, bstring str);
+int bstrListRemoveDup(struct bstrList * sl);
 
 void bstrListPrint(struct bstrList * sl);
 int bstrListSort(struct bstrList* in, struct bstrList** out);
@@ -34,6 +35,7 @@ int batof(bstring b, float* value);
 int batod(bstring b, double* value);
 
 bstring read_file(char *filename);
+int write_bstrList_to_file(struct bstrList* list, char* filename);
 
 #ifdef __cplusplus
 }

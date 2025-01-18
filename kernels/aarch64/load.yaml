@@ -6,7 +6,7 @@
     - 
 - Parameters:
   - N:
-      description: Size of array that should be loaded, Possible Values:kB, MB, GB, TB
+      description: Size of array that should be loaded, Possible Values: B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
       options:
         - bytes
         - required
@@ -19,11 +19,6 @@
         - N
       options:
         - perthread
-  - STR1:
-      dimensions: 1
-      datatype: double
-      dimsizes:
-        - N
 - Variables:
   UOPS_PER_ITER: 1
   BYTES_PER_ELEM: 8

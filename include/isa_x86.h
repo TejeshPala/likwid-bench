@@ -39,10 +39,10 @@
 
 int header(struct bstrList* code, bstring funcname)
 {
+    struct tagbstring bstrptr = bsStatic("# STREAMPTRFORREPLACMENT");
     bstring glline = bformat(".global %s", bdata(funcname));
     bstring typeline = bformat(".type %s, @function", bdata(funcname));
     bstring label = bformat("%s :", bdata(funcname));
-
 
     bstrListAddChar(code, ".intel_syntax noprefix");
     bstrListAddChar(code, ".data");
@@ -57,8 +57,11 @@ int header(struct bstrList* code, bstring funcname)
     bstrListAdd(code, typeline);
     bstrListAdd(code, label);
 
-
     bstrListAddChar(code, "\n");
+
+    bstring streamline = bformat("%s", bdata(&bstrptr));
+    bstrListAdd(code, streamline);
+    bdestroy(streamline);
 
     bdestroy(glline);
     bdestroy(typeline);
@@ -107,13 +110,11 @@ int loopheader(struct bstrList* code, bstring loopname, bstring loopreg, bstring
     bstrListAdd(code, condline);
     bdestroy(condline);
 
-    bstrListAddChar(code, ".align 16");
-
     bstring nameline = bformat("%s:", bdata(loopname));
     bstrListAdd(code, nameline);
     bdestroy(nameline);
 
-
+    bstrListAddChar(code, ".align 16");
 
     return 0;
 }
@@ -168,53 +169,17 @@ int loopfooter(struct bstrList* code, bstring loopname, bstring loopreg, bstring
 }
 
 
-static RegisterMap Registers[] = {
-    {"GPR1", "eax"},
-    {"GPR2", "ebx"},
-    {"GPR3", "ecx"},
-    {"GPR4", "edx"},
-    {"GPR5", "esi"},
-    {"GPR6", "edi"},
-    {"FPR1", "xmm0"},
-    {"FPR2", "xmm1"},
-    {"FPR3", "xmm2"},
-    {"FPR4", "xmm3"},
-    {"FPR5", "xmm4"},
-    {"FPR6", "xmm5"},
-    {"FPR7", "xmm6"},
-    {"FPR8", "xmm7"},
-    {"", ""},
+struct tagbstring Registers[] = {
+    bsStatic("eax"),
+    bsStatic("ebx"),
+    bsStatic("ecx"),
+    bsStatic("edx"),
+    bsStatic("esi"),
+    bsStatic("edi"),
+    bsStatic("")
 };
 
-static RegisterMap Arguments[] = {
-    {"ARG1", "rdi"},
-    {"ARG2", "rsi"},
-    {"ARG3", "rdx"},
-    {"ARG4", "rcx"},
-    {"ARG5", "r8"},
-    {"ARG6", "r9"},
-    {"ARG7", "[BPTR+8]"},
-    {"ARG8", "[BPTR+12]"},
-    {"ARG9", "[BPTR+16]"},
-    {"ARG10", "[BPTR+20]"},
-    {"ARG11", "[BPTR+24]"},
-    {"ARG12", "[BPTR+28]"},
-    {"ARG13", "[BPTR+32]"},
-    {"ARG14", "[BPTR+36]"},
-    {"ARG15", "[BPTR+40]"},
-    {"ARG16", "[BPTR+44]"},
-    {"ARG17", "[BPTR+48]"},
-    {"ARG18", "[BPTR+52]"},
-    {"ARG19", "[BPTR+56]"},
-    {"ARG20", "[BPTR+60]"},
-    {"ARG21", "[BPTR+64]"},
-    {"ARG22", "[BPTR+68]"},
-    {"ARG23", "[BPTR+72]"},
-    {"ARG24", "[BPTR+76]"},
-    {"", ""},
-};
-
-static RegisterMap Sptr = {"SPTR", "esp"};
-static RegisterMap Bptr = {"BPTR", "ebp"};
+struct tagbstring RegisterSptr = bsStatic("esp");
+struct tagbstring RegisterBptr = bsStatic("ebp");
 
 #endif /* LIKWID_BENCH_ISA_X86_H */
