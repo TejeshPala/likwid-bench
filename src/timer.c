@@ -148,7 +148,7 @@ static uint64_t _get_time_in_ns(void)
     return ns;
 }
 
-int lbtimer_as_resolution(TimerDataLB* tdata, uint64_t* resolution)
+int lb_timer_as_resolution(TimerDataLB* tdata, uint64_t* resolution)
 {
     if (!tdata || !resolution)
     {
@@ -213,14 +213,14 @@ static inline uint64_t _rd_freq(TimerDataLB* tdata)
                 {
 #if defined(__x86__64) || defined(__i386__) || defined(__x86_64__)
                     start = _rd_tsc();
-                    lbtimer_sleep(NANOS_PER_SEC);
+                    lb_timer_sleep(NANOS_PER_SEC);
                     end = _rd_tsc();
                     measure[i] = end - start;
 #elif defined(__aarch64__) || defined(__arm__)
                     measure[i] = _rd_cf();
 #elif defined(__powerpc) || defined(__ppc__) || defined(__PPC__)
                     start = _rd_timebase();
-                    lbtimer_sleep(NANOS_PER_SEC);
+                    lb_timer_sleep(NANOS_PER_SEC);
                     end = _rd_timebase();
                     measure[i] = end - start;
 #endif
@@ -233,7 +233,7 @@ static inline uint64_t _rd_freq(TimerDataLB* tdata)
     return freq;
 }
 
-int lbtimer_init(TimerEvents type, TimerDataLB* tdata)
+int lb_timer_init(TimerEvents type, TimerDataLB* tdata)
 {
     if (!tdata)
     {
@@ -247,17 +247,17 @@ int lbtimer_init(TimerEvents type, TimerDataLB* tdata)
     return err;
 }
 
-void lbtimer_start(TimerDataLB* tdata)
+void lb_timer_start(TimerDataLB* tdata)
 {
     tdata->start.uint64 = _rd_counter(tdata);
 }
 
-void lbtimer_stop(TimerDataLB* tdata)
+void lb_timer_stop(TimerDataLB* tdata)
 {
     tdata->stop.uint64 = _rd_counter(tdata);
 }
 
-int lbtimer_as_ns(TimerDataLB* tdata, uint64_t *ns)
+int lb_timer_as_ns(TimerDataLB* tdata, uint64_t *ns)
 {
     if (!tdata || !ns)
     {
@@ -293,7 +293,7 @@ int lbtimer_as_ns(TimerDataLB* tdata, uint64_t *ns)
     return 0;
 }
 
-int lbtimer_as_cycles(TimerDataLB* tdata, uint64_t* cycles)
+int lb_timer_as_cycles(TimerDataLB* tdata, uint64_t* cycles)
 {
     if (!tdata || !cycles)
     {
@@ -323,12 +323,12 @@ int lbtimer_as_cycles(TimerDataLB* tdata, uint64_t* cycles)
     return 0;
 }
 
-int lbtimer_supports_cycles(TimerEvents type)
+int lb_timer_supports_cycles(TimerEvents type)
 {
     return (type == TIMER_RDTSC);
 }
 
-int lbtimer_sleep(uint64_t nanoseconds)
+int lb_timer_sleep(uint64_t nanoseconds)
 {
     int err = -1;
     struct timespec ts, rem;
@@ -348,7 +348,7 @@ int lbtimer_sleep(uint64_t nanoseconds)
     return err;
 }
 
-void lbtimer_close(TimerDataLB* tdata)
+void lb_timer_close(TimerDataLB* tdata)
 {
     tdata->type              = TIMER_CLOCK_GETTIME;
     memset(tdata, 0ULL, sizeof(TimerDataLB));

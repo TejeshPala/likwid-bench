@@ -35,27 +35,27 @@ int main()
     {
         uint64_t ns, cycles;
         TimerDataLB timer;
-        if ((err = lbtimer_init(TIMER_CLOCK_GETTIME, &timer)) != 0)
+        if ((err = lb_timer_init(TIMER_CLOCK_GETTIME, &timer)) != 0)
         {
             fprintf(stderr, "Timer initialization failed with err %d: %s\n", -err, strerror(-err));
-            lbtimer_close(&timer);
+            lb_timer_close(&timer);
             return 0;
         }
         if (counter == 0)
         {
             uint64_t res;
-            lbtimer_as_resolution(&timer, &res);
+            lb_timer_as_resolution(&timer, &res);
             printf("resolution of clock: %lu\n", res);
         }
         printf("Repetition: %d\n", (counter + 1));
-        lbtimer_start(&timer);
+        lb_timer_start(&timer);
         // for (volatile int i = 0; i < 1e9; i++);
-        lbtimer_sleep(NANOS_PER_SEC); // 1s
-        lbtimer_stop(&timer);
-        lbtimer_as_ns(&timer, &ns);
-        lbtimer_as_cycles(&timer, &cycles);
+        lb_timer_sleep(NANOS_PER_SEC); // 1s
+        lb_timer_stop(&timer);
+        lb_timer_as_ns(&timer, &ns);
+        lb_timer_as_cycles(&timer, &cycles);
         printf("elapsed time: %.10lfs, cycles: %lu, freq: %luHz\n", (double)ns / NANOS_PER_SEC, cycles, timer.ci.freq);
-        lbtimer_close(&timer);
+        lb_timer_close(&timer);
         counter++;
     } while (counter < 20);
     return 0;

@@ -53,18 +53,18 @@ typedef struct {
     ClockInfo   ci;
 } TimerDataLB;
 
-int lbtimer_init(TimerEvents type, TimerDataLB* tdata);
-void lbtimer_start(TimerDataLB* tdata);
-void lbtimer_stop(TimerDataLB* tdata);
-void lbtimer_close(TimerDataLB* tdata);
+int lb_timer_init(TimerEvents type, TimerDataLB* tdata);
+void lb_timer_start(TimerDataLB* tdata);
+void lb_timer_stop(TimerDataLB* tdata);
+void lb_timer_close(TimerDataLB* tdata);
 
-int lbtimer_as_ns(TimerDataLB* tdata, uint64_t* ns);
-int lbtimer_as_cycles(TimerDataLB* tdata, uint64_t* cycles);
-int lbtimer_as_resolution(TimerDataLB* tdata, uint64_t* resolution);
+int lb_timer_as_ns(TimerDataLB* tdata, uint64_t* ns);
+int lb_timer_as_cycles(TimerDataLB* tdata, uint64_t* cycles);
+int lb_timer_as_resolution(TimerDataLB* tdata, uint64_t* resolution);
 
-int lbtimer_supports_cycles(TimerEvents type);
-int lbtimer_has_type(TimerEvents type);
+int lb_timer_supports_cycles(TimerEvents type);
+int lb_timer_has_type(TimerEvents type);
 
-int lbtimer_sleep(uint64_t ns);
+int lb_timer_sleep(uint64_t ns);
 
 #endif /* TIMER_H */
