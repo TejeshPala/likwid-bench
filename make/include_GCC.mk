@@ -6,7 +6,7 @@ LINKER = $(CC)
 ANSI_CFLAGS  = -ansi
 WARNINGS = #-Wno-format -Wall -Wextra
 
-CFLAGS   = -std=c99 -O2 $(WARNINGS)
+CFLAGS   = -std=c99 -O2 -fverbose-asm $(WARNINGS)
 CXXFLAGS = -O2 -std=c++11 $(WARNINGS)
 FCFLAGS  = -J ./  -fsyntax-only
 LFLAGS   =
@@ -16,6 +16,6 @@ LIBDIRS  =
 LIBS     =
 
 ifeq ($(strip $(ADDRESS_SANITIZER)), true)
-CPPFLAGS += -fsanitize=address
+CPPFLAGS += -fsanitize=address -fno-omit-frame-pointer
 LIBS     += -lasan
 endif

@@ -6,7 +6,7 @@ LINKER = $(CC)
 ANSI_CFLAGS = -ansi
 WARNINGS = -Wno-format -Wall -Wextra
 
-CFLAGS   = -O2 $(WARNINGS) $(ANSI_CFLAGS)
+CFLAGS   = -O2 -fverbose-asm $(WARNINGS) $(ANSI_CFLAGS)
 CXXFLAGS = -O2 -std=c++11 $(WARNINGS)
 FCFLAGS  = -module ./
 LFLAGS   =
