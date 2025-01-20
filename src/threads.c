@@ -197,7 +197,7 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
             offset = local_id * chunk + (local_id < rem_chunk ? local_id : rem_chunk);
             size = chunk + (local_id < rem_chunk ? 1 : 0);
         }
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %d initializing stream %d with total elements: %ld offset: %ld, thread_id, s, elems, offset);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %3d initializing stream %d with total elements: %ld offset: %ld, thread_id, s, elems, offset);
         sdata->init_val = thread->command->init_val;
         RuntimeStreamConfig tmp = *sdata;
         tmp.dims = sdata->dims;
