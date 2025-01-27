@@ -29,7 +29,7 @@
 #endif
 
 
-#if defined(__x86__64) || defined(__i386__) || defined(__x86_64__)
+#if defined(__x86_64) || defined(__i386__) || defined(__x86_64__)
 static inline void _cpuid(uint32_t reg[4], uint32_t leaf, uint32_t subleaf)
 {
     __asm__ __volatile__("cpuid"
@@ -122,7 +122,7 @@ static inline uint64_t _rd_timebase()
 
 static clockid_t _get_clockid()
 {
-#if defined(__x86__64) || defined(__i386__) || defined(__x86_64__)
+#if defined(__x86_64) || defined(__i386__) || defined(__x86_64__)
     return CLOCK_MONOTONIC;
 #elif defined(__aarch64__) || defined(__arm__)
     return CLOCK_MONOTONIC;
@@ -175,7 +175,7 @@ static inline uint64_t _rd_counter(TimerDataLB* tdata)
         case TIMER_CLOCK_GETTIME:
             return _get_time_in_ns();
         case TIMER_RDTSC:
-#if defined(__x86__64) || defined(__i386__) || defined(__x86_64__)
+#if defined(__x86_64) || defined(__i386__) || defined(__x86_64__)
             return _rd_tsc();
 #elif defined(__aarch64__) || defined(__arm__)
             return _rd_ct();
@@ -211,7 +211,7 @@ static inline uint64_t _rd_freq(TimerDataLB* tdata)
             case TIMER_RDTSC:
                 for (int i = 0; i < iters; i++)
                 {
-#if defined(__x86__64) || defined(__i386__) || defined(__x86_64__)
+#if defined(__x86_64) || defined(__i386__) || defined(__x86_64__)
                     start = _rd_tsc();
                     lb_timer_sleep(NANOS_PER_SEC);
                     end = _rd_tsc();
