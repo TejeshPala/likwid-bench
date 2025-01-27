@@ -340,9 +340,8 @@ int lb_timer_sleep(uint64_t nanoseconds)
     {
         ts = rem;
     }
-    if (errno != 0 && errno != EINTR)
+    if (err != 0 && err != EINTR)
     {
-        err = errno;
         ERROR_PRINT(clock_nanosleep failed with error %d: %s, err, strerror(err));
     }
     return err;
