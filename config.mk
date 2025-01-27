@@ -65,4 +65,4 @@ LIKWIDBENCH_KERNEL_FOLDER = $(shell pwd)/kernels
 ADDRESS_SANITIZER = true
 
 BUILD_DIR  = ./$(strip $(COMPILER))
-ENABLE_LIKWID ?= true
+ENABLE_LIKWID ?= false
