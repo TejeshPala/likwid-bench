@@ -249,8 +249,6 @@ typedef struct {
     RuntimeWorkgroupResult* group_results;
     int num_streams;
     RuntimeStreamConfig* streams;
-    int num_params;
-    RuntimeParameterConfig* params;
     RuntimeTestConfig testconfig;
 } RuntimeWorkgroupConfig;
 
