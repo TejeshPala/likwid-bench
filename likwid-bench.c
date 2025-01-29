@@ -153,14 +153,6 @@ void free_runtime_config(RuntimeConfig* runcfg)
                     runcfg->wgroups[i].streams = NULL;
                     runcfg->wgroups[i].num_streams = 0;
                 }
-                if (runcfg->wgroups[i].params)
-                {
-                    for (int j = 0; j < runcfg->wgroups[i].num_params; j++)
-                    {
-                        bdestroy(runcfg->wgroups[i].params[j].name);
-                        bdestroy(runcfg->wgroups[i].params[j].value);
-                    }
-                }
                 if (runcfg->wgroups[i].testconfig.objfile)
                 {
                     bdestroy(runcfg->wgroups[i].testconfig.objfile);
