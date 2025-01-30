@@ -129,7 +129,8 @@ int sortfunc(const struct tagbstring * left, const struct tagbstring * right)
 int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConfig* wcfg)
 {
     int ret = 0;
-    char* filetemplate = NULL;
+    int fd = 0;
+    bstring filetemplate = NULL;
     bstring asmfile = NULL;
     bstring objfile = NULL;
     struct bstrList* wcodelines = NULL;
@@ -140,16 +141,27 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
         return -ENOENT;
     }
 
-    filetemplate = tempnam(bdata(rcfg->tmpfolder), "likwid-bench-");
-    if (!filetemplate)
+    filetemplate = bfromcstr("/tmp/likwid-bench-XXXXXX");
+    fd = mkstemp(bdata(filetemplate));
+    if (fd == -1)
     {
         ERROR_PRINT(Failed to get temporary file name for assembly);
         bdestroy(compiler);
+        bdestroy(filetemplate);
         return -1;
     }
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Generated file name is '%s', bdata(filetemplate));
 
-    asmfile = bfromcstr(filetemplate);
-    free(filetemplate);
+    asmfile = bstrcpy(filetemplate);
+    close(fd);
+    if (unlink(bdata(filetemplate)) == -1)
+    {
+        ERROR_PRINT(Failed to unlink '%s', bdata(filetemplate));
+        bdestroy(compiler);
+        bdestroy(filetemplate);
+        return -1;
+    }
+    bdestroy(filetemplate);
     bconchar(asmfile, '.');
     objfile = bstrcpy(asmfile);
     bconchar(asmfile, 's');
