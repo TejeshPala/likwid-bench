@@ -62,6 +62,7 @@ RPATHS = -Wl,-rpath=$(INSTALLED_LIBPREFIX)
 
 LIKWIDBENCH_KERNEL_FOLDER = $(shell pwd)/kernels
 
-ADDRESS_SANITIZER = true
+ADDRESS_SANITIZER = false
 
 BUILD_DIR  = ./$(strip $(COMPILER))
+ENABLE_LIKWID ?= false

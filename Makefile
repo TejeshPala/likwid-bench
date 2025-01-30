@@ -10,6 +10,11 @@ MAKE_DIR   = ./make
 Q         ?= @
 
 include $(MAKE_DIR)/include_$(strip $(COMPILER)).mk $(MAKE_DIR)/test-float16.mk $(MAKE_DIR)/config-checks.mk
+
+ifeq ($(strip $(ENABLE_LIKWID)),true)
+include $(MAKE_DIR)/include_LIKWID.mk
+endif
+
 INCLUDES  += -g -I$(INC_DIR) -I$(BUILD_DIR)
 LIBDIRS   += 
 LIBS      += -lm  -ldl

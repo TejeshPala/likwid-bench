@@ -14,11 +14,42 @@
 #include "timer.h"
 #include "test_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef LIKWID_PERFMON
+#include "likwid-marker.h"
+#endif
+
+#ifdef __cplusplus
+extern "C" }
+#endif
 
 #define DECLARE_TIMER TimerDataLB timedata
 
 // todo markers
 // todo timer library with rdtsc? or perf?
+#ifdef LIKWID_PERFMON
+#define EXECUTE(func) \
+    LIKWID_MARKER_REGISTER("LIKWID-BENCH"); \
+    if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
+    if (lb_timer_init(TIMER_RDTSC, &timedata) != 0) fprintf(stderr, "Timer initialization failed!\n"); \
+    LIKWID_MARKER_START("LIKWID-BENCH"); \
+    lb_timer_start(&timedata); \
+    for (int i = 0; i < myData->iters; i++) \
+    {   \
+        func; \
+    } \
+    if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
+    lb_timer_stop(&timedata); \
+    LIKWID_MARKER_STOP("LIKWID-BENCH"); \
+    lb_timer_as_ns(&timedata, &myData->min_runtime); \
+    lb_timer_as_cycles(&timedata, &myData->cycles); \
+    myData->freq = timedata.ci.freq; \
+    lb_timer_close(&timedata); \
+    if (data->barrier) pthread_barrier_wait(&data->barrier->barrier);
+#else
 #define EXECUTE(func) \
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
     if (lb_timer_init(TIMER_RDTSC, &timedata) != 0) fprintf(stderr, "Timer initialization failed!\n"); \
@@ -34,6 +65,7 @@
     myData->freq = timedata.ci.freq; \
     lb_timer_close(&timedata); \
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier);
+#endif
 
 int run_benchmark(RuntimeThreadConfig* data)
 {

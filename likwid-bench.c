@@ -21,6 +21,18 @@
 #include "dynload.h"
 #include "table.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef LIKWID_PERFMON
+#include "likwid-marker.h"
+#endif
+
+#ifdef __cplusplus
+extern "C" }
+#endif
+
 #ifndef global_verbosity
 int global_verbosity = DEBUGLEV_ONLY_ERROR;
 #endif
@@ -209,6 +221,13 @@ void free_runtime_config(RuntimeConfig* runcfg)
 
 int main(int argc, char** argv)
 {
+#ifdef LIKWID_PERFMON
+    if (getenv("LIKWID_FILEPATH") != NULL)
+    {
+        printf("Using LIKWID_MARKER API\n");
+    }
+    LIKWID_MARKER_INIT;
+#endif
     int c = 0, err = 0, print_help = 0;
     int option_index = -1;
     RuntimeConfig* runcfg = NULL;
@@ -670,6 +689,14 @@ int main(int argc, char** argv)
     {
         fclose(output);
     }
+
+#ifdef LIKWID_PERFMON
+    if (getenv("LIKWID_FILEPATH") != NULL)
+    {
+        printf("Writing LIKWID_MARKER API results to file %s\n", getenv("LIKWID_FILEPATH"));
+    }
+    LIKWID_MARKER_CLOSE;
+#endif
 
 main_out:
     DEBUG_PRINT(DEBUGLEV_DEVELOP, MAIN_OUT);
