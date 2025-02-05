@@ -669,10 +669,10 @@ static void replace_all_cb(mpointer key, mpointer value, mpointer user_data)
         }
     }
 
-    if (binstr(data->formula, 0, bkey) != BSTR_ERR)
+    if (binstrcaseless(data->formula, 0, bkey) != BSTR_ERR)
     {
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing '%s' with '%s' in '%s', bdata(bkey), bdata(bval), bdata(data->formula));
-        err = bfindreplace(data->formula, bkey, bval, 0);
+        err = bfindreplacecaseless(data->formula, bkey, bval, 0);
         if (err != BSTR_OK)
         {
             ERROR_PRINT(Failed to replace %s in '%s', bdata(bkey), bdata(data->formula));

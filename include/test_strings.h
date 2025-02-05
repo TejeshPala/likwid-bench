@@ -21,7 +21,7 @@ static struct tagbstring bglobalid = bsStatic("GLOBAL_ID");
 static struct tagbstring bstats1[] =
 {
     bsStatic("cycles"),
-    bsStatic("freq"),
+    bsStatic("freq [Hz]"),
     bsStatic("iters"),
     bsStatic("time"),
 };
