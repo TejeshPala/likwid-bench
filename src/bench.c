@@ -115,9 +115,9 @@ int run_benchmark(RuntimeThreadConfig* data)
         case 3:
             EXECUTE(func(data->command->tstreams[0].dimsizes[0], data->command->tstreams[0].ptr, data->command->tstreams[1].ptr, data->command->tstreams[2].ptr));
             break;
-/*        case STREAM_4:*/
-/*            EXECUTE(func(size,myData->streams[0],myData->streams[1],myData->streams[2],myData->streams[3]));*/
-/*            break;*/
+        case 4:
+            EXECUTE(func(data->command->tstreams[0].dimsizes[0], data->command->tstreams[0].ptr, data->command->tstreams[1].ptr, data->command->tstreams[2].ptr, data->command->tstreams[3].ptr));
+            break;
 /*        case STREAM_5:*/
 /*            EXECUTE(func(size,myData->streams[0],myData->streams[1],myData->streams[2],myData->streams[3],*/
 /*                        myData->streams[4]));*/

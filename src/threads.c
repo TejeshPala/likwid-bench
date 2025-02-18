@@ -533,6 +533,8 @@ int update_threads(RuntimeConfig* runcfg)
     static struct tagbstring bnumthreads = bsStatic("NUM_THREADS");
     static struct tagbstring bthreadid = bsStatic("THREAD_ID");
     static struct tagbstring biter = bsStatic("ITER");
+    static struct tagbstring btsizes = bsStatic("sizes");
+    static struct tagbstring btoffsets = bsStatic("offsets");
 
     if (runcfg->iterations >= 0)
     {
@@ -719,6 +721,12 @@ int update_threads(RuntimeConfig* runcfg)
                 {
                     thread->sizes = (int64_t)(elems - thread->offsets);
                 }
+                bstring bs = bformat("%ld", thread->sizes);
+                bstring bo = bformat("%ld", thread->offsets);
+                add_variable(&wg->results[i], &btsizes, bs);
+                add_variable(&wg->results[i], &btoffsets, bo);
+                bdestroy(bs);
+                bdestroy(bo);
                 bdestroy(btid);
                 bdestroy(bsizes);
                 bdestroy(boffsets);
