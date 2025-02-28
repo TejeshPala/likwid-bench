@@ -33,6 +33,7 @@ struct tagbstring _topology_interesting_flags[] = {
     bsStatic("fma"),
     bsStatic("ht"),
     bsStatic("fp"),
+    bsStatic("mmx"),
 #elif defined(__ARM_ARCH_8A)
     bsStatic("neon"),
     bsStatic("vfp"),
