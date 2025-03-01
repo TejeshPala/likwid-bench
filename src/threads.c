@@ -147,8 +147,7 @@ void _print_aff(pthread_t thread)
         }
     }
 
-    printf("Threadid %16lu, Calling from CPU %d with PID %d, KTID %d, PPID %d-> hwthread/affinity: ", thread, sched_getcpu(), getpid(), (int)syscall(SYS_gettid), getppid());
-
+    printf("Threadid %16lu -> hwthread/affinity: ", thread);
     for (size_t t = 0; t < CPU_SETSIZE; t++)
     {
         if (CPU_ISSET(t, &cpuset))
@@ -157,6 +156,20 @@ void _print_aff(pthread_t thread)
         }
     }
     printf("\n");
+
+    if (DEBUGLEV_DEVELOP == global_verbosity)
+    {
+        printf("Threadid %16lu, Calling from CPU %d with PID %d, KTID %d, PPID %d-> hwthread/affinity: ", thread, sched_getcpu(), getpid(), (int)syscall(SYS_gettid), getppid());
+
+        for (size_t t = 0; t < CPU_SETSIZE; t++)
+        {
+            if (CPU_ISSET(t, &cpuset))
+            {
+                printf("%3lu ", t);
+            }
+        }
+        printf("\n");
+    }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, The CPU´s in the set are: %d, CPU_COUNT(&cpuset));
 }
 
@@ -198,6 +211,7 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
             size = chunk + (local_id < rem_chunk ? 1 : 0);
         }
         DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %3d initializing stream %d with total elements: %ld offset: %ld, thread_id, s, elems, offset);
+        printf("hwthread %3d initializing Stream %d Vector Length: %6ld Offset: %6ld\n", thread_id, s, elems, offset);
         sdata->init_val = thread->command->init_val;
         RuntimeStreamConfig tmp = *sdata;
         tmp.dims = sdata->dims;
@@ -301,6 +315,7 @@ void* _func_t(void* arg)
 {
     RuntimeThreadConfig* thread = (RuntimeThreadConfig*)arg;
     bool keep_running = true;
+    // printf("Thread %3d Global Thread %3d running\n", thread->local_id, thread->global_id);
     DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %3d with global thread %3d is running, thread->local_id, thread->global_id);
     while (keep_running)
     {
@@ -345,6 +360,7 @@ void* _func_t(void* arg)
                 if (thread->global_id == 0 && !thread->command->initialization)
                 {
                     DEBUG_PRINT(DEBUGLEV_DEVELOP, Global Initialization on thread %3d with global thread %3d, thread->local_id, thread->global_id);
+                    printf("Global Initialization on thread %3d with global thread %3d\n", thread->local_id, thread->global_id);
                     int err = initialize_global(thread);
                     if (err != 0)
                     {
@@ -515,10 +531,7 @@ int create_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
                 err = -1;
                 return err;
             }
-            if (DEBUGLEV_DEVELOP == global_verbosity)
-            {
-                _print_aff(thread->thread);
-            }
+            _print_aff(thread->thread);
         }
     }
     return 0;

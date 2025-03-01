@@ -177,6 +177,8 @@ int table_print(FILE* output, Table* table, int transpose)
                 if (cells) bstrListDestroy(cells);
             }
             fprintf(file, "|\n");
+            // Each row seperator for results
+            /*
             if (c < table->num_cols - 1)
             {
                 fprintf(file, "+");
@@ -188,6 +190,7 @@ int table_print(FILE* output, Table* table, int transpose)
                 }
                 fprintf(file, "+\n");
             }
+            */
         }
 
         fprintf(file, "+");

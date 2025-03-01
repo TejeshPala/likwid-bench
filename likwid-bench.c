@@ -51,6 +51,14 @@ static bstring get_architecture()
     return bfromcstr(buffer.machine);
 }
 
+static bstring hline()
+{
+    bstring bdash = bfromcstr("");
+    binsertch(bdash, 0, 80, '-');
+    binsertch(bdash, 80, 1, '\n');
+    return bdash;
+}
+
 int allocate_runtime_config(RuntimeConfig** config)
 {
     RuntimeConfig* runcfg = malloc(sizeof(RuntimeConfig));
@@ -418,6 +426,17 @@ int main(int argc, char** argv)
         }
     }
 
+    printf("%s", bdata(hline()));
+    printf("Application: LIKWID-BENCH\n");
+    printf("Test: %s\n", bdata(runcfg->testname));
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        printf("Using %d work groups\n", runcfg->num_wgroups);
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        printf("Using %d threads\n", wg->num_threads);
+    }
+    printf("%s", bdata(hline()));
+
     /*
      * Analyse workgroups
      */
@@ -664,9 +683,9 @@ int main(int argc, char** argv)
     {
         fprintf(output, "Thread Results\n");
         table_print(output, thread, 1);
-        fprintf(output, "Workgroup Results\n");
+        fprintf(output, "\nWorkgroup Results\n");
         table_print(output, wgroup, 1);
-        fprintf(output, "Global Results\n");
+        fprintf(output, "\nGlobal Results\n");
         table_print(output, global, 1);
     }
     else if (runcfg->csv > 0)
