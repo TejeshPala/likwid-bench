@@ -681,7 +681,7 @@ int main(int argc, char** argv)
 
     if (runcfg->csv == 0 && runcfg->json == 0)
     {
-        fprintf(output, "Thread Results\n");
+        fprintf(output, "\nThread Results\n");
         table_print(output, thread, 1);
         fprintf(output, "\nWorkgroup Results\n");
         table_print(output, wgroup, 1);

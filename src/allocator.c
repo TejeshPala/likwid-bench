@@ -115,6 +115,7 @@ int _allocate_arrays_1dim(RuntimeStreamConfig *sdata)
     size_t msize;
     if (msize < 0) return msize;
     DEBUG_PRINT(DEBUGLEV_DEVELOP, _allocate_arrays_1dim %lu Bytes with stream name %s, getstreambytes(sdata), bdata(sdata->name));
+    printf("Allocating 1 dimension array %s: %lu Bytes - Vector Length %ld\n", bdata(sdata->name), getstreambytes(sdata), size);
     switch(sdata->type)
     {
         DEFINE_1DIM_TYPE_CASE_ALLOC(TEST_STREAM_TYPE_DOUBLE, double, sdata->offsets[0])
@@ -164,6 +165,7 @@ static int _allocate_arrays_2dim(RuntimeStreamConfig *sdata)
         return msize2;
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, _allocate_arrays_2dim s1 %lu s2 %lu of %lu Bytes, size1, size2, getstreambytes(sdata));
+    printf("Allocating 2 dimension array %s[%lu][%lu]: %lu Bytes\n", bdata(sdata->name), size1, size2, getstreambytes(sdata));
     switch(sdata->type)
     {
         DEFINE_2DIM_TYPE_CASE_ALLOC(TEST_STREAM_TYPE_DOUBLE, double, sdata->offsets[0], sdata->offsets[1])
@@ -227,6 +229,7 @@ static int _allocate_arrays_3dim(RuntimeStreamConfig *sdata)
         return msize3;
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, _allocate_arrays_3dim s1 %lu s2 %lu s3 %lu of %lu Bytes\n, size1, size2, size3, getstreambytes(sdata));
+    printf("Allocating 3 dimension array %s[%lu][%lu][%lu]: %lu Bytes\n", bdata(sdata->name), size1, size2, size3, getstreambytes(sdata));
     switch(sdata->type)
     {
         DEFINE_3DIM_TYPE_CASE_ALLOC(TEST_STREAM_TYPE_DOUBLE, double, sdata->offsets[0], sdata->offsets[1], sdata->offsets[2])
