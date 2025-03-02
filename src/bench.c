@@ -388,7 +388,7 @@ int run_benchmark(RuntimeThreadConfig* data)
 
     data->runtime = (double)myData->min_runtime / NANOS_PER_SEC;
     data->cycles = myData->cycles;
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Thread %3d execution took %.6f seconds, data->local_id, data->runtime);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, Thread %3d execution took %.15f seconds, data->local_id, data->runtime);
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier);
 
     if (CPU_COUNT(&runset) > 0)

@@ -254,7 +254,7 @@ int main(int argc, char** argv)
     addConstCliOptions(&baseopts, &basecliopts);
 /*    bstring bccflags = bfromcstr("-fPIC -shared");*/
 
-    int precision = DEFAULTPRECISION + 1;
+    int precision = 15;
     calculator_init();
     calculator_setprecision(precision);
     bstring arch = get_architecture();

@@ -415,13 +415,13 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
                 for (int id = 0; id < bkeys_sorted->qty; id ++)
                 {
                     double value = values[id];
-                    bstring t_value = bformat("%lf", value);
+                    bstring t_value = bformat("%.15lf", value);
                     // printf("t_value: %s\n", bdata(t_value));
                     // if (update_bmap(result->values, bkeys->entry[id], &value, NULL) != 0)
                     err = update_value(result, bkeys_sorted->entry[id], value);
                     if (err == 0)
                     {
-                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Value updated for thread %d for key %s with value %lf, thread->data->hwthread, bdata(bkeys_sorted->entry[id]), value);
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Value updated for thread %d for key %s with value %.15lf, thread->data->hwthread, bdata(bkeys_sorted->entry[id]), value);
                     }
                     bstrListAdd(bvalues[id], t_value);
                     bstrListAdd(bgrp_values[id], t_value);
@@ -552,7 +552,7 @@ int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** 
                     double val;
                     if (get_value(result, bthread_keys_sorted->entry[k], &val) == 0)
                     {
-                        bstring bval = bformat("%lf", val);
+                        bstring bval = bformat("%.15lf", val);
                         bstrListAdd(btmp1, bval);
                         bdestroy(bval);
                     }
@@ -580,7 +580,7 @@ int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** 
                 double val;
                 if (get_value(wg->group_results, bwgroup_keys_sorted->entry[k], &val) == 0)
                 {
-                    bstring bval = bformat("%lf", val);
+                    bstring bval = bformat("%.15lf", val);
                     bstrListAdd(btmp2, bval);
                     bdestroy(bval);
                 }
@@ -608,7 +608,7 @@ int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** 
             double val;
             if (get_value(runcfg->global_results, bglobal_keys_sorted->entry[k], &val) == 0)
             {
-                bstring bval = bformat("%lf", val);
+                bstring bval = bformat("%.15lf", val);
                 bstrListAdd(btmp3, bval);
                 bdestroy(bval);
             }

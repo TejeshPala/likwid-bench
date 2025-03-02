@@ -144,7 +144,7 @@ static const Aggregations aggregations = {
         bsStatic("min"),
         bsStatic("max"),
         bsStatic("sum"),
-        bsStatic("avg"),
+        bsStatic("median"),
     }
 };
 
