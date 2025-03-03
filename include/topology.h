@@ -31,8 +31,10 @@
 #ifndef TOPOLOGY_H
 #define TOPOLOGY_H
 
-#include "bstrlib.h"
 #include <stdbool.h>
+
+#include "bstrlib.h"
+#include "test_types.h"
 
 extern struct tagbstring _topology_interesting_flags[];
 

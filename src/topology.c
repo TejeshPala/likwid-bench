@@ -19,8 +19,8 @@
 #include "bstrlib_helper.h"
 #include "bitmap.h"
 #include "path.h"
-#include "test_types.h"
 #include "test_strings.h"
+#include "test_types.h"
 
 #define TOPO_MIN(a,b) ((a) < (b) ? (a) : (b))
 
