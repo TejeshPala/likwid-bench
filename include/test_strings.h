@@ -17,6 +17,11 @@ static struct tagbstring bthreadid = bsStatic("THREAD_ID");
 static struct tagbstring bthreadcpu = bsStatic("THREAD_CPU"); 
 static struct tagbstring bglobalid = bsStatic("GLOBAL_ID");
 
+static struct tagbstring btrue = bsStatic("true");
+static struct tagbstring bfalse = bsStatic("false");
+static struct tagbstring bspace = bsStatic(" ");
+static struct tagbstring bunderscroll = bsStatic("_");
+static struct tagbstring bempty = bsStatic("");
 
 static struct tagbstring bstats1[] =
 {

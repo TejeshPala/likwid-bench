@@ -45,7 +45,7 @@ void destroy_hwthreads();
 extern "C" {
 #endif
 
-int get_feature_flags(int cpu_id, struct bstrList** outlist);
+int check_feature_flags(RuntimeConfig* runcfg);
 int initialize_cpu_lists(int _max_processor);
 int parse_cpu_folders();
 
