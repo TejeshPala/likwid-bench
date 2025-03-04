@@ -108,12 +108,12 @@ int allocate_workgroup_stuff(int detailed, RuntimeWorkgroupConfig* wg)
     if (detailed == 1)
     {
         bstats = bstats1;
-        num_stats = 4;
+        num_stats = stats1_count;
     }
     else
     {
         bstats = bstats2;
-        num_stats = 2;
+        num_stats = stats2_count;
     }
 
     double value = 0.0;
@@ -398,19 +398,19 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
             RuntimeWorkgroupResult* result = &wg->results[t];
             if (wg->hwthreads[t] == thread->data->hwthread)
             {
-                // values in the list should be added as per sorted keys
-                double values[4];
+                // values in the list should be added as per sorted keys max 3 as per stats count from test_strings header
+                double values[3];
                 if (runcfg->detailed == 1)
                 {
                     values[0] = (double)thread->data->cycles;
                     values[1] = (double)thread->data->freq;
-                    values[2] = (double)thread->data->iters;
-                    values[3] = thread->runtime;
+                    // values[2] = (double)thread->data->iters;
+                    values[2] = thread->runtime;
                 }
                 else
                 {
-                    values[0] = (double)thread->data->iters;
-                    values[1] = thread->runtime;
+                    // values[0] = (double)thread->data->iters;
+                    values[0] = thread->runtime;
                 }
                 for (int id = 0; id < bkeys_sorted->qty; id ++)
                 {
