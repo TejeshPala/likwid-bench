@@ -200,7 +200,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
             if (binstr(wcodelines->entry[i], 0, sorted_varkeys->entry[j]) == BSTR_OK)
             {
                 bstring val = NULL;
-                ret = get_bmap_by_key(wcfg->results[0].values, sorted_varkeys->entry[j], (void**)&val);
+                ret = get_bmap_by_key(wcfg->results[0].variables, sorted_varkeys->entry[j], (void**)&val);
                 if (ret == 0)
                 {
                     bfindreplace(wcodelines->entry[i], sorted_varkeys->entry[j], val, 0);
