@@ -513,7 +513,6 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
             }
             else if (bstrnicmp(k, &bflags, blength(&bflags)) == BSTR_OK)
             {
-                btrimws(v);
                 read_yaml_ptt_list(v, &conf->flags);
             }
             else if (bstrnicmp(k, &brequirewg, blength(&brequirewg)) == BSTR_OK)

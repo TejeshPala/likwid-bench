@@ -62,7 +62,7 @@ CALCULATOR_HEADER := ../include/calculator.h
 
 # Internal stuff
 TOPOLOGY_OBJ := ../src/topology.c
-TOPOLOGY_HEADER := ../include/topology.h
+TOPOLOGY_HEADER := ../include/topology.h ../include/test_types.h ../include/test_strings.h
 
 READ_YAML_OBJ := ../src/read_yaml_ptt.c
 READ_YAML_HEADER := ../include/read_yaml_ptt.h

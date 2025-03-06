@@ -51,6 +51,14 @@ static bstring get_architecture()
     return bfromcstr(buffer.machine);
 }
 
+static bstring hline()
+{
+    bstring bdash = bfromcstr("");
+    binsertch(bdash, 0, 80, '-');
+    binsertch(bdash, 80, 1, '\n');
+    return bdash;
+}
+
 int allocate_runtime_config(RuntimeConfig** config)
 {
     RuntimeConfig* runcfg = malloc(sizeof(RuntimeConfig));
@@ -246,7 +254,7 @@ int main(int argc, char** argv)
     addConstCliOptions(&baseopts, &basecliopts);
 /*    bstring bccflags = bfromcstr("-fPIC -shared");*/
 
-    int precision = DEFAULTPRECISION + 1;
+    int precision = 15;
     calculator_init();
     calculator_setprecision(precision);
     bstring arch = get_architecture();
@@ -325,54 +333,6 @@ int main(int argc, char** argv)
         goto main_out;
     }
 
-    struct bstrList* flist = bstrListCreate();
-    int res = get_feature_flags(1, &flist);
-    if (res < 0)
-    {
-        ERROR_PRINT(Error reading Flags);
-        bstrListDestroy(flist);
-        goto main_out;
-    }
-
-    res = parse_cpu_folders();
-    if (res < 0)
-    {
-        ERROR_PRINT(Error parsing CPU folders);
-        goto main_out;
-    }
-
-    // printf("flags qty: %d\n", runcfg->tcfg->flags->qty);
-    int found = 0;
-    if (runcfg->tcfg->flags->qty > 0 && flist->qty > 0)
-    {
-        for (int i = 0; i < runcfg->tcfg->flags->qty; i++)
-        {
-            btrimws(runcfg->tcfg->flags->entry[i]);
-            for (int j = 0; j < flist->qty; j++)
-            {
-                btrimws(flist->entry[j]);
-                if (blength(runcfg->tcfg->flags->entry[i]) > 0 && biseq(runcfg->tcfg->flags->entry[i], flist->entry[j]))
-                {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Flag %s found on the system, bdata(runcfg->tcfg->flags->entry[i]));
-                    found++;
-                }
-
-            }
-
-        }
-
-    }
-
-    if (found != runcfg->tcfg->flags->qty)
-    {
-        ERROR_PRINT(Flags not found on the system);
-        bstrListPrint(runcfg->tcfg->flags);
-        bstrListDestroy(flist);
-        goto main_out;
-    }
-
-    bstrListDestroy(flist);
-
     bstring title = bformat("Commandline options for kernel '%s'", bdata(runcfg->testname));
     cliOptionsTitle(&testopts, title);
     bdestroy(title);
@@ -411,12 +371,24 @@ int main(int argc, char** argv)
             ERROR_PRINT(Error assigning workgroup CLI options);
             goto main_out;
         }
-        if (runcfg->num_wgroups == 0) {
+        if (runcfg->num_wgroups == 0)
+        {
             errno = EINVAL;
             ERROR_PRINT(No workgroups on the command line);
             goto main_out;
         }
     }
+
+    err = parse_cpu_folders();
+    if (err < 0)
+    {
+        ERROR_PRINT(Error parsing CPU folders);
+        goto main_out;
+    }
+
+    printf("%s", bdata(hline()));
+    printf("Application: LIKWID-BENCH\n");
+    printf("Test: %s\n", bdata(runcfg->testname));
 
     /*
      * Analyse workgroups
@@ -427,6 +399,31 @@ int main(int argc, char** argv)
         ERROR_PRINT(Error resolving workgroups);
         goto main_out;
     }
+
+    /*
+     * Check CPU Flags for each hwthread
+     */
+    err = check_feature_flags(runcfg);
+    if (err < 0)
+    {
+        ERROR_PRINT(Error checking CPU flags);
+        goto main_out;
+    }
+
+    printf("Using %d work groups\n", runcfg->num_wgroups);
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        if (runcfg->num_wgroups != 1)
+        {
+            printf("\t%d work group - %d threads\n", w + 1, wg->num_threads);
+        }
+        else
+        {
+            printf("\tUsing %d threads\n", wg->num_threads);
+        }
+    }
+    printf("%s", bdata(hline()));
 
     /*
      * Evaluate variables, constants, ... for remaining operations
@@ -662,11 +659,11 @@ int main(int argc, char** argv)
 
     if (runcfg->csv == 0 && runcfg->json == 0)
     {
-        fprintf(output, "Thread Results\n");
+        fprintf(output, "\nThread Results\n");
         table_print(output, thread, 1);
-        fprintf(output, "Workgroup Results\n");
+        fprintf(output, "\nWorkgroup Results\n");
         table_print(output, wgroup, 1);
-        fprintf(output, "Global Results\n");
+        fprintf(output, "\nGlobal Results\n");
         table_print(output, global, 1);
     }
     else if (runcfg->csv > 0)

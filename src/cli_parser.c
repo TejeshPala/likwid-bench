@@ -651,12 +651,14 @@ int assignWorkgroupCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     for (int i = 0; i < options->num_options; i++)
     {
         CliOption* opt = &options->options[i];
-        if (bstrncmp(woptstr, opt->name, blength(woptstr)) == BSTR_OK && opt->has_arg == multi_argument) {
+        if (bstrncmp(woptstr, opt->name, blength(woptstr)) == BSTR_OK && opt->has_arg == multi_argument)
+        {
             wopt = opt;
             break;
         }
     }
-    if (wopt == NULL) {
+    if (wopt == NULL)
+    {
         errno = EINVAL;
         ERROR_PRINT(Cannot find %s setting on command line, bdata(woptstr));
         return -EINVAL;

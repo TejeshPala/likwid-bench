@@ -19,6 +19,8 @@
 #include "bstrlib_helper.h"
 #include "bitmap.h"
 #include "path.h"
+#include "test_strings.h"
+#include "test_types.h"
 
 #define TOPO_MIN(a,b) ((a) < (b) ? (a) : (b))
 
@@ -33,6 +35,7 @@ struct tagbstring _topology_interesting_flags[] = {
     bsStatic("fma"),
     bsStatic("ht"),
     bsStatic("fp"),
+    bsStatic("mmx"),
 #elif defined(__ARM_ARCH_8A)
     bsStatic("neon"),
     bsStatic("vfp"),
@@ -70,7 +73,9 @@ typedef struct {
         bstring model;
         bstring name;
         bstring stepping;
+        bstring physical;
         bstring flags;
+        bstring flags_found;
     } ProcInfo;
 } CPUInfo;
 
@@ -127,6 +132,7 @@ void initialize_cpu_info(int _max_processor)
         cpu_info[p].ProcInfo.model = NULL;
         cpu_info[p].ProcInfo.name = NULL;
         cpu_info[p].ProcInfo.stepping = NULL;
+        cpu_info[p].ProcInfo.physical = NULL;
         cpu_info[p].ProcInfo.flags = NULL;
     }
 }
@@ -1112,8 +1118,9 @@ int parse_flags(bstring flagline, struct bstrList** outlist)
         // struct tagbstring binteresting_flag = _topology_interesting_flags[i];
         for (int j = 0; j < blist->qty; j++)
         {
-            int pos = binstr(blist->entry[j], 0, &(_topology_interesting_flags[i]));
+            int pos = binstrcaseless(blist->entry[j], 0, &(_topology_interesting_flags[i]));
             // printf("pos %d\n", pos);
+            btoupper(blist->entry[j]); //make upper case
             if (pos == 0) bstrListAdd(btmplist, blist->entry[j]);
             // printf("flag: %s\n", bdata(blist->entry[j]));
         }
@@ -1223,7 +1230,7 @@ void clear_processors()
     _max_processor = 0;
 }
 
-int read_flags_line(int cpu_id, bstring* flagline)
+int _read_cpuinfo(RuntimeConfig* runcfg)
 {
     int result = 0;
     FILE *file = fopen("/proc/cpuinfo", "r");
@@ -1257,6 +1264,7 @@ int read_flags_line(int cpu_id, bstring* flagline)
     struct tagbstring modelString = bsStatic("model");
     struct tagbstring nameString = bsStatic("model name");
     struct tagbstring steppingString = bsStatic("stepping");
+    struct tagbstring physicalString = bsStatic("physical id");
     struct tagbstring flagString = bsStatic("flags");
 #elif defined(__ARM_ARCH_8A) || defined(__aarch64__) || defined(__arm__)
     struct tagbstring vendorString = bsStatic("CPU implementer");
@@ -1289,12 +1297,10 @@ int read_flags_line(int cpu_id, bstring* flagline)
         free_cpu_info(_max_processor);
         bstrListDestroy(blist);
         bdestroy(src);
-        return -errno;
+        return -ENOMEM;
     }
 
     initialize_cpu_info(_max_processor);
-    bstring bcpu_id = bfromcstr("");
-    bformata(bcpu_id, "%d", cpu_id);
 
     for (int p = 0; p <= _max_processor; p++)
     {
@@ -1336,12 +1342,24 @@ int read_flags_line(int cpu_id, bstring* flagline)
                 }
 
 #if defined(__x86_64) || defined(__x86_64__)
+                else if (bstrncmp(bkvpair->entry[0], &physicalString, blength(&physicalString)) == 0 && cpu_info[p].ProcInfo.physical == NULL)
+                {
+                    cpu_info[p].ProcInfo.physical = bstrcpy(bval);
+                }
+#endif
+
+#if defined(__x86_64) || defined(__x86_64__)
                 else if (bstrncmp(bkvpair->entry[0], &flagString, blength(&flagString)) == 0 && cpu_info[p].ProcInfo.flags == NULL)
 #elif defined(__ARM_ARCH_8A)
                 else if (bstrncmp(bkvpair->entry[0], &flagString, blength(&flagString)) == 0 && cpu_info[p].ProcInfo.flags == NULL)
 #endif
                 {
-                    cpu_info[p].ProcInfo.flags = bstrcpy(bval);
+                    struct bstrList* flist = NULL;
+                    parse_flags(bval, &flist);
+                    bstring bflags = bjoin(flist, &bspace);
+                    cpu_info[p].ProcInfo.flags = bstrcpy(bflags);
+                    bdestroy(bflags);
+                    bstrListDestroy(flist);
                 }
 
                 bdestroy(bval);
@@ -1352,78 +1370,107 @@ int read_flags_line(int cpu_id, bstring* flagline)
 
     }
 
-    for (int i = 0; i <= _max_processor; i++)
+    for (int w = 0; w < runcfg->num_wgroups; w++)
     {
-        if (i == cpu_id && cpu_info[i].processor != NULL)
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        for (int t = 0; t < wg->num_threads; t++)
         {
-            if (cpu_info[i].ProcInfo.flags != NULL)
+            struct bstrList* flist = bsplit(cpu_info[wg->hwthreads[t]].ProcInfo.flags, ' ');
+            // printf("flags qty: %d\n", runcfg->tcfg->flags->qty);
+            int found = 0;
+            if (runcfg->tcfg->flags->qty > 0 && flist->qty > 0)
             {
-                bconcat(*flagline, cpu_info[i].ProcInfo.flags);
+                for (int i = 0; i < runcfg->tcfg->flags->qty; i++)
+                {
+                    btrimws(runcfg->tcfg->flags->entry[i]);
+                    for (int j = 0; j < flist->qty; j++)
+                    {
+                        btrimws(flist->entry[j]);
+                        if (blength(runcfg->tcfg->flags->entry[i]) > 0 && biseqcaseless(runcfg->tcfg->flags->entry[i], flist->entry[j]))
+                        {
+                            DEBUG_PRINT(DEBUGLEV_DEVELOP, Flag %s found on hwthread %d, bdata(runcfg->tcfg->flags->entry[i]), wg->hwthreads[t]);
+                            found++;
+                        }
+
+                    }
+
+                }
+
             }
 
-            if (global_verbosity == DEBUGLEV_DEVELOP)
+            if (found == runcfg->tcfg->flags->qty)
             {
-                printf("CPU processor\t: %s\n", bdata(cpu_info[i].processor));
-                printf("CPU vendor\t: %s\n", bdata(cpu_info[i].ProcInfo.vendor));
-                printf("CPU family\t: %s\n", bdata(cpu_info[i].ProcInfo.family));
-                printf("CPU model\t: %s\n", bdata(cpu_info[i].ProcInfo.model));
-                printf("CPU name\t: %s\n", bdata(cpu_info[i].ProcInfo.name));
-                printf("CPU stepping\t: %s\n", bdata(cpu_info[i].ProcInfo.stepping));
-                // printf("CPU flags\t: %s\n", bdata(cpu_info[i].ProcInfo.flags));
-                result = check_cores(cpu_id, cpu_info[i].ProcInfo.vendor, cpu_info[i].ProcInfo.model);
-                if (result != 0)
+                cpu_info[wg->hwthreads[t]].ProcInfo.flags_found = bstrcpy(&btrue);
+            }
+            else
+            {
+                cpu_info[wg->hwthreads[t]].ProcInfo.flags_found = bstrcpy(&bfalse);
+            }
+
+            if (found != runcfg->tcfg->flags->qty)
+            {
+                ERROR_PRINT(Flags not found on the system. Check the flags give in the test: %s, bdata(runcfg->testname));
+                bstrListPrint(runcfg->tcfg->flags);
+                bstrListDestroy(flist);
+                return -EINVAL;
+            }
+
+            bstrListDestroy(flist);
+        }
+    }
+
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        for (int t = 0; t < wg->num_threads; t++)
+        {
+            int i = wg->hwthreads[t];
+            if (cpu_info[i].processor != NULL)
+            {
+                if (global_verbosity == DEBUGLEV_DEVELOP)
                 {
-                    free_cpu_info(_max_processor);
-                    bdestroy(src);
-                    bdestroy(bcpu_id);
-                    bstrListDestroy(blist);
-                    return -errno;
+                    printf("CPU name\t: %s\n", bdata(cpu_info[i].ProcInfo.name));
+                    printf("CPU vendor\t: %s\n", bdata(cpu_info[i].ProcInfo.vendor));
+                    printf("CPU processor\t: %s\n", bdata(cpu_info[i].processor));
+                    printf("CPU family\t: %s\n", bdata(cpu_info[i].ProcInfo.family));
+                    printf("CPU model\t: %s\n", bdata(cpu_info[i].ProcInfo.model));
+                    printf("CPU stepping\t: %s\n", bdata(cpu_info[i].ProcInfo.stepping));
+#if defined(__x86_64) || defined(__x86_64__)
+                    printf("CPU physical\t: %s\n", bdata(cpu_info[i].ProcInfo.physical));
+#endif
+                    printf("CPU feature flags: %s\n", bdata(cpu_info[i].ProcInfo.flags));
+                    printf("CPU flags found : %s\n", bdata(cpu_info[i].ProcInfo.flags_found));
+                    result = check_cores(i, cpu_info[i].ProcInfo.vendor, cpu_info[i].ProcInfo.model);
+                    if (result != 0)
+                    {
+                        free_cpu_info(_max_processor);
+                        bdestroy(src);
+                        bstrListDestroy(blist);
+                        return result;
+                    }
                 }
+
             }
 
         }
-
     }
 
     free_cpu_info(_max_processor);
     bdestroy(src);
-    bdestroy(bcpu_id);
     bstrListDestroy(blist);
     clear_processors();
     return 0;
 }
 
-int get_feature_flags(int cpu_id, struct bstrList** outlist)
+int check_feature_flags(RuntimeConfig* runcfg)
 {
     int result = 0;
-    if (outlist == NULL) return -errno;
-
-    bstring flagline = bfromcstr("");
-    result = read_flags_line(cpu_id, &flagline);
-    // printf("content: %s\n", bdata(flagline));
+    result = _read_cpuinfo(runcfg);
     if (result != 0)
     {
         ERROR_PRINT(Failed to read cpu flags from /proc/cpuinfo file);
-        bdestroy(flagline);
         return -errno;
     }
-
-    bstrListDestroy(*outlist);
-    struct bstrList* blist = NULL;
-    result = parse_flags(flagline, &blist);
-    bdestroy(flagline);
-    if (result != 0)
-    {
-        bstrListDestroy(blist);
-        ERROR_PRINT(Unable to parse the flags);
-        return -errno;
-    }
-
-    *outlist = bstrListCopy(blist);
-    bstrListDestroy(blist);
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Available flags are );
-    if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(*outlist);
-
     return 0;
 }
 

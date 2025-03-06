@@ -92,7 +92,7 @@ int table_addrow(Table* table, struct bstrList* row)
             double dvalue;
             if (batod(btmp, &dvalue) == BSTR_OK && dvalue >= 0.0)
             {
-                bstring btmpd = (dvalue < 1.0) ? bformat("%.6f", dvalue): bformat("%g", dvalue);
+                bstring btmpd = (dvalue < 1.0) ? bformat("%.6lf", dvalue): bformat("%.7g", dvalue);
                 bconcat(brow, btmpd);
                 int cell = blength(btmpd);
                 if (cell > table->col_widths[c])
@@ -177,6 +177,8 @@ int table_print(FILE* output, Table* table, int transpose)
                 if (cells) bstrListDestroy(cells);
             }
             fprintf(file, "|\n");
+            // Each row seperator for results
+            /*
             if (c < table->num_cols - 1)
             {
                 fprintf(file, "+");
@@ -188,6 +190,7 @@ int table_print(FILE* output, Table* table, int transpose)
                 }
                 fprintf(file, "+\n");
             }
+            */
         }
 
         fprintf(file, "+");

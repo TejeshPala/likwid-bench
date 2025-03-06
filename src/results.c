@@ -477,7 +477,7 @@ int add_value(RuntimeWorkgroupResult* result, bstring name, double value)
     err = get_bmap_by_key(result->values, name, (void**)&v);
     if (err == -ENOENT)
     {
-        v = bformat("%f", value);
+        v = bformat("%.15lf", value);
         if (v)
         {
             DEBUG_PRINT(DEBUGLEV_DEVELOP, Adding value %s -> %s, bdata(name), bdata(v));
@@ -510,7 +510,7 @@ int update_value(RuntimeWorkgroupResult* result, bstring name, double value)
     err = get_bmap_by_key(result->values, name, (void**)&old_v);
     if (err == 0)
     {
-        v = bformat("%f", value);
+        v = bformat("%.15lf", value);
         if (v)
         {
             DEBUG_PRINT(DEBUGLEV_DEVELOP, Updating value %s -> %s, bdata(name), bdata(v));

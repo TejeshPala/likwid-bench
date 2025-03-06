@@ -67,6 +67,7 @@ int test_stream_config(TestStreamConfig* tconfig)
             if (tconfig->config.ptr != NULL) // Allocation check and printing fields of tconfig
             {
                 printf("%dD array of Datatype: %s allocated succesfully.\n", tconfig->config.dims, get_stream_typename(tconfig->config.type));
+                printf("Allocated base memory address: %p\n", tconfig->config.base_ptr);
                 printf("Allocated memory address: %p\n", tconfig->config.ptr);
                 printf("Dimensions: %d\n", tconfig->config.dims);
                 printf("Dimension Sizes: ");

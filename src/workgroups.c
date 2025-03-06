@@ -108,12 +108,12 @@ int allocate_workgroup_stuff(int detailed, RuntimeWorkgroupConfig* wg)
     if (detailed == 1)
     {
         bstats = bstats1;
-        num_stats = 4;
+        num_stats = stats1_count;
     }
     else
     {
         bstats = bstats2;
-        num_stats = 2;
+        num_stats = stats2_count;
     }
 
     double value = 0.0;
@@ -424,29 +424,29 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
             RuntimeWorkgroupResult* result = &wg->results[t];
             if (wg->hwthreads[t] == thread->data->hwthread)
             {
-                // values in the list should be added as per sorted keys
-                double values[4];
+                // values in the list should be added as per sorted keys max 3 as per stats count from test_strings header
+                double values[3];
                 if (runcfg->detailed == 1)
                 {
                     values[0] = (double)thread->data->cycles;
                     values[1] = (double)thread->data->freq;
-                    values[2] = (double)thread->data->iters;
-                    values[3] = thread->runtime;
+                    // values[2] = (double)thread->data->iters;
+                    values[2] = thread->runtime;
                 }
                 else
                 {
-                    values[0] = (double)thread->data->iters;
-                    values[1] = thread->runtime;
+                    // values[0] = (double)thread->data->iters;
+                    values[0] = thread->runtime;
                 }
                 for (int id = 0; id < bkeys_sorted->qty - cfg->num_metrics; id ++)
                 {
                     double value = values[id];
-                    bstring t_value = bformat("%lf", value);
+                    bstring t_value = bformat("%.15lf", value);
                     // printf("t_value: %s\n", bdata(t_value));
                     err = update_value(result, bkeys_sorted->entry[id], value);
                     if (err == 0)
                     {
-                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Value updated for thread %d for key %s with value %lf, thread->data->hwthread, bdata(bkeys_sorted->entry[id]), value);
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Value updated for thread %d for key %s with value %.15lf, thread->data->hwthread, bdata(bkeys_sorted->entry[id]), value);
                     }
                     bstrListAdd(bvalues[id], t_value);
                     bstrListAdd(bgrp_values[id], t_value);
@@ -617,7 +617,7 @@ int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** 
                     double val;
                     if (get_value(result, bthread_keys_sorted->entry[k], &val) == 0)
                     {
-                        bstring bval = bformat("%lf", val);
+                        bstring bval = bformat("%.15lf", val);
                         bstrListAdd(btmp1, bval);
                         bdestroy(bval);
                     }
@@ -645,7 +645,7 @@ int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** 
                 double val;
                 if (get_value(wg->group_results, bwgroup_keys_sorted->entry[k], &val) == 0)
                 {
-                    bstring bval = bformat("%lf", val);
+                    bstring bval = bformat("%.15lf", val);
                     bstrListAdd(btmp2, bval);
                     bdestroy(bval);
                 }
@@ -673,7 +673,7 @@ int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** 
             double val;
             if (get_value(runcfg->global_results, bglobal_keys_sorted->entry[k], &val) == 0)
             {
-                bstring bval = bformat("%lf", val);
+                bstring bval = bformat("%.15lf", val);
                 bstrListAdd(btmp3, bval);
                 bdestroy(bval);
             }
