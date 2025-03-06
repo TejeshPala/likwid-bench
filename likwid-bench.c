@@ -371,7 +371,8 @@ int main(int argc, char** argv)
             ERROR_PRINT(Error assigning workgroup CLI options);
             goto main_out;
         }
-        if (runcfg->num_wgroups == 0) {
+        if (runcfg->num_wgroups == 0)
+        {
             errno = EINVAL;
             ERROR_PRINT(No workgroups on the command line);
             goto main_out;
