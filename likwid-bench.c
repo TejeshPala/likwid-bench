@@ -416,7 +416,7 @@ int main(int argc, char** argv)
         RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
         if (runcfg->num_wgroups != 1)
         {
-            printf("\t%d work group - %d threads\n", w + 1, wg->num_threads);
+            printf("\twork group %d - %d threads\n", w + 1, wg->num_threads);
         }
         else
         {
