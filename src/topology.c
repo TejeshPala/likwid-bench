@@ -134,6 +134,7 @@ void initialize_cpu_info(int _max_processor)
         cpu_info[p].ProcInfo.stepping = NULL;
         cpu_info[p].ProcInfo.physical = NULL;
         cpu_info[p].ProcInfo.flags = NULL;
+        cpu_info[p].ProcInfo.flags_found = NULL;
     }
 }
 
@@ -170,6 +171,14 @@ void free_cpu_info(int _max_processor)
         if (cpu_info[i].ProcInfo.flags != NULL)
         {
             bdestroy(cpu_info[i].ProcInfo.flags);
+        }
+        if (cpu_info[i].ProcInfo.flags_found != NULL)
+        {
+            bdestroy(cpu_info[i].ProcInfo.flags_found);
+        }
+        if (cpu_info[i].ProcInfo.physical != NULL)
+        {
+            bdestroy(cpu_info[i].ProcInfo.physical);
         }
     }
     free(cpu_info);

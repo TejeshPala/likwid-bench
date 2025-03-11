@@ -51,7 +51,7 @@ static bstring get_architecture()
     return bfromcstr(buffer.machine);
 }
 
-static bstring hline()
+static bstring bhline()
 {
     bstring bdash = bfromcstr("");
     binsertch(bdash, 0, 80, '-');
@@ -386,7 +386,8 @@ int main(int argc, char** argv)
         goto main_out;
     }
 
-    printf("%s", bdata(hline()));
+    bstring hline = bhline();
+    printf("%s", bdata(hline));
     printf("Application: LIKWID-BENCH\n");
     printf("Test: %s\n", bdata(runcfg->testname));
 
@@ -423,7 +424,7 @@ int main(int argc, char** argv)
             printf("\tUsing %d threads\n", wg->num_threads);
         }
     }
-    printf("%s", bdata(hline()));
+    printf("%s", bdata(hline));
 
     /*
      * Evaluate variables, constants, ... for remaining operations
@@ -694,6 +695,7 @@ int main(int argc, char** argv)
     }
     LIKWID_MARKER_CLOSE;
 #endif
+    bdestroy(hline);
 
 main_out:
     DEBUG_PRINT(DEBUGLEV_DEVELOP, MAIN_OUT);
