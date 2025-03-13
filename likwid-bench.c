@@ -132,6 +132,10 @@ void free_runtime_config(RuntimeConfig* runcfg)
                                 free(runcfg->wgroups[i].threads[j].command);
                                 runcfg->wgroups[i].threads[j].command = NULL;
                             }
+                            if (runcfg->wgroups[i].threads[j].testconfig.function)
+                            {
+                                close_function(&runcfg->wgroups[i]);
+                            }
                         }
                     }
                     free(runcfg->wgroups[i].threads);
@@ -160,26 +164,6 @@ void free_runtime_config(RuntimeConfig* runcfg)
                     free(runcfg->wgroups[i].streams);
                     runcfg->wgroups[i].streams = NULL;
                     runcfg->wgroups[i].num_streams = 0;
-                }
-                if (runcfg->wgroups[i].testconfig.objfile)
-                {
-                    bdestroy(runcfg->wgroups[i].testconfig.objfile);
-                }
-                if (runcfg->wgroups[i].testconfig.compiler)
-                {
-                    bdestroy(runcfg->wgroups[i].testconfig.compiler);
-                }
-                if (runcfg->wgroups[i].testconfig.flags)
-                {
-                    bdestroy(runcfg->wgroups[i].testconfig.flags);
-                }
-                if (runcfg->wgroups[i].testconfig.functionname)
-                {
-                    bdestroy(runcfg->wgroups[i].testconfig.functionname);
-                }
-                if (runcfg->wgroups[i].testconfig.function)
-                {
-                    close_function(&runcfg->wgroups[i]);
                 }
             }
             
@@ -547,8 +531,8 @@ int main(int argc, char** argv)
         for (int i = 0; i < wg->num_threads; i++)
         {
             RuntimeThreadConfig* thread =  &wg->threads[i];
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting thread %d run command function to %p, thread->local_id, wg->testconfig.function);
-            thread->command->cmdfunc.run = wg->testconfig.function;
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting thread %d run command function to %p, thread->local_id, thread->testconfig.function);
+            thread->command->cmdfunc.run = thread->testconfig.function;
             err = send_cmd(LIKWID_THREAD_COMMAND_RUN, thread);
             if (err < 0)
             {

@@ -737,6 +737,17 @@ int update_threads(RuntimeConfig* runcfg)
                 }
                 bstring bs = bformat("%ld", thread->sizes);
                 bstring bo = bformat("%ld", thread->offsets);
+                for (int s = 0; s < wg->num_streams; s++)
+                {
+                    RuntimeStreamConfig* str = &wg->streams[s];
+                    bstring bstrptr = bformat("STRPTR_WG%d_STREAMS%d", w, s);
+                    void* stream_ptr = (void*)((char*) str->ptr + (thread->offsets * sizeof(double)));
+                    bstring bptr = bformat("%p", (void*)(stream_ptr));
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream Ptr for WG%d: %p and offset ptr: %p, w, str->ptr, stream_ptr);
+                    add_variable(&wg->results[i], bstrptr, bptr);
+                    bdestroy(bptr);
+                    bdestroy(bstrptr);
+                }
                 add_variable(&wg->results[i], &btsizes, bs);
                 add_variable(&wg->results[i], &btoffsets, bo);
                 bdestroy(bs);

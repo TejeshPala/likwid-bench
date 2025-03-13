@@ -573,11 +573,11 @@ static int _generate_replacement_lists(RuntimeConfig* runcfg, struct bstrList* k
                 bstring ptr = bformat("%p", str->ptr);
                 bstrListAdd(values, reg);
 #if defined(__x86_64) || defined(__x86_64__)
-                bstring line = bformat("mov %s, %s", bdata(regsavail->entry[i]), bdata(ptr));
+                bstring line = bformat("mov %s, STRPTR_WG%d_STREAMS%d", bdata(regsavail->entry[i]), w, s);
 #elif defined(__ARM_ARCH_8A) || defined(__aarch64__) || defined(__arm__)
-                bstring line = bformat("ldr %s, =%s", bdata(regsavail->entry[i]), bdata(ptr));
+                bstring line = bformat("ldr %s, STRPTR_WG%d_STREAMS%d", bdata(regsavail->entry[i]), w, s);
 #elif defined(_ARCH_PPC) || defined(__powerpc) || defined(__ppc__) || defined(__PPC__)
-                bstring line = bformat("mov %s, %s", bdata(regsavail->entry[i]), bdata(ptr)); // to be replaced
+                bstring line = bformat("mov %s, STRPTR_WG%d_STREAMS%d", bdata(regsavail->entry[i]), w, s); // to be replaced
 #endif
                 bstrListAdd(blines, line);
                 if (bstrListRemove(regsavail, reg) == BSTR_OK)
@@ -595,7 +595,7 @@ static int _generate_replacement_lists(RuntimeConfig* runcfg, struct bstrList* k
             for (int d = 0; d < str->dims; d++)
             {
                 bstring k = bformat("#%s", bdata(tstr->dims->entry[d]));
-                bstring v = bformat("%ld", getstreamelems(str));
+                bstring v = bformat("sizes");
                 bstrListAdd(keys, k);
                 bstrListAdd(values, v);
                 bdestroy(k);

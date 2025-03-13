@@ -237,6 +237,7 @@ typedef struct {
     int num_threads;
     int64_t sizes;
     off_t offsets;
+    RuntimeTestConfig testconfig;
 } RuntimeThreadConfig;
 
 typedef struct {
@@ -249,7 +250,6 @@ typedef struct {
     RuntimeWorkgroupResult* group_results;
     int num_streams;
     RuntimeStreamConfig* streams;
-    RuntimeTestConfig testconfig;
 } RuntimeWorkgroupConfig;
 
 typedef struct {
@@ -274,7 +274,6 @@ typedef struct {
     TestConfig_t tcfg;
     struct bstrList* codelines;
     RuntimeWorkgroupResult* global_results;
-    RuntimeTestConfig testconfig;
 } RuntimeConfig;
 
 
