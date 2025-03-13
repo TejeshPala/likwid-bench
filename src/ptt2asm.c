@@ -575,7 +575,7 @@ static int _generate_replacement_lists(RuntimeConfig* runcfg, struct bstrList* k
 #if defined(__x86_64) || defined(__x86_64__)
                 bstring line = bformat("mov %s, STRPTR_WG%d_STREAMS%d", bdata(regsavail->entry[i]), w, s);
 #elif defined(__ARM_ARCH_8A) || defined(__aarch64__) || defined(__arm__)
-                bstring line = bformat("ldr %s, STRPTR_WG%d_STREAMS%d", bdata(regsavail->entry[i]), w, s);
+                bstring line = bformat("ldr %s, =STRPTR_WG%d_STREAMS%d", bdata(regsavail->entry[i]), w, s);
 #elif defined(_ARCH_PPC) || defined(__powerpc) || defined(__ppc__) || defined(__PPC__)
                 bstring line = bformat("mov %s, STRPTR_WG%d_STREAMS%d", bdata(regsavail->entry[i]), w, s); // to be replaced
 #endif
