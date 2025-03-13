@@ -741,9 +741,29 @@ int update_threads(RuntimeConfig* runcfg)
                 {
                     RuntimeStreamConfig* str = &wg->streams[s];
                     bstring bstrptr = bformat("STRPTR_WG%d_STREAMS%d", w, s);
-                    void* stream_ptr = (void*)((char*) str->ptr + (thread->offsets * sizeof(double)));
+                    void* stream_ptr;
+                    switch(str->type)
+                    {
+                        case TEST_STREAM_TYPE_SINGLE:
+                            stream_ptr = (void*)((char*) str->ptr + (thread->offsets * sizeof(float)));
+                            break;
+                        case TEST_STREAM_TYPE_DOUBLE:
+                            stream_ptr = (void*)((char*) str->ptr + (thread->offsets * sizeof(double)));
+                            break;
+                        case TEST_STREAM_TYPE_INT:
+                            stream_ptr = (void*)((char*) str->ptr + (thread->offsets * sizeof(int)));
+                            break;
+#ifdef WITH_HALF_PRECISION
+                        case TEST_STREAM_TYPE_HALF:
+                            stream_ptr = (void*)((char*) str->ptr + (thread->offsets * sizeof(_Float16)));
+                            break;
+#endif
+                        case TEST_STREAM_TYPE_INT64:
+                            stream_ptr = (void*)((char*) str->ptr + (thread->offsets * sizeof(int64_t)));
+                            break;
+                    }
                     bstring bptr = bformat("%p", (void*)(stream_ptr));
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream Ptr for WG%d: %p and offset ptr: %p, w, str->ptr, stream_ptr);
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream Ptr for WG%d-%s: %p and offset ptr: %p, w, bdata(str->name), str->ptr, stream_ptr);
                     add_variable(&wg->results[i], bstrptr, bptr);
                     bdestroy(bptr);
                     bdestroy(bstrptr);
