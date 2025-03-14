@@ -77,17 +77,14 @@ typedef struct {
     bstring                 btype;
     struct bstrList*        dims;
     TestConfigStreamData    data;
+    struct bstrList*        sizes;
+    struct bstrList*        offsets;
 } TestConfigStream;
 
 typedef struct {
     bstring                 name;
     bstring                 value;
 } TestConfigVariable;
-
-typedef struct {
-    struct bstrList*        sizes;
-    struct bstrList*        offsets;
-} TestConfigThread;
 
 typedef struct {
     bstring                 name;
@@ -107,8 +104,6 @@ typedef struct {
     struct bstrList*        flags;
     bool                    requirewg;
     bool                    initialization;
-    int                     num_threads;
-    TestConfigThread *      threads;
 } TestConfig;
 typedef TestConfig* TestConfig_t;
 

@@ -213,7 +213,6 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
                 {
                     bstring val = NULL;
                     ret = get_bmap_by_key(wcfg->results[t].variables, sorted_varkeys->entry[j], (void**)&val);
-                    printf("code: %s, val: %s\n", bdata(wcodelines->entry[i]), bdata(val));
                     if (ret == 0)
                     {
                         bfindreplace(wcodelines->entry[i], sorted_varkeys->entry[j], val, 0);

@@ -292,6 +292,8 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                         s->btype = NULL;
                         s->name = NULL;
                         s->dims = bstrListCreate();
+                        s->offsets = bstrListCreate();
+                        s->sizes = bstrListCreate();
                         bstring sv;
                         ret = read_keyvalue(streams->entry[j], &s->name, &sv);
                         if (ret == 0)
@@ -418,6 +420,16 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                                         }
                                         bstrListDestroy(tmpl);
                                     }
+                                    if (bstrnicmp(vk, &bthreadsoff, 7) == BSTR_OK)
+                                    {
+                                        read_yaml_ptt_list(vv, &s->offsets);
+                                        // bstrListPrint(s->offsets);
+                                    }
+                                    else if (bstrnicmp(vk, &bthreadssize, 5) == BSTR_OK)
+                                    {
+                                        read_yaml_ptt_list(vv, &s->sizes);
+                                        // bstrListPrint(s->sizes);
+                                    }
                                     //printf("Stream '%s' '%s'\n", bdata(s->name), bdata(vk));
                                     bdestroy(vk);
                                     bdestroy(vv);
@@ -524,46 +536,6 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                 }
                 // printf("requirewg: %d\n", conf->requirewg);
             }
-            else if (bstrnicmp(k, &bthreads, 7) == BSTR_OK)
-            {
-                // printf("Threads\n");
-                struct bstrList* thread_items = NULL;
-                read_obj(v, &thread_items);
-                conf->threads = malloc(sizeof(TestConfigThread));
-                if (conf->threads)
-                {
-                    TestConfigThread* t = conf->threads;
-                    t->offsets = bstrListCreate();
-                    t->sizes = bstrListCreate();
-                    for (int l = 0; l < thread_items->qty; l++)
-                    {
-                        bstring tk, tv;
-                        ret = read_keyvalue(thread_items->entry[l], &tk, &tv);
-                        // printf("'%s'\n", bdata(tk));
-                        btrimws(tv);
-                        if (ret == 0)
-                        {
-                            if (bstrnicmp(tk, &bthreadsoff, 7) == BSTR_OK)
-                            {
-                                read_yaml_ptt_list(tv, &t->offsets);
-                                // bstrListPrint(t->offsets);
-                            }
-                            else if (bstrnicmp(tk, &bthreadssize, 5) == BSTR_OK)
-                            {
-                                read_yaml_ptt_list(tv, &t->sizes);
-                                // bstrListPrint(t->sizes);
-                            }
-                        }
-
-                        bdestroy(tk);
-                        bdestroy(tv);
-                    }
-
-                    conf->num_threads = 1;
-                }
-
-                bstrListDestroy(thread_items);
-            }
             bdestroy(k);
             bdestroy(v);
         }
@@ -597,22 +569,6 @@ void close_vars(int num_vars, TestConfigVariable* vars)
     }
 }
 
-void close_threads(int num_threads, TestConfigThread* threads)
-{
-    int i = 0;
-    if (num_threads > 0 && threads)
-    {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying %d thread items, num_threads);
-        for (i = 0; i < num_threads; i++)
-        {
-            TestConfigThread* t = &threads[i];
-            if (t->offsets) bstrListDestroy(t->offsets);
-            if (t->sizes) bstrListDestroy(t->sizes);
-        }
-        free(threads);
-    }
-}
-
 void close_streams(int num_streams, TestConfigStream* streams)
 {
     int i = 0;
@@ -625,6 +581,8 @@ void close_streams(int num_streams, TestConfigStream* streams)
             if (s->name) bdestroy(s->name);
             if (s->btype) bdestroy(s->btype);
             if (s->dims) bstrListDestroy(s->dims);
+            if (s->offsets) bstrListDestroy(s->offsets);
+            if (s->sizes) bstrListDestroy(s->sizes);
         }
         free(streams);
     }
@@ -672,8 +630,6 @@ void close_yaml_ptt(TestConfig_t config)
         close_vars(config->num_metrics, config->metrics);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying streams in TestConfig);
         close_streams(config->num_streams, config->streams);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread items in TestConfig);
-        close_threads(config->num_threads, config->threads);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying parameters in TestConfig);
         close_parameters(config->num_params, config->params);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying flags in TestConfig);

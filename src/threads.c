@@ -542,7 +542,7 @@ int update_threads(RuntimeConfig* runcfg)
     int err = 0;
     uint64_t iter;
     int total_threads = 0;
-    TestConfigThread* t = runcfg->tcfg->threads;
+    TestConfigStream* t = runcfg->tcfg->streams;
     static struct tagbstring bnumthreads = bsStatic("NUM_THREADS");
     static struct tagbstring bthreadid = bsStatic("THREAD_ID");
     static struct tagbstring biter = bsStatic("ITER");
