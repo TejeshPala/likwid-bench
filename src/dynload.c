@@ -197,7 +197,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
             if (bchar(wcodelines->entry[i], 0) == '#') continue;
             for (int j = sorted_valkeys->qty - 1; j >= 0; j--)
             {
-                if (binstr(wcodelines->entry[i], 0, sorted_valkeys->entry[j]) != BSTR_ERR)
+                if (binstr(wcodelines->entry[i], 0, sorted_valkeys->entry[j]) != BSTR_ERR && bchar(wcodelines->entry[i], 0) != '.')
                 {
                     bstring val = NULL;
                     ret = get_bmap_by_key(wcfg->results[t].values, sorted_valkeys->entry[j], (void**)&val);
@@ -209,7 +209,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
             }
             for (int j = sorted_varkeys->qty - 1; j >= 0; j--)
             {
-                if (binstr(wcodelines->entry[i], 0, sorted_varkeys->entry[j]) != BSTR_ERR)
+                if (binstr(wcodelines->entry[i], 0, sorted_varkeys->entry[j]) != BSTR_ERR && bchar(wcodelines->entry[i], 0) != '.')
                 {
                     bstring val = NULL;
                     ret = get_bmap_by_key(wcfg->results[t].variables, sorted_varkeys->entry[j], (void**)&val);
