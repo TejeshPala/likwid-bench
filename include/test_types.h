@@ -126,6 +126,8 @@ typedef struct {
     TestConfigStreamType type;
     TestConfigStreamData data;
     void* init_val;
+    int64_t tsizes;
+    off_t toffsets;
 } RuntimeStreamConfig;
 
 typedef struct {
@@ -230,8 +232,6 @@ typedef struct {
     thread_data_t data;
     RuntimeThreadCommand* command;
     int num_threads;
-    int64_t sizes;
-    off_t offsets;
     RuntimeTestConfig testconfig;
 } RuntimeThreadConfig;
 

@@ -190,10 +190,10 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
         size_t elems = getstreamelems(sdata);
         size_t offset;
         size_t size;
-        if (thread->sizes > 0 && thread->offsets >= 0)
+        if (sdata->tsizes > 0 && sdata->toffsets >= 0)
         {
-            offset = thread->offsets;
-            size = thread->sizes;
+            offset = sdata->toffsets;
+            size = sdata->tsizes;
         }
         else
         {
@@ -201,7 +201,7 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
             offset = 0;
             size = elems;
         }
-        if (thread->num_threads > 1 && (thread->sizes == 0 && thread->offsets == 0))
+        if (thread->num_threads > 1 && (sdata->tsizes == 0 && sdata->toffsets == 0))
         {
             size_t chunk = elems / thread->num_threads;
             size_t rem_chunk = elems % thread->num_threads;
@@ -606,21 +606,6 @@ int update_threads(RuntimeConfig* runcfg)
             {
                 DEBUG_PRINT(DEBUGLEV_DEVELOP, Variable updated in global results for key %s with value %lf, bdata(&biter), (double)runcfg->iterations);
             }
-            bstring bsizes = bstrcpy(t->sizes->entry[0]);
-            bstring boffsets = bstrcpy(t->offsets->entry[0]);
-            RuntimeWorkgroupResult t_results;
-            if (bsizes != NULL && boffsets != NULL)
-            {
-                err = init_result(&t_results);
-                if (err != 0)
-                {
-                    ERROR_PRINT(Unable initialize thread results);
-                    return err;
-                }
-                bstring bthreads = bformat("%d", wg->num_threads);
-                add_variable(&t_results, &bnumthreads, bthreads);
-                bdestroy(bthreads);
-            }
             RuntimeThreadConfig* thread = &wg->threads[i];
             thread->command = (RuntimeThreadCommand*)malloc(sizeof(RuntimeThreadCommand));
             if (!thread->command)
@@ -651,19 +636,6 @@ int update_threads(RuntimeConfig* runcfg)
             thread->command->done = 1;
             thread->command->num_streams = wg->num_streams;
             thread->command->tstreams = wg->streams;
-            size_t elems;
-            if (bsizes != NULL && boffsets != NULL)
-            {
-                for (int s = 0; s < runcfg->tcfg->num_streams; s++)
-                {
-                    TestConfigStream *istream = &runcfg->tcfg->streams[s];
-                    for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
-                    {
-                        elems = getstreamelems(&thread->command->tstreams[s]);
-                        add_value(&t_results, istream->dims->entry[k], (double)elems);
-                    }
-                }
-            }
             /*
              * printf("tstreams dims: %d\n", thread->command->tstreams->dims);
              * for (int s = 0; s < thread->command->tstreams->dims; s++)
@@ -696,70 +668,93 @@ int update_threads(RuntimeConfig* runcfg)
             thread->num_threads = wg->num_threads;
             thread->local_id = wg->hwthreads[i];
             thread->global_id = total_threads + i;
-            if (bsizes != NULL && boffsets != NULL)
+
+            bstring btid = bformat("%d", (thread->local_id % thread->num_threads));
+            bstring bthreads = bformat("%d", wg->num_threads);
+            // Iterating over the streams
+            // Useful in case streams are of various dimensions and to capture each threads offsets and sizes
+            // (explicitly every tstreams in thread command is stored)
+            for (int s = 0; s < wg->num_streams; s++)
             {
-                bstring btid = bformat("%d", (thread->local_id % thread->num_threads));
-                add_variable(&t_results, &bthreadid, btid);
-                if (DEBUGLEV_DEVELOP == global_verbosity)
+                RuntimeStreamConfig* str = &wg->streams[s];
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Calculations for streams%d: %s, s, bdata(str->name));
+                TestConfigStream *istream = &runcfg->tcfg->streams[s];
+                RuntimeWorkgroupResult t_results;
+                err = init_result(&t_results);
+                if (err != 0)
                 {
-                    printf("The hwthread %3d results are\n", thread->local_id);
-                    print_result(&t_results);
+                    ERROR_PRINT(Unable initialize thread results);
+                    return err;
                 }
-                replace_all(&t_results, bsizes, NULL);
-                replace_all(&t_results, boffsets, NULL);
-                // printf("After replace sizes: %s\n", bdata(bsizes));
-                // printf("After replace offsets: %s\n", bdata(boffsets));
-                double sizes_value = 0;
-                double offsets_value = 0;
-                err = calculator_calc(bdata(bsizes), &sizes_value);
-                if (err == 0)
+                bstring bsizes = bstrcpy(istream->sizes->entry[0]);
+                bstring boffsets = bstrcpy(istream->offsets->entry[0]);
+                size_t elems;
+                if (bsizes != NULL && boffsets != NULL)
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Calculated formula '%s' - sizes value: %lf, bdata(bsizes), sizes_value);
-                }
-                else
-                {
-                    ERROR_PRINT(Error calculating sizes for formula '%s', bdata(bsizes));
-                }
-                err = calculator_calc(bdata(boffsets), &offsets_value);
-                if (err == 0)
-                {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Calculated formula '%s' - offsets value: %lf, bdata(boffsets), offsets_value);
-                }
-                else
-                {
-                    ERROR_PRINT(Error calculating sizes for formula '%s', bdata(boffsets));
-                }
-                thread->sizes = (int64_t)sizes_value;
-                thread->offsets = (off_t)offsets_value;
-                if ((thread->local_id % thread->num_threads) == thread->num_threads - 1)
-                {
-                    thread->sizes = (int64_t)(elems - thread->offsets);
-                }
-                bstring bs = bformat("%ld", thread->sizes);
-                bstring bo = bformat("%ld", thread->offsets);
-                for (int s = 0; s < wg->num_streams; s++)
-                {
-                    RuntimeStreamConfig* str = &wg->streams[s];
+                    for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
+                    {
+                        elems = getstreamelems(&thread->command->tstreams[s]);
+                        add_value(&t_results, istream->dims->entry[k], (double)elems);
+                    }
+                    add_variable(&t_results, &bnumthreads, bthreads);
+                    add_variable(&t_results, &bthreadid, btid);
+                    if (DEBUGLEV_DEVELOP == global_verbosity)
+                    {
+                        printf("The hwthread %3d results are\n", thread->local_id);
+                        print_result(&t_results);
+                    }
+                    replace_all(&t_results, bsizes, NULL);
+                    replace_all(&t_results, boffsets, NULL);
+                    // printf("After replace sizes: %s\n", bdata(bsizes));
+                    // printf("After replace offsets: %s\n", bdata(boffsets));
+                    double sizes_value = 0.0;
+                    double offsets_value = 0.0;
+                    err = calculator_calc(bdata(bsizes), &sizes_value);
+                    if (err == 0)
+                    {
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Calculated formula '%s' - sizes value: %lf, bdata(bsizes), sizes_value);
+                    }
+                    else
+                    {
+                        ERROR_PRINT(Error calculating sizes for formula '%s', bdata(bsizes));
+                    }
+                    err = calculator_calc(bdata(boffsets), &offsets_value);
+                    if (err == 0)
+                    {
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Calculated formula '%s' - offsets value: %lf, bdata(boffsets), offsets_value);
+                    }
+                    else
+                    {
+                        ERROR_PRINT(Error calculating sizes for formula '%s', bdata(boffsets));
+                    }
+                    str->tsizes = (int64_t)sizes_value;
+                    str->toffsets = (off_t)offsets_value;
+                    if ((thread->local_id % thread->num_threads) == thread->num_threads - 1)
+                    {
+                        str->tsizes = (int64_t)(elems - str->toffsets);
+                    }
+                    bstring bs = bformat("%ld", str->tsizes);
+                    bstring bo = bformat("%ld", str->toffsets);
                     bstring bstrptr = bformat("STRPTR_WG%d_STREAMS%d", w, s);
                     void* stream_ptr;
                     switch(str->type)
                     {
                         case TEST_STREAM_TYPE_SINGLE:
-                            stream_ptr = (void*)((char*) str->ptr + (thread->offsets * sizeof(float)));
+                            stream_ptr = (void*)((char*) str->ptr + (str->toffsets * sizeof(float)));
                             break;
                         case TEST_STREAM_TYPE_DOUBLE:
-                            stream_ptr = (void*)((char*) str->ptr + (thread->offsets * sizeof(double)));
+                            stream_ptr = (void*)((char*) str->ptr + (str->toffsets * sizeof(double)));
                             break;
                         case TEST_STREAM_TYPE_INT:
-                            stream_ptr = (void*)((char*) str->ptr + (thread->offsets * sizeof(int)));
+                            stream_ptr = (void*)((char*) str->ptr + (str->toffsets * sizeof(int)));
                             break;
 #ifdef WITH_HALF_PRECISION
                         case TEST_STREAM_TYPE_HALF:
-                            stream_ptr = (void*)((char*) str->ptr + (thread->offsets * sizeof(_Float16)));
+                            stream_ptr = (void*)((char*) str->ptr + (str->toffsets * sizeof(_Float16)));
                             break;
 #endif
                         case TEST_STREAM_TYPE_INT64:
-                            stream_ptr = (void*)((char*) str->ptr + (thread->offsets * sizeof(int64_t)));
+                            stream_ptr = (void*)((char*) str->ptr + (str->toffsets * sizeof(int64_t)));
                             break;
                     }
                     bstring bptr = bformat("%p", (void*)(stream_ptr));
@@ -767,16 +762,17 @@ int update_threads(RuntimeConfig* runcfg)
                     add_variable(&wg->results[i], bstrptr, bptr);
                     bdestroy(bptr);
                     bdestroy(bstrptr);
+                    add_variable(&wg->results[i], &btsizes, bs);
+                    add_variable(&wg->results[i], &btoffsets, bo);
+                    bdestroy(bs);
+                    bdestroy(bo);
                 }
-                add_variable(&wg->results[i], &btsizes, bs);
-                add_variable(&wg->results[i], &btoffsets, bo);
-                bdestroy(bs);
-                bdestroy(bo);
-                bdestroy(btid);
                 bdestroy(bsizes);
                 bdestroy(boffsets);
+                destroy_result(&t_results);
             }
-            destroy_result(&t_results);
+            bdestroy(bthreads);
+            bdestroy(btid);
             thread->runtime = 0.0;
             thread->cycles = 0;
             thread->barrier = &wg->barrier;
