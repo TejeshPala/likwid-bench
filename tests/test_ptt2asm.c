@@ -43,7 +43,27 @@ int main(int argc, char* argv[])
     }
     bstrListDestroy(out);
     out = bstrListCreate();
-    generate_code(&runcfg, out);
+
+    // dummy
+    RuntimeThreadConfig thread;
+    memset(&thread, 0, sizeof(RuntimeThreadConfig));
+    thread.num_streams = tcfg.num_streams;
+    thread.sdata = (RuntimeStreamConfig*)malloc(sizeof(RuntimeStreamConfig) * tcfg.num_streams);
+    for (int i = 0; i < thread.num_streams; i++)
+    {
+        thread.sdata[i].name = tcfg.streams[i].name;
+        thread.sdata[i].type = tcfg.streams[i].type;
+    }
+    thread.tstreams = (RuntimeThreadStreamConfig*)malloc(sizeof(RuntimeThreadStreamConfig) * tcfg.num_streams);
+    for (int i = 0; i < thread.num_streams; i++)
+    {
+        thread.tstreams[i].tsizes      = 100;
+        thread.tstreams[i].toffsets    = 0;
+        thread.tstreams[i].tstream_ptr    = 0x00000000;
+    }
+    
+
+    generate_code(&runcfg, &thread, out);
     printf("Final:\n");
     for (int i = 0; i < out->qty; i++)
     {
@@ -54,5 +74,7 @@ int main(int argc, char* argv[])
     bstrListDestroy(regs);
     bstrListDestroy(out);
     free(tcfg.streams);
+    free(thread.sdata);
+    free(thread.tstreams);
     return 0;
 }
