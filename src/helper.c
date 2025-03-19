@@ -44,7 +44,7 @@ double convertToSeconds(const_bstring input)
     }
     else
     {
-        fprintf(stdout, "No unit mentioned for runtime. It uses %.6fs\n", value);
+        fprintf(stdout, "No unit mentioned for runtime. It uses %.15lfs\n", value);
         result = value; // default to use 's' when no unit is mentioned for --runtime/-r
     }
     bdestroy(unit);
@@ -114,7 +114,7 @@ size_t convertToBytes(const_bstring input)
     else
     {
 	    result = (size_t)value;
-        fprintf(stdout, "No unit mentioned for array size. It uses %lldB\n", result);
+        fprintf(stdout, "No unit mentioned for array size. It uses %zuB\n", result);
     }
 
     bdestroy(unit);
@@ -127,4 +127,3 @@ size_t convertToBytes(const_bstring input)
 
     return result;
 }
-

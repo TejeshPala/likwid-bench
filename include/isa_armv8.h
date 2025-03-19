@@ -148,7 +148,7 @@ int loopheader(struct bstrList* code, bstring loopname, bstring loopreg, bstring
     bstrListAdd(code, initline);
     bdestroy(initline);
 
-    bstring condline = bformat("mov %s, #%s", bdata(condreg), bdata(cond));
+    bstring condline = bformat("ldr %s, =#%s", bdata(condreg), bdata(cond));
     bstrListAdd(code, condline);
     bdestroy(condline);
 

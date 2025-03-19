@@ -126,8 +126,6 @@ typedef struct {
     TestConfigStreamType type;
     TestConfigStreamData data;
     void* init_val;
-    int64_t tsizes;
-    off_t toffsets;
 } RuntimeStreamConfig;
 
 typedef struct {
@@ -193,8 +191,6 @@ typedef struct {
     pthread_cond_t cond;
     pthread_condattr_t c_attr;
     bool initialization;
-    int num_streams;
-    RuntimeStreamConfig* tstreams;
     void* init_val;
 } RuntimeThreadCommand;
 
@@ -223,6 +219,12 @@ typedef struct {
 typedef _thread_data* thread_data_t;
 
 typedef struct {
+    int64_t tsizes;
+    off_t   toffsets;
+    void*   tstream_ptr;
+} RuntimeThreadStreamConfig;
+
+typedef struct {
     pthread_t thread;
     int local_id;
     int global_id;
@@ -233,6 +235,10 @@ typedef struct {
     RuntimeThreadCommand* command;
     int num_threads;
     RuntimeTestConfig testconfig;
+    struct bstrList* codelines;
+    int num_streams;
+    RuntimeStreamConfig* sdata;
+    RuntimeThreadStreamConfig* tstreams;
 } RuntimeThreadConfig;
 
 typedef struct {
@@ -267,7 +273,6 @@ typedef struct {
     bstring tmpfolder;
     bstring arraysize;
     TestConfig_t tcfg;
-    struct bstrList* codelines;
     RuntimeWorkgroupResult* global_results;
 } RuntimeConfig;
 

@@ -104,19 +104,19 @@ int run_benchmark(RuntimeThreadConfig* data)
 
     // not sure whether we need to give the sizes here. Since we compile the code, we could add the sizes there directly
     // as constants
-    switch (data->command->num_streams)
+    switch (data->num_streams)
     {
         case 1:
-            EXECUTE(func(data->command->tstreams[0].dimsizes[0], data->command->tstreams[0].ptr));
+            EXECUTE(func(data->sdata[0].dimsizes[0], data->sdata[0].ptr));
             break;
         case 2:
-            EXECUTE(func(data->command->tstreams[0].dimsizes[0], data->command->tstreams[0].ptr, data->command->tstreams[1].ptr));
+            EXECUTE(func(data->sdata[0].dimsizes[0], data->sdata[0].ptr, data->sdata[1].ptr));
             break;
         case 3:
-            EXECUTE(func(data->command->tstreams[0].dimsizes[0], data->command->tstreams[0].ptr, data->command->tstreams[1].ptr, data->command->tstreams[2].ptr));
+            EXECUTE(func(data->sdata[0].dimsizes[0], data->sdata[0].ptr, data->sdata[1].ptr, data->sdata[2].ptr));
             break;
         case 4:
-            EXECUTE(func(data->command->tstreams[0].dimsizes[0], data->command->tstreams[0].ptr, data->command->tstreams[1].ptr, data->command->tstreams[2].ptr, data->command->tstreams[3].ptr));
+            EXECUTE(func(data->sdata[0].dimsizes[0], data->sdata[0].ptr, data->sdata[1].ptr, data->sdata[2].ptr, data->sdata[3].ptr));
             break;
 /*        case STREAM_5:*/
 /*            EXECUTE(func(size,myData->streams[0],myData->streams[1],myData->streams[2],myData->streams[3],*/

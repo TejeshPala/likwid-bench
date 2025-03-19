@@ -115,9 +115,9 @@ int close_function(RuntimeWorkgroupConfig *wcfg)
     return 0;
 }
 
-int dump_assembly(RuntimeConfig *runcfg, bstring outfile)
+int dump_assembly(RuntimeThreadConfig* thread, bstring outfile)
 {
-    return write_bstrList_to_file(runcfg->codelines, bdata(outfile));
+    return write_bstrList_to_file(thread->codelines, bdata(outfile));
 }
 
 void fill_keylist(mpointer key, mpointer value, mpointer user_data)
@@ -179,7 +179,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
         bconchar(asmfile, 's');
         bconchar(objfile, 'o');
 
-        wcodelines = bstrListCopy(rcfg->codelines);
+        wcodelines = bstrListCopy(thread->codelines);
         struct bstrList *valkeys = bstrListCreate();
         struct bstrList *varkeys = bstrListCreate();
         struct bstrList *sorted_valkeys = NULL;

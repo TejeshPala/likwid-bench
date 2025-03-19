@@ -70,7 +70,6 @@ int allocate_runtime_config(RuntimeConfig** config)
     memset(runcfg, 0, sizeof(RuntimeConfig));
     runcfg->wgroups = NULL;
     runcfg->tcfg = NULL;
-    runcfg->codelines = NULL;
     runcfg->params = NULL;
     runcfg->global_results = NULL;
     runcfg->testname = bfromcstr("");
@@ -136,6 +135,11 @@ void free_runtime_config(RuntimeConfig* runcfg)
                             {
                                 close_function(&runcfg->wgroups[i]);
                             }
+                            if (runcfg->wgroups[i].threads[j].codelines)
+                            {
+                                bstrListDestroy(runcfg->wgroups[i].threads[j].codelines);
+                                runcfg->wgroups[i].threads[j].codelines = NULL;
+                            }
                         }
                     }
                     free(runcfg->wgroups[i].threads);
@@ -189,11 +193,6 @@ void free_runtime_config(RuntimeConfig* runcfg)
             DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy TestConfig in RuntimeConfig);
             close_yaml_ptt(runcfg->tcfg);
             runcfg->tcfg = NULL;
-        }
-        if (runcfg->codelines)
-        {
-            bstrListDestroy(runcfg->codelines);
-            runcfg->codelines = NULL;
         }
 
         if (runcfg->global_results)
@@ -452,21 +451,6 @@ int main(int argc, char** argv)
     }
 
     /*
-     * Generate assembly
-     */
-    runcfg->codelines = bstrListCreate();
-    err = generate_code(runcfg, runcfg->codelines);
-    if (err < 0)
-    {
-        ERROR_PRINT(Error generating code);
-        goto main_out;
-    }
-    for (int i = 0; i < runcfg->codelines->qty; i++)
-    {
-        DEBUG_PRINT(DEBUGLEV_DETAIL, "CODE: %s\n", bdata(runcfg->codelines->entry[i]));
-    }
-
-    /*
      * Start threads
      */
     err = update_threads(runcfg);
@@ -474,6 +458,29 @@ int main(int argc, char** argv)
     {
         ERROR_PRINT(Error updating thread groups);
         goto main_out;
+    }
+
+    /*
+     * Generate assembly
+     */
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        for (int t = 0; t < wg->num_threads; t++)
+        {
+            RuntimeThreadConfig* thread =  &wg->threads[t];
+            thread->codelines = bstrListCreate();
+            err = generate_code(runcfg, thread, thread->codelines);
+            if (err < 0)
+            {
+                ERROR_PRINT(Error generating code);
+                goto main_out;
+            }
+            for (int i = 0; i < thread->codelines->qty; i++)
+            {
+                DEBUG_PRINT(DEBUGLEV_DETAIL, "HWTHREAD %d CODE: %s\n", t, bdata(thread->codelines->entry[i]));
+            }
+        }
     }
 
     /*

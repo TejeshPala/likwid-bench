@@ -73,6 +73,18 @@ int destroy_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
                     free(wg->threads[i].command);
                     wg->threads[i].command = NULL;
                 }
+                if (wg->threads[i].tstreams)
+                {
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread stream configs for thread %3d, wg->threads[i].local_id);
+                    free(wg->threads[i].tstreams);
+                    wg->threads[i].tstreams = NULL;
+                }
+                if (wg->threads[i].codelines)
+                {
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread %3d codelines, wg->threads[i].local_id);
+                    bstrListDestroy(wg->threads[i].codelines);
+                }
+                wg->threads[i].sdata = NULL;
             }
             free(wg->threads);
             wg->threads = NULL;
@@ -183,25 +195,26 @@ double get_time_s()
 int initialize_local(RuntimeThreadConfig* thread, int thread_id)
 {
     int err = 0;
-    for (int s = 0; s < thread->command->num_streams; s++)
+    for (int s = 0; s < thread->num_streams; s++)
     {
-        RuntimeStreamConfig* sdata = &thread->command->tstreams[s];
+        RuntimeStreamConfig* data = &thread->sdata[s];
+        RuntimeThreadStreamConfig* str = &thread->tstreams[s];
         // DEBUG_PRINT(DEBUGLEV_DEVELOP, dims: %d, sdata->dims);
-        size_t elems = getstreamelems(sdata);
+        size_t elems = getstreamelems(data);
         size_t offset;
         size_t size;
-        if (sdata->tsizes > 0 && sdata->toffsets >= 0)
+        if (str->tsizes > 0 && str->toffsets >= 0)
         {
-            offset = sdata->toffsets;
-            size = sdata->tsizes;
+            offset = str->toffsets;
+            size = str->tsizes;
         }
         else
         {
-            elems = getstreamelems(sdata);
+            elems = getstreamelems(data);
             offset = 0;
             size = elems;
         }
-        if (thread->num_threads > 1 && (sdata->tsizes == 0 && sdata->toffsets == 0))
+        if (thread->num_threads > 1 && (str->tsizes == 0 && str->toffsets == 0))
         {
             size_t chunk = elems / thread->num_threads;
             size_t rem_chunk = elems % thread->num_threads;
@@ -212,53 +225,53 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
         }
         DEBUG_PRINT(DEBUGLEV_DEVELOP, thread %3d initializing stream %d with total elements: %ld offset: %ld, thread_id, s, elems, offset);
         printf("hwthread %3d initializing Stream %d Vector Length: %6ld Offset: %-ld\n", thread_id, s, elems, offset);
-        sdata->init_val = thread->command->init_val;
-        RuntimeStreamConfig tmp = *sdata;
-        tmp.dims = sdata->dims;
-        switch ((StreamDimension)sdata->dims)
+        data->init_val = thread->command->init_val;
+        RuntimeStreamConfig tmp = *data;
+        tmp.dims = data->dims;
+        switch ((StreamDimension)data->dims)
         {
             case STREAM_DIM_1D:
                 {
-                    tmp.ptr = (char*)sdata->ptr + (offset * getsizeof(sdata->type));
-                    tmp.dimsizes[0] = size * getsizeof(sdata->type);
+                    tmp.ptr = (char*)data->ptr + (offset * getsizeof(data->type));
+                    tmp.dimsizes[0] = size * getsizeof(data->type);
                     break;
                 }
             case STREAM_DIM_2D:
                 {
-                    size_t rows = sdata->dimsizes[0] / getsizeof(sdata->type);
-                    size_t cols = sdata->dimsizes[1] / getsizeof(sdata->type);
+                    size_t rows = data->dimsizes[0] / getsizeof(data->type);
+                    size_t cols = data->dimsizes[1] / getsizeof(data->type);
                     size_t start_rows = offset / cols;
                     size_t end_rows = (offset + size - 1) / cols;
-                    tmp.ptr = (char*)sdata->ptr + (start_rows * cols);
-                    tmp.dimsizes[0] = (end_rows - start_rows + 1) * getsizeof(sdata->type);
-                    tmp.dimsizes[1] = cols * getsizeof(sdata->type);
+                    tmp.ptr = (char*)data->ptr + (start_rows * cols);
+                    tmp.dimsizes[0] = (end_rows - start_rows + 1) * getsizeof(data->type);
+                    tmp.dimsizes[1] = cols * getsizeof(data->type);
                     break;
                 }
             case STREAM_DIM_3D:
                 {
-                    size_t dim1 = sdata->dimsizes[0] / getsizeof(sdata->type);
-                    size_t dim2 = sdata->dimsizes[1] / getsizeof(sdata->type);
-                    size_t dim3 = sdata->dimsizes[2] / getsizeof(sdata->type);
+                    size_t dim1 = data->dimsizes[0] / getsizeof(data->type);
+                    size_t dim2 = data->dimsizes[1] / getsizeof(data->type);
+                    size_t dim3 = data->dimsizes[2] / getsizeof(data->type);
                     size_t slice = dim2 * dim3;
                     size_t start = offset / slice;
                     size_t end = (offset + size - 1) / slice;
-                    tmp.ptr = (char*)sdata->ptr + (start * slice);
-                    tmp.dimsizes[0] = (end - start + 1) * getsizeof(sdata->type);
-                    tmp.dimsizes[1] = dim2 * getsizeof(sdata->type);
-                    tmp.dimsizes[2] = dim3 * getsizeof(sdata->type);
+                    tmp.ptr = (char*)data->ptr + (start * slice);
+                    tmp.dimsizes[0] = (end - start + 1) * getsizeof(data->type);
+                    tmp.dimsizes[1] = dim2 * getsizeof(data->type);
+                    tmp.dimsizes[2] = dim3 * getsizeof(data->type);
                     break;
                 }
         }
-        tmp.type = sdata->type;
+        tmp.type = data->type;
         tmp.init = init_function;
-        tmp.init_val = sdata->init_val;
+        tmp.init_val = data->init_val;
 
         err = initialize_arrays(&tmp);
         if (err != 0)
         {
             ERROR_PRINT(Initialization failed for stream %d, s);
         }
-        // print_arrays(sdata);
+        // print_arrays(data);
     }
 
     return err;
@@ -267,45 +280,46 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
 int initialize_global(RuntimeThreadConfig* thread)
 {
     int err = 0;
-    for (int i = 0; i < thread->command->num_streams; i++)
+    for (int s = 0; s < thread->num_streams; s++)
     {
-        RuntimeStreamConfig* sdata = &thread->command->tstreams[i];
-        sdata->init_val = thread->command->init_val;
-        RuntimeStreamConfig tmp = *sdata;
-        tmp.ptr = (char*)sdata->ptr;
-        tmp.dims = sdata->dims;
-        switch ((StreamDimension)sdata->dims)
+        RuntimeStreamConfig* data = &thread->sdata[s];
+        RuntimeThreadStreamConfig* str = &thread->tstreams[s];
+        data->init_val = thread->sdata[s].init_val;
+        RuntimeStreamConfig tmp = *data;
+        tmp.ptr = (char*)data->ptr;
+        tmp.dims = data->dims;
+        switch ((StreamDimension)data->dims)
         {
             case STREAM_DIM_1D:
                 {
-                    tmp.dimsizes[0] = sdata->dimsizes[0];
+                    tmp.dimsizes[0] = data->dimsizes[0];
                     break;
                 }
             case STREAM_DIM_2D:
                 {
-                    tmp.dimsizes[0] = sdata->dimsizes[0];
-                    tmp.dimsizes[1] = sdata->dimsizes[1];
+                    tmp.dimsizes[0] = data->dimsizes[0];
+                    tmp.dimsizes[1] = data->dimsizes[1];
                     break;
                 }
             case STREAM_DIM_3D:
                 {
-                    tmp.dimsizes[0] = sdata->dimsizes[0];
-                    tmp.dimsizes[1] = sdata->dimsizes[1];
-                    tmp.dimsizes[2] = sdata->dimsizes[2];
+                    tmp.dimsizes[0] = data->dimsizes[0];
+                    tmp.dimsizes[1] = data->dimsizes[1];
+                    tmp.dimsizes[2] = data->dimsizes[2];
                     break;
                 }
         }
-        tmp.type = sdata->type;
+        tmp.type = data->type;
         tmp.init = init_function;
         tmp.init_val = thread->command->init_val;
 
         err = initialize_arrays(&tmp);
         if (err != 0)
         {
-            ERROR_PRINT(Failed to initialize for stream %d, i);
+            ERROR_PRINT(Failed to initialize for stream %d, s);
             return err;
         }
-        // print_arrays(sdata);
+        // print_arrays(data);
     }
 
     return err;
@@ -634,8 +648,15 @@ int update_threads(RuntimeConfig* runcfg)
             pthread_mutex_init(&thread->command->mutex, &thread->command->m_attr);
             pthread_cond_init(&thread->command->cond, &thread->command->c_attr);
             thread->command->done = 1;
-            thread->command->num_streams = wg->num_streams;
-            thread->command->tstreams = wg->streams;
+            thread->num_streams = wg->num_streams;
+            thread->sdata = wg->streams;
+            thread->tstreams = (RuntimeThreadStreamConfig*)malloc(wg->num_streams * sizeof(RuntimeThreadStreamConfig));
+            if (!thread->tstreams)
+            {
+                ERROR_PRINT(Failed to allocate memory for thread stream config);
+                err = -ENOMEM;
+                goto free;
+            }
             /*
              * printf("tstreams dims: %d\n", thread->command->tstreams->dims);
              * for (int s = 0; s < thread->command->tstreams->dims; s++)
@@ -643,25 +664,25 @@ int update_threads(RuntimeConfig* runcfg)
              */
             thread->command->initialization = runcfg->tcfg->initialization;
             // printf("initialize bool: %d\n", runcfg->tcfg->initialization);
-            thread->command->init_val = malloc(getsizeof(thread->command->tstreams->type));
-            switch(thread->command->tstreams->type)
+            thread->command->init_val = malloc(getsizeof(thread->sdata->type));
+            switch(thread->sdata->type)
             {
                 case TEST_STREAM_TYPE_SINGLE:
-                    *(float*)thread->command->init_val = thread->command->tstreams->data.fval;
+                    *(float*)thread->command->init_val = thread->sdata->data.fval;
                     break;
                 case TEST_STREAM_TYPE_DOUBLE:
-                    *(double*)thread->command->init_val = thread->command->tstreams->data.dval;
+                    *(double*)thread->command->init_val = thread->sdata->data.dval;
                     break;
                 case TEST_STREAM_TYPE_INT:
-                    *(int*)thread->command->init_val = thread->command->tstreams->data.ival;
+                    *(int*)thread->command->init_val = thread->sdata->data.ival;
                     break;
 #ifdef WITH_HALF_PRECISION
                 case TEST_STREAM_TYPE_HALF:
-                    *(_Float16*)thread->command->init_val = thread->command->tstreams->data.f16val;
+                    *(_Float16*)thread->command->init_val = thread->sdata->data.f16val;
                     break;
 #endif
                 case TEST_STREAM_TYPE_INT64:
-                    *(int64_t*)thread->command->init_val = thread->command->tstreams->data.i64val;
+                    *(int64_t*)thread->command->init_val = thread->sdata->data.i64val;
                     break;
             }
 
@@ -676,8 +697,8 @@ int update_threads(RuntimeConfig* runcfg)
             // (explicitly every tstreams in thread command is stored)
             for (int s = 0; s < wg->num_streams; s++)
             {
-                RuntimeStreamConfig* str = &wg->streams[s];
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Calculations for streams%d: %s, s, bdata(str->name));
+                RuntimeThreadStreamConfig* str = &thread->tstreams[s];
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Calculations for streams%d: %s, s, bdata(thread->sdata[s].name));
                 TestConfigStream *istream = &runcfg->tcfg->streams[s];
                 RuntimeWorkgroupResult t_results;
                 err = init_result(&t_results);
@@ -693,7 +714,7 @@ int update_threads(RuntimeConfig* runcfg)
                 {
                     for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
                     {
-                        elems = getstreamelems(&thread->command->tstreams[s]);
+                        elems = getstreamelems(&thread->sdata[s]);
                         add_value(&t_results, istream->dims->entry[k], (double)elems);
                     }
                     add_variable(&t_results, &bnumthreads, bthreads);
@@ -733,39 +754,27 @@ int update_threads(RuntimeConfig* runcfg)
                     {
                         str->tsizes = (int64_t)(elems - str->toffsets);
                     }
-                    bstring bs = bformat("%ld", str->tsizes);
-                    bstring bo = bformat("%ld", str->toffsets);
-                    bstring bstrptr = bformat("STRPTR_WG%d_STREAMS%d", w, s);
-                    void* stream_ptr;
-                    switch(str->type)
+                    switch(thread->sdata[s].type)
                     {
                         case TEST_STREAM_TYPE_SINGLE:
-                            stream_ptr = (void*)((char*) str->ptr + (str->toffsets * sizeof(float)));
+                            str->tstream_ptr = (void*)((char*) thread->sdata[s].ptr + (str->toffsets * sizeof(float)));
                             break;
                         case TEST_STREAM_TYPE_DOUBLE:
-                            stream_ptr = (void*)((char*) str->ptr + (str->toffsets * sizeof(double)));
+                            str->tstream_ptr = (void*)((char*) thread->sdata[s].ptr + (str->toffsets * sizeof(double)));
                             break;
                         case TEST_STREAM_TYPE_INT:
-                            stream_ptr = (void*)((char*) str->ptr + (str->toffsets * sizeof(int)));
+                            str->tstream_ptr = (void*)((char*) thread->sdata[s].ptr + (str->toffsets * sizeof(int)));
                             break;
 #ifdef WITH_HALF_PRECISION
                         case TEST_STREAM_TYPE_HALF:
-                            stream_ptr = (void*)((char*) str->ptr + (str->toffsets * sizeof(_Float16)));
+                            str->tstream_ptr = (void*)((char*) thread->sdata[s].ptr + (str->toffsets * sizeof(_Float16)));
                             break;
 #endif
                         case TEST_STREAM_TYPE_INT64:
-                            stream_ptr = (void*)((char*) str->ptr + (str->toffsets * sizeof(int64_t)));
+                            str->tstream_ptr = (void*)((char*) thread->sdata[s].ptr + (str->toffsets * sizeof(int64_t)));
                             break;
                     }
-                    bstring bptr = bformat("%p", (void*)(stream_ptr));
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream Ptr for WG%d-%s: %p and offset ptr: %p, w, bdata(str->name), str->ptr, stream_ptr);
-                    add_variable(&wg->results[i], bstrptr, bptr);
-                    bdestroy(bptr);
-                    bdestroy(bstrptr);
-                    add_variable(&wg->results[i], &btsizes, bs);
-                    add_variable(&wg->results[i], &btoffsets, bo);
-                    bdestroy(bs);
-                    bdestroy(bo);
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream Ptr for wg%d thread%d-%s: %p and offset ptr: %p, w, i, bdata(thread->sdata[s].name), thread->sdata[s].ptr, (void*)str->tstream_ptr);
                 }
                 bdestroy(bsizes);
                 bdestroy(boffsets);

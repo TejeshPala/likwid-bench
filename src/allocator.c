@@ -617,7 +617,7 @@ int initialize_arrays(RuntimeStreamConfig *sdata)
         datatype* datatype##_ptr = (datatype *)tmp; \
         for (int i = 0; i < elems; i++) \
         { \
-            printf(format " ", datatype##_ptr[i]); \
+            printf(format " ", (datatype)datatype##_ptr[i]); \
         } \
         printf("\n"); \
         break;
@@ -655,7 +655,7 @@ int _print_arrays_1dim(RuntimeStreamConfig *sdata)
         { \
             for (int j = 0; j < size2; j++) \
             { \
-                printf(format " ", datatype##_ptr[i][j]); \
+                printf(format " ", (datatype)datatype##_ptr[i][j]); \
             } \
             printf("\n"); \
         } \
@@ -698,7 +698,7 @@ int _print_arrays_2dim(RuntimeStreamConfig *sdata)
             { \
                 for (int k = 0; k < size3; k++) \
                 { \
-                    printf(format " ", datatype##_ptr[i][j][k]); \
+                    printf(format " ", (datatype)datatype##_ptr[i][j][k]); \
                 } \
                 printf("\n"); \
             } \

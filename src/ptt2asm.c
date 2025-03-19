@@ -518,7 +518,7 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out, struct bstrList* regs
     return 0;
 }
 
-static int _generate_replacement_lists(RuntimeConfig* runcfg, struct bstrList* keys, struct bstrList* values, int* maxKeyLength, struct bstrList* regsused)
+static int _generate_replacement_lists(RuntimeConfig* runcfg, RuntimeThreadConfig* thread, struct bstrList* keys, struct bstrList* values, int* maxKeyLength, struct bstrList* regsused)
 {
     TestConfig_t config = runcfg->tcfg;
     int maxs = 0;
@@ -552,55 +552,52 @@ static int _generate_replacement_lists(RuntimeConfig* runcfg, struct bstrList* k
     // - Infos about threading
     struct bstrList* blines = bstrListCreate();
     int str_count = 0;
-    for (int w = 0; w < runcfg->num_wgroups; w++)
+    if (thread->num_streams > regsavail->qty)
     {
-        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
-        if (wg->num_streams > regsavail->qty)
+        ERROR_PRINT(The Number of streams %d is higher than the %d registers available, thread->num_streams, regsavail->qty);
+        bstrListDestroy(regsavail);
+        bstrListDestroy(blines);
+        return -EINVAL;
+    }
+    for (int s = 0; s < thread->num_streams; s++)
+    {
+        RuntimeStreamConfig* data = &thread->sdata[s];
+        RuntimeThreadStreamConfig* str = &thread->tstreams[s];
+        for (int i = 0; i < regsavail->qty && data->name; i++)
         {
-            ERROR_PRINT(The Number of stream %d is higher than the %d registers available in workgroup %d, wg->num_streams, regsavail->qty, w);
-            bstrListDestroy(regsavail);
-            bstrListDestroy(blines);
-            return -EINVAL;
-        }
-        for (int s = 0; s < wg->num_streams; s++)
-        {
-            RuntimeStreamConfig* str = &wg->streams[s];
-            for (int i = 0; i < regsavail->qty && str->name; i++)
-            {
-                str_count++;
-                bstrListAdd(keys, str->name);
-                bstring reg = bformat("%s", bdata(regsavail->entry[i]));
-                bstring ptr = bformat("%p", str->ptr);
-                bstrListAdd(values, reg);
+            str_count++;
+            bstrListAdd(keys, data->name);
+            bstring reg = bformat("%s", bdata(regsavail->entry[i]));
+            bstring ptr = bformat("%p", str->tstream_ptr);
+            bstrListAdd(values, reg);
 #if defined(__x86_64) || defined(__x86_64__)
-                bstring line = bformat("mov %s, STRPTR_WG%d_STREAMS%d", bdata(regsavail->entry[i]), w, s);
+            bstring line = bformat("mov %s, %s", bdata(regsavail->entry[i]), bdata(ptr));
 #elif defined(__ARM_ARCH_8A) || defined(__aarch64__) || defined(__arm__)
-                bstring line = bformat("ldr %s, =STRPTR_WG%d_STREAMS%d", bdata(regsavail->entry[i]), w, s);
+            bstring line = bformat("ldr %s, =%s", bdata(regsavail->entry[i]), bdata(ptr));
 #elif defined(_ARCH_PPC) || defined(__powerpc) || defined(__ppc__) || defined(__PPC__)
-                bstring line = bformat("mov %s, STRPTR_WG%d_STREAMS%d", bdata(regsavail->entry[i]), w, s); // to be replaced
+            bstring line = bformat("mov %s, %s", bdata(regsavail->entry[i]), bdata(ptr)); // to be replaced
 #endif
-                bstrListAdd(blines, line);
-                if (bstrListRemove(regsavail, reg) == BSTR_OK)
-                {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Register '%s' removed: List of registers available, bdata(reg));
-                    if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(regsavail);
-                }
-                bdestroy(reg);
-                bdestroy(ptr);
-                bdestroy(line);
-                break;
-            }
-
-            TestConfigStream *tstr = &runcfg->tcfg->streams[s];
-            for (int d = 0; d < str->dims; d++)
+            bstrListAdd(blines, line);
+            if (bstrListRemove(regsavail, reg) == BSTR_OK)
             {
-                bstring k = bformat("#%s", bdata(tstr->dims->entry[d]));
-                bstring v = bformat("sizes");
-                bstrListAdd(keys, k);
-                bstrListAdd(values, v);
-                bdestroy(k);
-                bdestroy(v);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Register '%s' removed: List of registers available, bdata(reg));
+                if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(regsavail);
             }
+            bdestroy(reg);
+            bdestroy(ptr);
+            bdestroy(line);
+            break;
+        }
+
+        TestConfigStream *tstr = &runcfg->tcfg->streams[s];
+        for (int d = 0; d < data->dims; d++)
+        {
+            bstring k = bformat("#%s", bdata(tstr->dims->entry[d]));
+            bstring v = bformat("%d", str->tsizes);
+            bstrListAdd(keys, k);
+            bstrListAdd(values, v);
+            bdestroy(k);
+            bdestroy(v);
         }
     }
     if (str_count > 0)
@@ -641,7 +638,7 @@ static int _generate_replacement_lists(RuntimeConfig* runcfg, struct bstrList* k
     return 0;
 }
 
-int generate_code(RuntimeConfig* runcfg, struct bstrList* out)
+int generate_code(RuntimeConfig* runcfg, RuntimeThreadConfig* thread, struct bstrList* out)
 {
     TestConfig_t config = runcfg->tcfg;
     struct bstrList* tmp = bstrListCreate();
@@ -654,7 +651,7 @@ int generate_code(RuntimeConfig* runcfg, struct bstrList* out)
     struct bstrList* keys = bstrListCreate();
     struct bstrList* values = bstrListCreate();
     int maxLength = 0;
-    int err = _generate_replacement_lists(runcfg, keys, values, &maxLength, regsused);
+    int err = _generate_replacement_lists(runcfg, thread, keys, values, &maxLength, regsused);
     
     for (int i = 0; i < tmp->qty; i++)
     {
