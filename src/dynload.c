@@ -58,60 +58,54 @@ bstring get_compiler(bstring candidates)
     return compiler;
 }
 
-int open_function(RuntimeWorkgroupConfig *wcfg)
+int open_function(RuntimeThreadConfig* thread)
 {
-    for (int t = 0; t < wcfg->num_threads; t++)
+    char *error = NULL;
+    void* (*owndlopen)(const char*, int) = dlopen;
+    void* (*owndlsym)(void*, const char*) = dlsym;
+    int (*ownaccess)(const char*, int) = access;
+    if (!ownaccess(bdata(thread->testconfig->objfile), F_OK))
     {
-        RuntimeThreadConfig* thread = &wcfg->threads[t];
-        char *error = NULL;
-        void* (*owndlopen)(const char*, int) = dlopen;
-        void* (*owndlsym)(void*, const char*) = dlsym;
-        int (*ownaccess)(const char*, int) = access;
-        if (!ownaccess(bdata(thread->testconfig.objfile), F_OK))
-        {
-            dlerror();
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Opening object file %s, bdata(thread->testconfig.objfile));
-            thread->testconfig.dlhandle = owndlopen(bdata(thread->testconfig.objfile), RTLD_LAZY);
-            if (!thread->testconfig.dlhandle) {
-                ERROR_PRINT(Error dynloading file %s: %s, bdata(thread->testconfig.objfile), dlerror());
-                return -1;
-            }
-            dlerror();
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Loading function %s from object file %s, bdata(thread->testconfig.functionname), bdata(thread->testconfig.objfile));
-            thread->testconfig.function = owndlsym(thread->testconfig.dlhandle, bdata(thread->testconfig.functionname));
-            if ((error = dlerror()) != NULL)  {
-                dlclose(thread->testconfig.dlhandle);
-                thread->testconfig.dlhandle = NULL;
-                ERROR_PRINT(Error dynloading function %s from file %s: %s, bdata(thread->testconfig.functionname), bdata(thread->testconfig.objfile), error);
-                return -1;
-            }
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Function pointer %p, thread->testconfig.function);
-            dlerror();
+        dlerror();
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Opening object file %s, bdata(thread->testconfig->objfile));
+        thread->testconfig->dlhandle = owndlopen(bdata(thread->testconfig->objfile), RTLD_LAZY);
+        if (!thread->testconfig->dlhandle) {
+            ERROR_PRINT(Error dynloading file %s: %s, bdata(thread->testconfig->objfile), dlerror());
+            return -1;
         }
-        else
-        {
-            return -ENOENT;
+        dlerror();
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Loading function %s from object file %s, bdata(thread->testconfig->functionname), bdata(thread->testconfig->objfile));
+        thread->testconfig->function = owndlsym(thread->testconfig->dlhandle, bdata(thread->testconfig->functionname));
+        if ((error = dlerror()) != NULL)  {
+            dlclose(thread->testconfig->dlhandle);
+            thread->testconfig->dlhandle = NULL;
+            ERROR_PRINT(Error dynloading function %s from file %s: %s, bdata(thread->testconfig->functionname), bdata(thread->testconfig->objfile), error);
+            return -1;
         }
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, Function pointer %p, thread->testconfig->function);
+        dlerror();
+    }
+    else
+    {
+        return -ENOENT;
     }
     return 0;
 }
 
-int close_function(RuntimeWorkgroupConfig *wcfg)
+int close_function(RuntimeThreadConfig* thread)
 {
-    for (int t = 0; t < wcfg->num_threads; t++)
+    if (thread->testconfig->dlhandle)
     {
-        RuntimeThreadConfig* thread = &wcfg->threads[t];
-        if (thread->testconfig.dlhandle)
-        {
-            dlclose(thread->testconfig.dlhandle);
-            thread->testconfig.dlhandle = NULL;
-            thread->testconfig.function = NULL;
-        }
-        if (thread->testconfig.objfile) bdestroy(thread->testconfig.objfile);
-        if (thread->testconfig.functionname) bdestroy(thread->testconfig.functionname);
-        if (thread->testconfig.flags) bdestroy(thread->testconfig.flags);
-        if (thread->testconfig.compiler) bdestroy(thread->testconfig.compiler);
+        dlclose(thread->testconfig->dlhandle);
+        thread->testconfig->dlhandle = NULL;
+        thread->testconfig->function = NULL;
     }
+    if (thread->testconfig->objfile) bdestroy(thread->testconfig->objfile);
+    if (thread->testconfig->functionname) bdestroy(thread->testconfig->functionname);
+    if (thread->testconfig->flags) bdestroy(thread->testconfig->flags);
+    if (thread->testconfig->compiler) bdestroy(thread->testconfig->compiler);
+    free(thread->testconfig);
+    thread->testconfig = NULL;
     return 0;
 }
 
@@ -273,12 +267,13 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
         }
         bstrListDestroy(wcodelines);
 
-        thread->testconfig.objfile = objfile;
-        thread->testconfig.compiler = compiler;
-        thread->testconfig.flags = flags;
-        thread->testconfig.functionname = rcfg->testname;
-        thread->testconfig.dlhandle = NULL;
-        thread->testconfig.function = NULL;
+        thread->testconfig->objfile = bstrcpy(objfile);
+        thread->testconfig->compiler = bstrcpy(compiler);
+        thread->testconfig->flags = bstrcpy(flags);
+        thread->testconfig->functionname = bstrcpy(rcfg->testname);
+        thread->testconfig->dlhandle = NULL;
+        thread->testconfig->function = NULL;
+        bdestroy(objfile);
     }
     bdestroy(flags);
     bdestroy(compiler);

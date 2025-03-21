@@ -234,7 +234,7 @@ typedef struct {
     thread_data_t data;
     RuntimeThreadCommand* command;
     int num_threads;
-    RuntimeTestConfig testconfig;
+    RuntimeTestConfig* testconfig;
     struct bstrList* codelines;
     int num_streams;
     RuntimeStreamConfig* sdata;

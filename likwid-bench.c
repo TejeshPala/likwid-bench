@@ -116,6 +116,10 @@ void free_runtime_config(RuntimeConfig* runcfg)
                         destroy_result(&runcfg->wgroups[i].results[j]);
                         if (runcfg->wgroups[i].threads)
                         {
+                            if (runcfg->wgroups[i].threads[j].testconfig)
+                            {
+                                close_function(&runcfg->wgroups[i].threads[j]);
+                            }
                             if (runcfg->wgroups[i].threads[j].data)
                             {
                                 free(runcfg->wgroups[i].threads[j].data);
@@ -130,10 +134,6 @@ void free_runtime_config(RuntimeConfig* runcfg)
                                 }
                                 free(runcfg->wgroups[i].threads[j].command);
                                 runcfg->wgroups[i].threads[j].command = NULL;
-                            }
-                            if (runcfg->wgroups[i].threads[j].testconfig.function)
-                            {
-                                close_function(&runcfg->wgroups[i]);
                             }
                             if (runcfg->wgroups[i].threads[j].codelines)
                             {
@@ -494,11 +494,19 @@ int main(int argc, char** argv)
             ERROR_PRINT(Error generating function object);
             goto main_out;
         }
-        err = open_function(&runcfg->wgroups[i]);
-        if (err < 0)
+    }
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        for (int i = 0; i < wg->num_threads; i++)
         {
-            ERROR_PRINT(Error opening function objects);
-            goto main_out;
+            RuntimeThreadConfig* thread =  &wg->threads[i];
+            err = open_function(thread);
+            if (err < 0)
+            {
+                ERROR_PRINT(Error opening function objects);
+                goto main_out;
+            }
         }
     }
 
@@ -538,8 +546,8 @@ int main(int argc, char** argv)
         for (int i = 0; i < wg->num_threads; i++)
         {
             RuntimeThreadConfig* thread =  &wg->threads[i];
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting thread %d run command function to %p, thread->local_id, thread->testconfig.function);
-            thread->command->cmdfunc.run = thread->testconfig.function;
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting thread %d run command function to %p, thread->local_id, thread->testconfig->function);
+            thread->command->cmdfunc.run = thread->testconfig->function;
             err = send_cmd(LIKWID_THREAD_COMMAND_RUN, thread);
             if (err < 0)
             {
@@ -595,6 +603,23 @@ int main(int argc, char** argv)
         ERROR_PRINT(Error destroying thread groups);
         goto main_out;
     }
+
+    /*
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        for (int i = 0; i < wg->num_threads; i++)
+        {
+            RuntimeThreadConfig* thread =  &wg->threads[i];
+            err = close_function(thread);
+            if (err < 0)
+            {
+                ERROR_PRINT(Error closing function objects);
+                goto main_out;
+            }
+        }
+    }
+    */
 
     /*
      * * Calculate metrics

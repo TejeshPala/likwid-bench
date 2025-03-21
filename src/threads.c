@@ -24,6 +24,7 @@
 #include "calculator.h"
 #include "results.h"
 #include "bench.h"
+#include "dynload.h"
 
 #if defined(_GNU_SOURCE) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 4)) && HAS_SCHEDAFFINITY
     #define USE_PTHREAD_AFFINITY 1
@@ -72,6 +73,11 @@ int destroy_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
                     DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying commands for thread %3d, wg->threads[i].local_id);
                     free(wg->threads[i].command);
                     wg->threads[i].command = NULL;
+                }
+                if (wg->threads[i].testconfig)
+                {
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying thread test configs for thread %3d, wg->threads[i].local_id);
+                    close_function(&wg->threads[i]);
                 }
                 if (wg->threads[i].tstreams)
                 {
@@ -625,6 +631,13 @@ int update_threads(RuntimeConfig* runcfg)
             if (!thread->command)
             {
                 ERROR_PRINT(Failed to allocate memory for thread commands);
+                err = -ENOMEM;
+                goto free;
+            }
+            thread->testconfig = (RuntimeTestConfig*)malloc(sizeof(RuntimeTestConfig));
+            if (!thread->testconfig)
+            {
+                ERROR_PRINT(Failed to allocate memory for thread test config);
                 err = -ENOMEM;
                 goto free;
             }
