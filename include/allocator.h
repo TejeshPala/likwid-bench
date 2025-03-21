@@ -1,9 +1,19 @@
 #ifndef ALLOCATOR_H
 #define ALLOCATOR_H
 
+#include <unistd.h>
+
+
 #include "test_types.h"
 
-#define CL_SIZE 64
+static inline size_t get_cl_size()
+{
+    size_t cl_size = (size_t)sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+    // fprintf(stdout, "CL_SIZE from SYSCONF: %zu Bytes\n", cl_size);
+    return ((cl_size > 0 && cl_size <= 64) ? cl_size : 64);
+}
+
+#define CL_SIZE get_cl_size()
 
 int getsizeof(TestConfigStreamType);
 size_t getstreamelems(RuntimeStreamConfig *sdata);
