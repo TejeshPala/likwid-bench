@@ -129,6 +129,28 @@ int sortfunc(const struct tagbstring * left, const struct tagbstring * right)
     return 0;
 }
 
+int bmkstemp(bstring template)
+{
+    int (*mymkstemp)(char* fname) = mkstemp;
+    if (template && bdata(template) != NULL)
+    {
+        return mymkstemp(bdata(template));
+    }
+    errno = EINVAL;
+    return -1;
+}
+
+int bunlink(bstring filename)
+{
+    int (*myunlink)(const char* fname) = unlink;
+    if (filename && bdata(filename) != NULL)
+    {
+        return myunlink(bdata(filename));
+    }
+    errno = EINVAL;
+    return -1;
+}
+
 int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConfig* wcfg)
 {
     int ret = 0;
@@ -148,7 +170,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
         }
 
         filetemplate = bformat("/tmp/likwid-bench-t%d-XXXXXX", t);
-        fd = mkstemp(bdata(filetemplate));
+        fd = bmkstemp(filetemplate);
         if (fd == -1)
         {
             ERROR_PRINT(Failed to get temporary file name for assembly);
@@ -160,7 +182,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
 
         asmfile = bstrcpy(filetemplate);
         close(fd);
-        if (unlink(bdata(filetemplate)) == -1)
+        if (bunlink(filetemplate) == -1)
         {
             ERROR_PRINT(Failed to unlink '%s', bdata(filetemplate));
             bdestroy(compiler);
