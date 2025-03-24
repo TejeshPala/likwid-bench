@@ -8,9 +8,15 @@
 
 static inline size_t get_cl_size()
 {
-    size_t cl_size = (size_t)sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
-    // fprintf(stdout, "CL_SIZE from SYSCONF: %zu Bytes\n", cl_size);
-    return ((cl_size > 0 && cl_size <= 64) ? cl_size : 64);
+    static size_t c_cl_size = 0;
+    if (c_cl_size == 0)
+    {
+        size_t cl_size = (size_t)sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+        // fprintf(stdout, "CL_SIZE from SYSCONF: %zu Bytes\n", cl_size);
+        c_cl_size = ((cl_size > 0 && !(cl_size & 7)) ? cl_size : 64);
+        // fprintf(stdout, "Final CL_SIZE from SYSCONF: %zu Bytes\n", c_cl_size);
+    }
+    return c_cl_size;
 }
 
 #define CL_SIZE get_cl_size()
