@@ -19,7 +19,10 @@
 extern int global_verbosity;
 
 #define ERROR_PRINT(msg, ...) \
-   fprintf(stderr,  "ERROR - [%s:%s:%d] %s: " STRINGIFY(msg) "\n", __FILE__, __func__,__LINE__, strerror(errno), ##__VA_ARGS__);
+    fprintf(stderr, "ERROR - [%s:%s:%d] %s: " STRINGIFY(msg) "\n", __FILE__, __func__,__LINE__, strerror(errno), ##__VA_ARGS__);
+
+#define WARN_PRINT(msg, ...) \
+    fprintf(stderr, "WARN - " STRINGIFY(msg) "\n", ##__VA_ARGS__);
 
 #define DEBUG_PRINT(lev, fmt, ...) \
     if (((lev) >= 0) && ((lev) <= global_verbosity)) { \

@@ -2,6 +2,7 @@
 #define _GNU_SOURCE
 #endif
 
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -15,6 +16,7 @@
 #include <sys/time.h>
 #include <sys/syscall.h>
 
+#include "test_strings.h"
 #include "test_types.h"
 #include "thread_group.h"
 #include "error.h"
@@ -25,6 +27,8 @@
 #include "results.h"
 #include "bench.h"
 #include "dynload.h"
+#include "bitmask.h"
+
 
 #if defined(_GNU_SOURCE) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 4)) && HAS_SCHEDAFFINITY
     #define USE_PTHREAD_AFFINITY 1
@@ -563,11 +567,6 @@ int update_threads(RuntimeConfig* runcfg)
     uint64_t iter;
     int total_threads = 0;
     TestConfigStream* t = runcfg->tcfg->streams;
-    static struct tagbstring bnumthreads = bsStatic("NUM_THREADS");
-    static struct tagbstring bthreadid = bsStatic("THREAD_ID");
-    static struct tagbstring biter = bsStatic("ITER");
-    static struct tagbstring btsizes = bsStatic("sizes");
-    static struct tagbstring btoffsets = bsStatic("offsets");
 
     if (runcfg->iterations >= 0)
     {
@@ -614,17 +613,20 @@ int update_threads(RuntimeConfig* runcfg)
             goto free;
         }
 
+        size_t bytesperiter;
+        get_variable(&wg->results[0], &bbytesperiter, &bytesperiter);
+        // printf("bytesperiter: %zu\n", bytesperiter);
         for (int i = 0; i < wg->num_threads; i++)
         {
-            err = update_variable(&wg->results[i], &biter, brun_iters);
+            err = update_variable(&wg->results[i], &biterations, brun_iters);
             if (err == 0)
             {
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Variable updated for thread %d for key %s with value %lf, i, bdata(&biter), (double)runcfg->iterations);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Variable updated for thread %d for key %s with value %lf, i, bdata(&biterations), (double)runcfg->iterations);
             }
-            err = update_variable(runcfg->global_results, &biter, brun_iters);
+            err = update_variable(runcfg->global_results, &biterations, brun_iters);
             if (err == 0)
             {
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Variable updated in global results for key %s with value %lf, bdata(&biter), (double)runcfg->iterations);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, Variable updated in global results for key %s with value %lf, bdata(&biterations), (double)runcfg->iterations);
             }
             RuntimeThreadConfig* thread = &wg->threads[i];
             thread->command = (RuntimeThreadCommand*)malloc(sizeof(RuntimeThreadCommand));
@@ -767,6 +769,23 @@ int update_threads(RuntimeConfig* runcfg)
                     {
                         str->tsizes = (int64_t)(elems - str->toffsets);
                     }
+                    DEBUG_PRINT(DEBUGLEV_INFO, thread: %d tsizes: %zu toffsets: %zu, i, str->tsizes, str->toffsets);
+                    if (str->tsizes % bytesperiter != 0 || str->toffsets % bytesperiter != 0)
+                    {
+                        if (thread->local_id == 0 && s == 0) WARN_PRINT(SANITIZING A rounddown is applied on each thread sizes and offsets as %s is set to %zu, bdata(&bbytesperiter), bytesperiter);
+                        if (!is_multipleof_pow2(str->tsizes, bytesperiter))
+                        {
+                            rounddown_nbits_pow2(&str->tsizes, str->tsizes, bytesperiter);
+                            rounddown_nbits_pow2(&str->toffsets, str->toffsets, bytesperiter);
+                        }
+                        else if (!is_multipleof_nbits(str->tsizes, bytesperiter))
+                        {
+                            rounddown_nbits(&str->tsizes, str->tsizes, bytesperiter);
+                            // roundnearest_nbits(&str->toffsets, str->toffsets, bytesperiter);
+                            rounddown_nbits(&str->toffsets, str->toffsets, bytesperiter);
+                        }
+                    }
+                    DEBUG_PRINT(DEBUGLEV_INFO, After rounddown - thread: %d tsizes: %zu toffsets: %zu, i, str->tsizes, str->toffsets);
                     switch(thread->sdata[s].type)
                     {
                         case TEST_STREAM_TYPE_SINGLE:
