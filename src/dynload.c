@@ -219,6 +219,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
                     ret = get_bmap_by_key(wcfg->results[t].values, sorted_valkeys->entry[j], (void**)&val);
                     if (ret == 0)
                     {
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing '%s' with '%s' in '%s', bdata(sorted_valkeys->entry[j]), bdata(val), bdata(wcodelines->entry[i]));
                         bfindreplace(wcodelines->entry[i], sorted_valkeys->entry[j], val, 0);
                     }
                 }
@@ -231,6 +232,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
                     ret = get_bmap_by_key(wcfg->results[t].variables, sorted_varkeys->entry[j], (void**)&val);
                     if (ret == 0)
                     {
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing '%s' with '%s' in '%s', bdata(sorted_varkeys->entry[j]), bdata(val), bdata(wcodelines->entry[i]));
                         bfindreplace(wcodelines->entry[i], sorted_varkeys->entry[j], val, 0);
                     }
                 }
