@@ -467,7 +467,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
                         {
                             if (blength(tmp_tcfg_keys->entry[k]) == l && binstr(btmp, 0, tmp_tcfg_keys->entry[k]) != BSTR_ERR)
                             {
-                                DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing '%s' with '%s' in '%s', bdata(tmp_tcfg_keys->entry[k]), bdata(tmp_tcfg_values->entry[k]), bdata(btmp));
+                                DEBUG_PRINT(DEBUGLEV_DEVELOP, "Replacing '%s' with '%s' in '%s'", bdata(tmp_tcfg_keys->entry[k]), bdata(tmp_tcfg_values->entry[k]), bdata(btmp));
                                 bfindreplace(btmp, tmp_tcfg_keys->entry[k], tmp_tcfg_values->entry[k], 0);
                             }
                         }
