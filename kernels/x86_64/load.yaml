@@ -30,7 +30,6 @@
   BYTES_PER_ITER: 64
   LOADS_PER_ITER: 8
   INST_PER_ITER: 8
-  UNROLL_FACTOR: 8
 
 - Metrics:
   Read bandwidth [MByte/s]: BYTES_PER_ITER*ITER/TIME
@@ -40,7 +39,7 @@
 - Threads:
 - Language: asm
 ...
-LOOP(loop, rax=0, <, rdi=N, UNROLL_FACTOR)
+LOOP(loop, rax=0, <, rdi=N, 8)
 movsd    xmm0, [STR0 + rax * 8]
 movsd    xmm1, [STR0 + rax * 8 + 8]
 movsd    xmm2, [STR0 + rax * 8 + 16]
