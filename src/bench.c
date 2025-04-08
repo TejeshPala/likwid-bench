@@ -83,11 +83,11 @@ int run_benchmark(RuntimeThreadConfig* data)
         // Pinning gets reset later to the original cpuset
         CPU_ZERO(&runset);
         CPU_SET(myData->hwthread, &runset);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Pinning task to hwthread %d, myData->hwthread);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Pinning task to hwthread %d", myData->hwthread);
         sched_setaffinity(0, sizeof(cpu_set_t), &runset);
     }
 
-    if (!data->barrier) DEBUG_PRINT(DEBUGLEV_DEVELOP, Run in serial mode);
+    if (!data->barrier) DEBUG_PRINT(DEBUGLEV_DEVELOP, "Run in serial mode");
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier);
 
     /* Up to 10 streams the following registers are used for Array ptr:
@@ -100,7 +100,7 @@ int run_benchmark(RuntimeThreadConfig* data)
 
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Thread %3d starts benchmark execution: %s, data->local_id, ctime(&ts.tv_sec));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Thread %3d starts benchmark execution: %s", data->local_id, ctime(&ts.tv_sec));
 
     // not sure whether we need to give the sizes here. Since we compile the code, we could add the sizes there directly
     // as constants
@@ -388,12 +388,12 @@ int run_benchmark(RuntimeThreadConfig* data)
 
     data->runtime = (double)myData->min_runtime / NANOS_PER_SEC;
     data->cycles = myData->cycles;
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Thread %3d execution took %.15f seconds, data->local_id, data->runtime);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Thread %3d execution took %.15f seconds", data->local_id, data->runtime);
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier);
 
     if (CPU_COUNT(&runset) > 0)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Reset task affinity to %d hwthreads, CPU_COUNT(&cpuset));
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Reset task affinity to %d hwthreads", CPU_COUNT(&cpuset));
         sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
     }
     return 0;

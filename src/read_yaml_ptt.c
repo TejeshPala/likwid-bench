@@ -557,7 +557,7 @@ void close_vars(int num_vars, TestConfigVariable* vars)
     int i = 0;
     if (num_vars > 0 && vars)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying %d variables, num_vars);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroying %d variables", num_vars);
         for (i = 0; i < num_vars; i++)
         {
             TestConfigVariable* s = &vars[i];
@@ -574,7 +574,7 @@ void close_streams(int num_streams, TestConfigStream* streams)
     int i = 0;
     if (num_streams > 0 && streams)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying %d streams, num_streams);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroying %d streams", num_streams);
         for (i = 0; i < num_streams; i++)
         {
             TestConfigStream* s = &streams[i];
@@ -593,7 +593,7 @@ void close_parameters(int num_params, TestConfigParameter* params)
     int i = 0;
     if (num_params > 0 && params)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying %d parameters, num_params);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroying %d parameters", num_params);
         for (i = 0; i < num_params; i++)
         {
             TestConfigParameter* p = &params[i];
@@ -610,31 +610,31 @@ void close_yaml_ptt(TestConfig_t config)
 {
     if (config)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying name in TestConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroying name in TestConfig");
         bdestroy(config->name);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying description in TestConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroying description in TestConfig");
         bdestroy(config->description);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying language in TestConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroying language in TestConfig");
         bdestroy(config->language);
         if (config->code)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying code in TestConfig);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroying code in TestConfig");
             bdestroy(config->code);
             config->code = NULL;
         }
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying constants in TestConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroying constants in TestConfig");
         close_vars(config->num_constants, config->constants);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying variables in TestConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroying variables in TestConfig");
         close_vars(config->num_vars, config->vars);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying metrics in TestConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroying metrics in TestConfig");
         close_vars(config->num_metrics, config->metrics);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying streams in TestConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroying streams in TestConfig");
         close_streams(config->num_streams, config->streams);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying parameters in TestConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroying parameters in TestConfig");
         close_parameters(config->num_params, config->params);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying flags in TestConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroying flags in TestConfig");
         bstrListDestroy(config->flags);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroying TestConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroying TestConfig");
         free(config);
         config = NULL;
     }

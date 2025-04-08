@@ -97,7 +97,7 @@ int addCliOption(CliOptions* options, CliOption* new)
     }
     if ((!name_free) && (!symbol_free))
     {
-        ERROR_PRINT(Name '%s' and symbol '%s' already taken, bdata(new->name), bdata(new->symbol));
+        ERROR_PRINT("Name '%s' and symbol '%s' already taken", bdata(new->name), bdata(new->symbol));
         return -EINVAL;
     }
     CliOption* tmp = realloc(options->options, (options->num_options+1) * sizeof(CliOption));
@@ -258,7 +258,7 @@ static void set_required_argument(CliOption* x, bstring arg)
     {
         btrunc(x->value, 0);
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Set argument for %s/%s: %s, bdata(x->symbol), bdata(x->name), bdata(arg));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Set argument for %s/%s: %s", bdata(x->symbol), bdata(x->name), bdata(arg));
     bconcat(x->value, arg);
 }
 
@@ -268,7 +268,7 @@ static void add_multi_argument(bstring combine, bstring arg)
     {
         bconchar(combine, ' ');
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Add argument for multi_argument %s, bdata(arg));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Add argument for multi_argument %s", bdata(arg));
     bconcat(combine, arg);
 }
 
@@ -447,11 +447,11 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
             const char* cpath = bdata(path);
             if (access(cpath, R_OK))
             {
-                ERROR_PRINT(Test %s does not exist in folder %s, bdata(opt->value), bdata(runcfg->kernelfolder));
+                ERROR_PRINT("Test %s does not exist in folder %s", bdata(opt->value), bdata(runcfg->kernelfolder));
             }
             else
             {
-                DEBUG_PRINT(DEBUGLEV_DETAIL, Using kernel file %s, bdata(path));
+                DEBUG_PRINT(DEBUGLEV_DETAIL, "Using kernel file %s", bdata(path));
                 btrunc(runcfg->testname, 0);
                 bconcat(runcfg->testname, opt->value);
                 btrunc(runcfg->pttfile, 0);
@@ -469,7 +469,7 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
             const char* cval = bdata(opt->value);
             if (access(cval, W_OK|X_OK))
             {
-                ERROR_PRINT(Folder for temporary files not accessible or writable);
+                ERROR_PRINT("Folder for temporary files not accessible or writable");
             }
             else
             {
@@ -495,7 +495,7 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
         else if (bstrcmp(opt->name, &bruntime) == BSTR_OK && blength(opt->value) > 0)
         {
             runcfg->runtime =  convertToSeconds(opt->value);
-            DEBUG_PRINT(DEBUGLEV_DETAIL, Runtime(in seconds) set as %.15f, runcfg->runtime);
+            DEBUG_PRINT(DEBUGLEV_DETAIL, "Runtime(in seconds) set as %.15f", runcfg->runtime);
         }
         else if (bstrcmp(opt->name, &boutput) == BSTR_OK && blength(opt->value) > 0)
         {
@@ -518,7 +518,7 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
 
     if (runcfg->runtime != -1.0 && runcfg->iterations != 0)
     {
-        ERROR_PRINT(Runtime and Iterations cannot be set at a time);
+        ERROR_PRINT("Runtime and Iterations cannot be set at a time");
         return -EINVAL;
     }
 
@@ -534,7 +534,7 @@ int generateTestCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     }
     if (runcfg->tcfg->requirewg)
     {
-        DEBUG_PRINT(DEBUGLEV_DETAIL, Workgroup is set to %s so -w/--workgroup option will be parsed, "true");
+        DEBUG_PRINT(DEBUGLEV_DETAIL, "Workgroup is set to '%s' so -w/--workgroup option will be parsed", "true");
         err = addConstCliOptions(options, &wgroupopts);
         if (err < 0)
         {
@@ -543,7 +543,7 @@ int generateTestCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     }
     else
     {
-        DEBUG_PRINT(DEBUGLEV_DETAIL, Workgroup is set to %s so skipping -w/--workgroup parsing, "false");
+        DEBUG_PRINT(DEBUGLEV_DETAIL, "Workgroup is set to '%s' so skipping -w/--workgroup parsing", "false");
     }
 
     for (int i = 0; i < runcfg->tcfg->num_params; i++)
@@ -582,7 +582,7 @@ static int add_runtime_parameter(RuntimeConfig* runcfg, TestConfigParameter* par
         return -ENOMEM;
     }
     runcfg->params = tmp;
-    DEBUG_PRINT(DEBUGLEV_DETAIL, Adding runtime parameter %s, bdata(param->name));
+    DEBUG_PRINT(DEBUGLEV_DETAIL, "Adding runtime parameter %s", bdata(param->name));
     runcfg->params[runcfg->num_params].name = bstrcpy(param->name);
     runcfg->params[runcfg->num_params].value = NULL;
     runcfg->params[runcfg->num_params].values= NULL;
@@ -611,18 +611,18 @@ int assignTestCliOptions(CliOptions* options, RuntimeConfig* runcfg)
         TestConfigParameter* param = &runcfg->tcfg->params[i];
         bstring paramname = bfromcstr("--");
         bconcat(paramname, param->name);
-        DEBUG_PRINT(DEBUGLEV_DETAIL, Searching for parameter %s, bdata(paramname));
+        DEBUG_PRINT(DEBUGLEV_DETAIL, "Searching for parameter %s", bdata(paramname));
         for (int j = 0; j < options->num_options; j++)
         {
             CliOption* opt = &options->options[j];
-            DEBUG_PRINT(DEBUGLEV_DETAIL, Comparing with CLI option %s, bdata(opt->name));
+            DEBUG_PRINT(DEBUGLEV_DETAIL, "Comparing with CLI option %s", bdata(opt->name));
             if (bstrncmp(paramname, opt->name, blength(paramname)) == BSTR_OK && (blength(opt->value) > 0 || opt->values->qty > 0))
             {
                 int err = add_runtime_parameter(runcfg, param, opt);
                 if (err != 0)
                 {
                     errno = EINVAL;
-                    ERROR_PRINT(Cannot add runtime parameter %s, bdata(opt->name));
+                    ERROR_PRINT("Cannot add runtime parameter %s", bdata(opt->name));
                     continue;
                 }
                 found = 1;
@@ -660,7 +660,7 @@ int assignWorkgroupCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     if (wopt == NULL)
     {
         errno = EINVAL;
-        ERROR_PRINT(Cannot find %s setting on command line, bdata(woptstr));
+        ERROR_PRINT("Cannot find %s setting on command line", bdata(woptstr));
         return -EINVAL;
     }
 
@@ -668,7 +668,7 @@ int assignWorkgroupCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     if (!wgroups)
     {
         errno = ENOMEM;
-        ERROR_PRINT(Cannot allocate space for workgroups);
+        ERROR_PRINT("Cannot allocate space for workgroups");
         bdestroy(woptstr);
         return -ENOMEM;
     }

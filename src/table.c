@@ -14,7 +14,7 @@ int table_destroy(Table* table)
 {
     if (!table)
     {
-        ERROR_PRINT(Invalid Table);
+        ERROR_PRINT("Invalid Table");
         return -EINVAL;
     }
 
@@ -30,7 +30,7 @@ int table_create(struct bstrList* headers, Table** table)
     Table* itable = (Table*)malloc(sizeof(Table));
     if (!itable)
     {
-        ERROR_PRINT(Failed to allocate memory for Table);
+        ERROR_PRINT("Failed to allocate memory for Table");
         return -ENOMEM;
     }
     itable->headers = bstrListCopy(headers);
@@ -39,7 +39,7 @@ int table_create(struct bstrList* headers, Table** table)
     itable->col_widths = (int*)malloc(itable->num_cols * sizeof(int));
     if (!itable->col_widths)
     {
-        ERROR_PRINT(Failed to allocate memory for Table coloumn widths);
+        ERROR_PRINT("Failed to allocate memory for Table coloumn widths");
         return -ENOMEM;
     }
     memset(itable->col_widths, 0, itable->num_cols * sizeof(int));
@@ -55,13 +55,13 @@ int table_addrow(Table* table, struct bstrList* row)
 {
     if (!table)
     {
-        ERROR_PRINT(Inavlid Table);
+        ERROR_PRINT("Invalid Table");
         return -EINVAL;
     }
 
     if (row->qty != table->num_cols)
     {
-        ERROR_PRINT(Row quantity %d does not match with coloumn count %d, row->qty, table->num_cols);
+        ERROR_PRINT("Row quantity %d does not match with coloumn count %d", row->qty, table->num_cols);
         return -EINVAL;
     }
 
@@ -129,7 +129,7 @@ int table_print(FILE* output, Table* table, int transpose)
 {
     if (!table)
     {
-        ERROR_PRINT(Invalid Table);
+        ERROR_PRINT("Invalid Table");
         return -EINVAL;
     }
 
@@ -137,7 +137,7 @@ int table_print(FILE* output, Table* table, int transpose)
 
     if (!file)
     {
-        ERROR_PRINT(Failed to use given output);
+        ERROR_PRINT("Failed to use given output");
         return -errno;
     }
 
@@ -238,7 +238,7 @@ int table_to_csv(FILE* output, Table* table, const char* fname, int max_cols, in
     int err = 0;
     if (!table)
     {
-        ERROR_PRINT(Invalid Table);
+        ERROR_PRINT("Invalid Table");
         return -EINVAL;
     }
 
@@ -246,7 +246,7 @@ int table_to_csv(FILE* output, Table* table, const char* fname, int max_cols, in
     if (file == NULL)
     {
         err = errno;
-        ERROR_PRINT(Unable to write to file %s, fname);
+        ERROR_PRINT("Unable to write to file %s", fname);
         return err;
     }
 
@@ -319,7 +319,7 @@ int table_to_csv(FILE* output, Table* table, const char* fname, int max_cols, in
             bstrListDestroy(cells);
         }
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Results are saved to file '%s', fname);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Results are saved to file '%s'", fname);
     return err;
 }
 
@@ -330,7 +330,7 @@ int table_to_json(FILE* output, Table* table, const char* fname, const char* tna
     int indent = 0;
     if (!table)
     {
-        ERROR_PRINT(Inavlid Table);
+        ERROR_PRINT("Invalid Table");
         return -EINVAL;
     }
 
@@ -338,7 +338,7 @@ int table_to_json(FILE* output, Table* table, const char* fname, const char* tna
     if (file == NULL)
     {
         err = errno;
-        ERROR_PRINT(Unable to write to file %s, fname);
+        ERROR_PRINT("Unable to write to file %s", fname);
         return err;
     }
 
@@ -389,7 +389,7 @@ int table_to_json(FILE* output, Table* table, const char* fname, const char* tna
         fprintf(file, "}\n");
     }
 
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Results are saved to file '%s', fname);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Results are saved to file '%s'", fname);
     return err;
 }
 
@@ -400,7 +400,7 @@ int table_print_csv(const char* fname)
     if (!file)
     {
         err = errno;
-        ERROR_PRINT(Failed to open file %s, fname);
+        ERROR_PRINT("Failed to open file %s", fname);
         return err;
     }
 
@@ -418,7 +418,7 @@ int table_print_csv(const char* fname)
             err = table_create(fields, &table);
             if (!table)
             {
-                ERROR_PRINT(Failed to create table from '%s' headers, fname);
+                ERROR_PRINT("Failed to create table from '%s' headers", fname);
                 bstrListDestroy(fields);
                 fclose(file);
                 err = errno;
@@ -438,13 +438,13 @@ int table_print_csv(const char* fname)
 
     if (table)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Printing CSV '%s' file, fname);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Printing CSV '%s' file", fname);
         table_print(stdout, table, 1);
         table_destroy(table);
     }
     else
     {
-        ERROR_PRINT(No data read from CSV '%s' file, fname);
+        ERROR_PRINT("No data read from CSV '%s' file", fname);
         return -EINVAL;
     }
     return err;

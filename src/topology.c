@@ -101,7 +101,7 @@ int initialize_cpu_lists(int _max_processor)
     cpu_lists = (CPULists*)malloc((_max_processor + 1) * sizeof(CPULists));
     if (cpu_lists == NULL)
     {
-        ERROR_PRINT(Error in allocating memory for CPULists);
+        ERROR_PRINT("Error in allocating memory for CPULists");
         destroy_cpu_lists();
         return -ENOMEM;
     }
@@ -114,7 +114,7 @@ int initialize_cpu_lists(int _max_processor)
         create_bitmap(_max_processor + 1, sizeof(BitmapDataType), &cpu_lists->offline) != 0 ||
         create_bitmap(_max_processor + 1, sizeof(BitmapDataType), &cpu_lists->isolated) != 0)
     {
-        ERROR_PRINT(Unable to intialize bitmaps for CPULists);
+        ERROR_PRINT("Unable to intialize bitmaps for CPULists");
         destroy_cpu_lists();
         return -ENOMEM;
     }
@@ -236,7 +236,7 @@ static int hwthread_online(int os_id)
 {
     int online = 0;
     FILE* fp = NULL;
-    //DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file /sys/devices/system/cpu/online);
+    //DEBUG_PRINT(DEBUGLEV_DEVELOP, "Read file /sys/devices/system/cpu/online");
     if (NULL != (fp = fopen ("/sys/devices/system/cpu/online", "r")))
     {
         bstring src = bread ((bNread) fread, fp);
@@ -266,7 +266,7 @@ static int hwthread_smt_id(int os_id)
     int smt_id = -1;
     FILE* fp = NULL;
     bstring listfile = bformat("/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", os_id);
-    //DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file %s, bdata(listfile));
+    //DEBUG_PRINT(DEBUGLEV_DEVELOP, "Read file %s", bdata(listfile));
     if (NULL != (fp = fopen (bdata(listfile), "r")))
     {
         bstring src = bread ((bNread) fread, fp);
@@ -295,7 +295,7 @@ int check_hwthreads_numa_count(int* numNumaNodes, int* maxNumaNodeId)
     int maxId = 0;
     DIR *dp = NULL;
     struct dirent *ep = NULL;
-    //DEBUG_PRINT(DEBUGLEV_DEVELOP, Scanning directory /sys/devices/system/node);
+    //DEBUG_PRINT(DEBUGLEV_DEVELOP, "Scanning directory /sys/devices/system/node");
     dp = opendir("/sys/devices/system/node");
     if (dp != NULL)
     {
@@ -314,7 +314,7 @@ int check_hwthreads_numa_count(int* numNumaNodes, int* maxNumaNodeId)
         }
         closedir(dp);
     }
-    //DEBUG_PRINT(DEBUGLEV_DEVELOP, Available NUMA domains %d Max ID %d, count, maxId);
+    //DEBUG_PRINT(DEBUGLEV_DEVELOP, "Available NUMA domains %d Max ID %d", count, maxId);
     *numNumaNodes = count;
     *maxNumaNodeId = maxId;
     return 0;
@@ -326,7 +326,7 @@ int check_hwthreads_count(int* numHWThreads, int *maxHWThreadId)
     struct dirent *ep = NULL;
     int avail_hwthreads = 0;
     int max_os_id = 0;
-    ////DEBUG_PRINT(DEBUGLEV_DEVELOP, Scanning directory /sys/devices/system/cpu);
+    ////DEBUG_PRINT(DEBUGLEV_DEVELOP, "Scanning directory /sys/devices/system/cpu");
     dp = opendir("/sys/devices/system/cpu");
     if (dp != NULL)
     {
@@ -345,7 +345,7 @@ int check_hwthreads_count(int* numHWThreads, int *maxHWThreadId)
         }
         closedir(dp);
     }
-    //DEBUG_PRINT(DEBUGLEV_DEVELOP, Available threads %d Max ID %d, avail_hwthreads, max_os_id);
+    //DEBUG_PRINT(DEBUGLEV_DEVELOP, "Available threads %d Max ID %d", avail_hwthreads, max_os_id);
     *numHWThreads = avail_hwthreads;
     *maxHWThreadId = max_os_id;
     return 0;
@@ -354,7 +354,7 @@ int check_hwthreads_count(int* numHWThreads, int *maxHWThreadId)
 
 static void print_hwthread_data(LikwidBenchHwthread* cur)
 {
-    //DEBUG_PRINT(DEBUGLEV_DETAIL, OSIDX %d SMT %d CORE %d DIE %d SOCKET %d NUMA %d %s,
+    //DEBUG_PRINT(DEBUGLEV_DETAIL, "OSIDX %d SMT %d CORE %d DIE %d SOCKET %d NUMA %d %s",
     //            cur->os_id, cur->smt_id, cur->core_id, cur->die_id, cur->socket_id, cur->numa_id,
     //            (cur->usable == 0 ? "NOTUSABLE" : ""));
 }
@@ -375,7 +375,7 @@ static int read_hwthread_data(int os_id, int maxNumaNodeId, int* smt_id, int* co
         bstring tmpfile = bstrcpy(cpufolder);
         int tmplen = blength(tmpfile);
         bcatcstr(tmpfile, "/topology/physical_package_id");
-        //DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file %s, bdata(tmpfile));
+        //DEBUG_PRINT(DEBUGLEV_DEVELOP, "Read file %s", bdata(tmpfile));
         ret = file_to_int(tmpfile, &tmpid);
         if (ret == 0)
         {
@@ -383,7 +383,7 @@ static int read_hwthread_data(int os_id, int maxNumaNodeId, int* smt_id, int* co
         }
         btrunc(tmpfile, tmplen);
         bcatcstr(tmpfile, "/topology/core_id");
-        //DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file %s, bdata(tmpfile));
+        //DEBUG_PRINT(DEBUGLEV_DEVELOP, "Read file %s", bdata(tmpfile));
         ret = file_to_int(tmpfile, &tmpid);
         if (ret == 0)
         {
@@ -391,7 +391,7 @@ static int read_hwthread_data(int os_id, int maxNumaNodeId, int* smt_id, int* co
         }
         btrunc(tmpfile, tmplen);
         bcatcstr(tmpfile, "/topology/die_id");
-        //DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file %s, bdata(tmpfile));
+        //DEBUG_PRINT(DEBUGLEV_DEVELOP, "Read file %s", bdata(tmpfile));
         ret = file_to_int(tmpfile, &tmpid);
         if (ret == 0)
         {
@@ -402,7 +402,7 @@ static int read_hwthread_data(int os_id, int maxNumaNodeId, int* smt_id, int* co
         {
             bstring nodefolder = bformat("/sys/devices/system/cpu/cpu%d/node%d", os_id, j);
             tmpstr = bdata(nodefolder);
-            //DEBUG_PRINT(DEBUGLEV_DEVELOP, Check folder %s, tmpstr);
+            //DEBUG_PRINT(DEBUGLEV_DEVELOP, "Check folder %s", tmpstr);
             if (!access(tmpstr, R_OK|X_OK))
             {
                 numa = j;
@@ -452,13 +452,13 @@ int check_hwthreads()
         {
             numThreads = max_os_id + 1;
         }
-        //DEBUG_PRINT(DEBUGLEV_DEVELOP, Allocating space for %d threads, numThreads);
+        //DEBUG_PRINT(DEBUGLEV_DEVELOP, "Allocating space for %d threads", numThreads);
         int tmpCount = 0;
         int tmpCountActive = 0;
         LikwidBenchHwthread* tmpList = malloc(numThreads * sizeof(LikwidBenchHwthread));
         if (!tmpList)
         {
-            ERROR_PRINT(Failed to allocate tmpList);
+            ERROR_PRINT("Failed to allocate tmpList");
             return -ENOMEM;
         }
         memset(tmpList, 0, numThreads * sizeof(LikwidBenchHwthread));
@@ -474,7 +474,7 @@ int check_hwthreads()
             }
             tmpCount++;
         }
-        //DEBUG_PRINT(DEBUGLEV_DETAIL, List filled with %d HW threads %d active, tmpCount, tmpCountActive);
+        //DEBUG_PRINT(DEBUGLEV_DETAIL, "List filled with %d HW threads %d active", tmpCount, tmpCountActive);
         int maxCoreId = 0;
         int maxSocketId = 0;
         int maxDieId = 0;
@@ -493,7 +493,7 @@ int check_hwthreads()
         _hwthreads = malloc(tmpCount * sizeof(LikwidBenchHwthread));
         if (!_hwthreads)
         {
-            ERROR_PRINT(Failed to allocate _hwthreads);
+            ERROR_PRINT("Failed to allocate _hwthreads");
             return -ENOMEM;
         }
         memset(_hwthreads, 0, tmpCount * sizeof(LikwidBenchHwthread));
@@ -514,7 +514,7 @@ int check_hwthreads()
                                 memcpy(&_hwthreads[idx], test, sizeof(LikwidBenchHwthread));
                                 _num_hwthreads++;
                                 if (test->usable == 1) _active_hwthreads++;
-                                //DEBUG_PRINT(DEBUGLEV_DETAIL, Move %d to %d, test->os_id, idx);
+                                //DEBUG_PRINT(DEBUGLEV_DETAIL, "Move %d to %d", test->os_id, idx);
                                 idx++;
                                 break;
                             }
@@ -524,7 +524,7 @@ int check_hwthreads()
             }
         }
         free(tmpList);
-        //DEBUG_PRINT(DEBUGLEV_DETAIL, Final List filled with %d HW threads %d active, _num_hwthreads, _active_hwthreads);
+        //DEBUG_PRINT(DEBUGLEV_DETAIL, "Final List filled with %d HW threads %d active", _num_hwthreads, _active_hwthreads);
     }
     return 0;
 }
@@ -1156,7 +1156,7 @@ int check_cores(int cpu_id, bstring vendor, bstring model)
         bstring bcore = read_file(bdata(fname));
         if (blength(bcore) == 0)
         {
-            ERROR_PRINT(Failed to read /sys/devices/system/cpu/cpu%d/of_node/compatible, cpu_id);
+            ERROR_PRINT("Failed to read /sys/devices/system/cpu/cpu%d/of_node/compatible", cpu_id);
             bdestroy(bcore);
             return -errno;
         }
@@ -1191,7 +1191,7 @@ int update_processors()
     if (blength(src) == 0)
     {
         int err = errno;
-        ERROR_PRINT(Error reading %s file, bdata(&bcpuinfo));
+        ERROR_PRINT("Error reading %s file", bdata(&bcpuinfo));
         bdestroy(src);
         return -err;
     }
@@ -1200,7 +1200,7 @@ int update_processors()
     if (blist == NULL)
     {
         int err = errno;
-        ERROR_PRINT(Unable to split from src);
+        ERROR_PRINT("Unable to split from src");
         bdestroy(src);
         return -errno;
     }
@@ -1243,10 +1243,10 @@ int _read_cpuinfo(RuntimeConfig* runcfg)
 {
     int result = 0;
     FILE *file = fopen("/proc/cpuinfo", "r");
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Read file /proc/cpuinfo for interesting flags);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Read file /proc/cpuinfo for interesting flags");
     if (file == NULL)
     {
-        ERROR_PRINT(Failed to open /proc/cpuinfo file);
+        ERROR_PRINT("Failed to open /proc/cpuinfo file");
         return -errno;
     }
     
@@ -1254,7 +1254,7 @@ int _read_cpuinfo(RuntimeConfig* runcfg)
     fclose(file);
     if (src == NULL)
     {
-        ERROR_PRINT(Unable to read file using bread);
+        ERROR_PRINT("Unable to read file using bread");
         return -errno;
     }
 
@@ -1262,7 +1262,7 @@ int _read_cpuinfo(RuntimeConfig* runcfg)
     if (blist == NULL)
     {
         bdestroy(src);
-        ERROR_PRINT(Unable to split from src);
+        ERROR_PRINT("Unable to split from src");
         return -errno;
     }
 
@@ -1293,7 +1293,7 @@ int _read_cpuinfo(RuntimeConfig* runcfg)
     result = update_processors();
     if (result != 0)
     {
-        ERROR_PRINT(Unable to update processors data from %s, bdata(&bcpuinfo));
+        ERROR_PRINT("Unable to update processors data from %s", bdata(&bcpuinfo));
         bdestroy(src);
         bstrListDestroy(blist);
         return result;
@@ -1302,7 +1302,7 @@ int _read_cpuinfo(RuntimeConfig* runcfg)
     cpu_info = (CPUInfo*)malloc((_max_processor + 1) * sizeof(CPUInfo));
     if (cpu_info == NULL)
     {
-        ERROR_PRINT(Error in allocating memory for cpu_info);
+        ERROR_PRINT("Error in allocating memory for cpu_info");
         free_cpu_info(_max_processor);
         bstrListDestroy(blist);
         bdestroy(src);
@@ -1397,7 +1397,7 @@ int _read_cpuinfo(RuntimeConfig* runcfg)
                         btrimws(flist->entry[j]);
                         if (blength(runcfg->tcfg->flags->entry[i]) > 0 && biseqcaseless(runcfg->tcfg->flags->entry[i], flist->entry[j]))
                         {
-                            DEBUG_PRINT(DEBUGLEV_DEVELOP, Flag %s found on hwthread %d, bdata(runcfg->tcfg->flags->entry[i]), wg->hwthreads[t]);
+                            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Flag %s found on hwthread %d", bdata(runcfg->tcfg->flags->entry[i]), wg->hwthreads[t]);
                             found++;
                         }
 
@@ -1418,7 +1418,7 @@ int _read_cpuinfo(RuntimeConfig* runcfg)
 
             if (found != runcfg->tcfg->flags->qty)
             {
-                ERROR_PRINT(Flags not found on the system. Check the flags give in the test: %s, bdata(runcfg->testname));
+                ERROR_PRINT("Flags not found on the system. Check the flags give in the test: %s", bdata(runcfg->testname));
                 bstrListPrint(runcfg->tcfg->flags);
                 bstrListDestroy(flist);
                 return -EINVAL;
@@ -1477,7 +1477,7 @@ int check_feature_flags(RuntimeConfig* runcfg)
     result = _read_cpuinfo(runcfg);
     if (result != 0)
     {
-        ERROR_PRINT(Failed to read cpu flags from /proc/cpuinfo file);
+        ERROR_PRINT("Failed to read cpu flags from /proc/cpuinfo file");
         return -errno;
     }
     return 0;
@@ -1500,7 +1500,7 @@ int read_cpu_cores(bstring fname, Bitmap* bm)
     if (src == NULL || blength(src) == 0)
     {
         int err = errno;
-        ERROR_PRINT(Failed to read %s, bdata(fname));
+        ERROR_PRINT("Failed to read %s", bdata(fname));
         bdestroy(src);
         return -err;
     }
@@ -1509,7 +1509,7 @@ int read_cpu_cores(bstring fname, Bitmap* bm)
     bdestroy(src);
     if (blist == NULL)
     {
-        ERROR_PRINT(Failed to split src);
+        ERROR_PRINT("Failed to split src");
         bstrListDestroy(blist);
         return -errno;
     }
@@ -1547,7 +1547,7 @@ int read_cpu_cores(bstring fname, Bitmap* bm)
 
     if (global_verbosity == DEBUGLEV_DEVELOP)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Bits set for %s, bdata(fname));
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Bits set for %s", bdata(fname));
         print_set_bits(bm);
     }
     bstrListDestroy(blist);
@@ -1560,7 +1560,7 @@ int parse_cpu_folders()
     result = update_processors();
     if (result != 0)
     {
-        ERROR_PRINT(Unable to update processors data from %s, bdata(&bcpuinfo));
+        ERROR_PRINT("Unable to update processors data from %s", bdata(&bcpuinfo));
         clear_processors();
         return result;
     }
@@ -1568,7 +1568,7 @@ int parse_cpu_folders()
     result = initialize_cpu_lists(_max_processor);
     if (result != 0)
     {
-        ERROR_PRINT(Failed to intilialie CPULists);
+        ERROR_PRINT("Failed to intilialie CPULists");
         clear_processors();
         destroy_cpu_lists();
         return result;
@@ -1581,7 +1581,7 @@ int parse_cpu_folders()
         result = read_cpu_cores(bfile, bm);
         if (result != 0)
         {
-            ERROR_PRINT(Failed to read %s, bdata(bfile));
+            ERROR_PRINT("Failed to read %s", bdata(bfile));
             bdestroy(bfile);
             return result;
         }

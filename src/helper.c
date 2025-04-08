@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -51,10 +52,10 @@ double convertToSeconds(const_bstring input)
     return result;
 }
 
-size_t convertToBytes(const_bstring input)
+uint64_t convertToBytes(const_bstring input)
 {
     char* endptr = NULL;
-    size_t result = 0;
+    uint64_t result = 0;
     unsigned long long value = strtoull((char *)input->data, &endptr, 10);
     if (endptr == (char *)input->data || value > SIZE_MAX)
     {
@@ -77,51 +78,51 @@ size_t convertToBytes(const_bstring input)
 
     if (biseq(unit, &bb))
     {
-	    result = (size_t)value;
+	    result = (uint64_t)value;
     }
     else if (biseq(unit, &bkb))
     {
-	    result = (size_t)value * 1000ULL;
+	    result = (uint64_t)value * 1000ULL;
     }
     else if (biseq(unit, &bmb))
     {
-        result = (size_t)value * 1000ULL * 1000ULL;
+        result = (uint64_t)value * 1000ULL * 1000ULL;
     }
     else if (biseq(unit, &bgb))
     {
-        result = (size_t)value * 1000ULL * 1000ULL * 1000ULL;
+        result = (uint64_t)value * 1000ULL * 1000ULL * 1000ULL;
     }
     else if (biseq(unit, &btb))
     {
-        result = (size_t)value * 1000ULL * 1000ULL * 1000ULL * 1000ULL;
+        result = (uint64_t)value * 1000ULL * 1000ULL * 1000ULL * 1000ULL;
     }
     else if (biseq(unit, &bkib))
     {
-	    result = (size_t)value * 1024ULL;
+	    result = (uint64_t)value * 1024ULL;
     }
     else if (biseq(unit, &bmib))
     {
-        result = (size_t)value * 1024ULL * 1024ULL;
+        result = (uint64_t)value * 1024ULL * 1024ULL;
     }
     else if (biseq(unit, &bgib))
     {
-        result = (size_t)value * 1024ULL * 1024ULL * 1024ULL;
+        result = (uint64_t)value * 1024ULL * 1024ULL * 1024ULL;
     }
     else if (biseq(unit, &btib))
     {
-        result = (size_t)value * 1024ULL * 1024ULL * 1024ULL * 1024ULL;
+        result = (uint64_t)value * 1024ULL * 1024ULL * 1024ULL * 1024ULL;
     }
     else
     {
-	    result = (size_t)value;
-        fprintf(stdout, "No unit mentioned for array size. It uses %zuB\n", result);
+	    result = (uint64_t)value;
+        fprintf(stdout, "No unit mentioned for array size. It uses %" PRIu64 "B\n", result);
     }
 
     bdestroy(unit);
 
-    if (result < value && result > SIZE_MAX)
+    if (result < value && result > UINT64_MAX)
     {
-        fprintf(stderr, "Size converted is too large for size_t\n");
+        fprintf(stderr, "Size converted is too large for uint64_t\n");
         return 0ULL;
     }
 

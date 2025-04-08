@@ -4,13 +4,14 @@
 
 
 #include <errno.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
 
 
-static inline int is_multipleof_pow2(const size_t in, const size_t nbits)
+static inline int is_multipleof_pow2(const uint64_t in, const uint64_t nbits)
 {
     if (nbits == 0 || (nbits & (nbits - 1)) != 0)
     {
@@ -19,7 +20,7 @@ static inline int is_multipleof_pow2(const size_t in, const size_t nbits)
     return ((in & (nbits - 1)) == 0);
 }
 
-static inline int is_multipleof_nbits(const size_t in, const size_t nbits)
+static inline int is_multipleof_nbits(const uint64_t in, const uint64_t nbits)
 {
     if (nbits == 0)
     {
@@ -28,13 +29,13 @@ static inline int is_multipleof_nbits(const size_t in, const size_t nbits)
     return (in % nbits == 0);
 }
 
-static inline int roundup_nbits(size_t* out, const size_t in, const size_t nbits)
+static inline int roundup_nbits(uint64_t* out, const uint64_t in, const uint64_t nbits)
 {
     if (!out || nbits == 0)
     {
         return -EINVAL;
     }
-    if (in > SIZE_MAX - (nbits - 1))
+    if (in > UINT64_MAX - (nbits - 1))
     {
         return -EOVERFLOW;
     }
@@ -42,7 +43,7 @@ static inline int roundup_nbits(size_t* out, const size_t in, const size_t nbits
     return 0;
 }
 
-static inline int rounddown_nbits(size_t* out, const size_t in, const size_t nbits)
+static inline int rounddown_nbits(uint64_t* out, const uint64_t in, const uint64_t nbits)
 {
     if (!out || nbits == 0)
     {
@@ -52,13 +53,13 @@ static inline int rounddown_nbits(size_t* out, const size_t in, const size_t nbi
     return 0;
 }
 
-static inline int roundup_nbits_pow2(size_t* out, const size_t in, const size_t nbits)
+static inline int roundup_nbits_pow2(uint64_t* out, const uint64_t in, const uint64_t nbits)
 {
     if (!out || nbits == 0 || (nbits & (nbits - 1)) != 0)
     {
         return -EINVAL;
     }
-    if (in > SIZE_MAX - (nbits - 1))
+    if (in > UINT64_MAX - (nbits - 1))
     {
         return -EOVERFLOW;
     }
@@ -66,7 +67,7 @@ static inline int roundup_nbits_pow2(size_t* out, const size_t in, const size_t 
     return 0;
 }
 
-static inline int rounddown_nbits_pow2(size_t* out, const size_t in, const size_t nbits)
+static inline int rounddown_nbits_pow2(uint64_t* out, const uint64_t in, const uint64_t nbits)
 {
     if (!out || nbits == 0 || (nbits & (nbits - 1)) != 0)
     {
@@ -76,13 +77,13 @@ static inline int rounddown_nbits_pow2(size_t* out, const size_t in, const size_
     return 0;
 }
 
-static inline int roundnearest_nbits_pow2(size_t* out, const size_t in, const size_t nbits)
+static inline int roundnearest_nbits_pow2(uint64_t* out, const uint64_t in, const uint64_t nbits)
 {
     if (!out || nbits == 0 || (nbits & (nbits - 1)) != 0)
     {
         return -EINVAL;
     }
-    if (in > SIZE_MAX - (nbits >> 1))
+    if (in > UINT64_MAX - (nbits >> 1))
     {
         return -EOVERFLOW;
     }
@@ -90,13 +91,13 @@ static inline int roundnearest_nbits_pow2(size_t* out, const size_t in, const si
     return 0;
 }
 
-static inline int roundnearest_nbits(size_t* out, const size_t in, const size_t nbits)
+static inline int roundnearest_nbits(uint64_t* out, const uint64_t in, const uint64_t nbits)
 {
     if (!out || nbits == 0)
     {
         return -EINVAL;
     }
-    if (nbits > SIZE_MAX / 2 || in >= SIZE_MAX - (nbits / 2))
+    if (nbits > UINT64_MAX / 2 || in >= UINT64_MAX - (nbits / 2))
     {
         return -EOVERFLOW;
     }

@@ -42,32 +42,32 @@ int parse_loop(TestConfig_t config, struct bstrList* code, struct bstrList* out)
     struct tagbstring bkeyend = bsStatic("LOOPEND");
     for (int i = 0; i < code->qty; i++)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, LOOP: %s, bdata(code->entry[i]));
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "LOOP: %s", bdata(code->entry[i]));
     }
     // First we do some basic checks
     // Does the first line start with 'LOOP'
     if (!has_prefix(code->entry[0], &bkeybegin))
     {
-        ERROR_PRINT(First line does not start with %s, bdata(&bkeybegin));
+        ERROR_PRINT("First line does not start with %s", bdata(&bkeybegin));
         return -EINVAL;
     }
     // Does the last line start with 'LOOPEND'
     if (!has_prefix(code->entry[code->qty-1], &bkeyend))
     {
-        ERROR_PRINT(Last line does not start with %s, bdata(&bkeyend));
+        ERROR_PRINT("Last line does not start with %s", bdata(&bkeyend));
         return -EINVAL;
     }
     // Now get a list of all arguments in the first line -> LOOP(arg0, arg1, ...)
     struct bstrList* beginArgs = get_argList(code->entry[0]);
     if (!beginArgs)
     {
-        ERROR_PRINT(Arguments missing in %s line: %s, bdata(&bkeybegin), bdata(code->entry[0]));
+        ERROR_PRINT("Arguments missing in %s line: %s", bdata(&bkeybegin), bdata(code->entry[0]));
         return -EINVAL;
     }
     // The LOOP line should have 5 arguments
     if (beginArgs->qty != 5)
     {
-        ERROR_PRINT(Arguments missing in %s line: %s, bdata(&bkeybegin), bdata(code->entry[0]));
+        ERROR_PRINT("Arguments missing in %s line: %s", bdata(&bkeybegin), bdata(code->entry[0]));
         bstrListDestroy(beginArgs);
         return -EINVAL;
     }
@@ -75,7 +75,7 @@ int parse_loop(TestConfig_t config, struct bstrList* code, struct bstrList* out)
     struct bstrList* endArgs = get_argList(code->entry[code->qty-1]);
     if (!endArgs)
     {
-        ERROR_PRINT(Arguments missing in %s line: %s, bdata(&bkeyend), bdata(code->entry[code->qty-1]));
+        ERROR_PRINT("Arguments missing in %s line: %s", bdata(&bkeyend), bdata(code->entry[code->qty-1]));
         bstrListDestroy(beginArgs);
         return -EINVAL;
     }
@@ -83,7 +83,7 @@ int parse_loop(TestConfig_t config, struct bstrList* code, struct bstrList* out)
     // Do both lines have the same first argument aka the keyword label
     if (bstrcmp(beginArgs->entry[0], endArgs->entry[0]) != BSTR_OK)
     {
-        ERROR_PRINT(%s and %s for different loops %s <-> %s, bdata(&bkeybegin), bdata(&bkeyend), bdata(beginArgs->entry[0]), bdata(endArgs->entry[0]));
+        ERROR_PRINT("%s and %s for different loops %s <-> %s", bdata(&bkeybegin), bdata(&bkeyend), bdata(beginArgs->entry[0]), bdata(endArgs->entry[0]));
         bstrListDestroy(beginArgs);
         bstrListDestroy(endArgs);
         return -EINVAL;
@@ -101,7 +101,7 @@ int parse_loop(TestConfig_t config, struct bstrList* code, struct bstrList* out)
     // We check both conditions at one to avoid too much code
     if (startloop->qty != 2 || endloop->qty != 2)
     {
-        ERROR_PRINT(Loop init (reg=value) or loop end (reg=value) invalid in LOOP line: %s, bdata(code->entry[0]));
+        ERROR_PRINT("Loop init (reg=value) or loop end (reg=value) invalid in LOOP line: %s", bdata(code->entry[0]));
         bstrListDestroy(startloop);
         bstrListDestroy(endloop);
         bstrListDestroy(beginArgs);

@@ -30,6 +30,8 @@
 #ifndef TEST_TYPES_H
 #define TEST_TYPES_H
 
+#include <inttypes.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <pthread.h>
 #include "bstrlib.h"
@@ -117,12 +119,12 @@ typedef struct {
     bstring name;
     void* ptr;
     void* base_ptr;
-    int64_t dimsizes[3];
+    uint64_t dimsizes[3];
     off_t offsets[3];
     int dims;
     Bitmap flags;
     int id;
-    int (*init)(void* ptr, int state, TestConfigStreamType type, int dims, int64_t* dimsizes, void* init_val, ...);
+    int (*init)(void* ptr, int state, TestConfigStreamType type, int dims, uint64_t* dimsizes, void* init_val, ...);
     TestConfigStreamType type;
     TestConfigStreamData data;
     void* init_val;
@@ -219,7 +221,7 @@ typedef struct {
 typedef _thread_data* thread_data_t;
 
 typedef struct {
-    int64_t tsizes;
+    uint64_t tsizes;
     off_t   toffsets;
     void*   tstream_ptr;
 } RuntimeThreadStreamConfig;

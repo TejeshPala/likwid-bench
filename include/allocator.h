@@ -6,12 +6,12 @@
 
 #include "test_types.h"
 
-static inline size_t get_cl_size()
+static inline uint64_t get_cl_size()
 {
-    static size_t c_cl_size = 0;
+    static uint64_t c_cl_size = 0;
     if (c_cl_size == 0)
     {
-        size_t cl_size = (size_t)sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+        uint64_t cl_size = (uint64_t)sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
         // fprintf(stdout, "CL_SIZE from SYSCONF: %zu Bytes\n", cl_size);
         c_cl_size = ((cl_size > 0 && !(cl_size & 7)) ? cl_size : 64);
         // fprintf(stdout, "Final CL_SIZE from SYSCONF: %zu Bytes\n", c_cl_size);
@@ -21,10 +21,10 @@ static inline size_t get_cl_size()
 
 #define CL_SIZE get_cl_size()
 
-int getsizeof(TestConfigStreamType);
-size_t getstreamelems(RuntimeStreamConfig *sdata);
+uint64_t getsizeof(TestConfigStreamType);
+uint64_t getstreamelems(RuntimeStreamConfig *sdata);
 
-int init_function(void* ptr, int state, TestConfigStreamType type, int dims, int64_t* dimsizes, void* init_val, ...);
+int init_function(void* ptr, int state, TestConfigStreamType type, int dims, uint64_t* dimsizes, void* init_val, ...);
 
 int allocate_arrays(RuntimeStreamConfig *sdata);
 void release_arrays(RuntimeStreamConfig *sdata);

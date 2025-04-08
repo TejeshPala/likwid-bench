@@ -67,22 +67,22 @@ int open_function(RuntimeThreadConfig* thread)
     if (!ownaccess(bdata(thread->testconfig->objfile), F_OK))
     {
         dlerror();
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Opening object file %s, bdata(thread->testconfig->objfile));
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Opening object file %s", bdata(thread->testconfig->objfile));
         thread->testconfig->dlhandle = owndlopen(bdata(thread->testconfig->objfile), RTLD_LAZY);
         if (!thread->testconfig->dlhandle) {
-            ERROR_PRINT(Error dynloading file %s: %s, bdata(thread->testconfig->objfile), dlerror());
+            ERROR_PRINT("Error dynloading file %s: %s", bdata(thread->testconfig->objfile), dlerror());
             return -1;
         }
         dlerror();
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Loading function %s from object file %s, bdata(thread->testconfig->functionname), bdata(thread->testconfig->objfile));
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Loading function %s from object file %s", bdata(thread->testconfig->functionname), bdata(thread->testconfig->objfile));
         thread->testconfig->function = owndlsym(thread->testconfig->dlhandle, bdata(thread->testconfig->functionname));
         if ((error = dlerror()) != NULL)  {
             dlclose(thread->testconfig->dlhandle);
             thread->testconfig->dlhandle = NULL;
-            ERROR_PRINT(Error dynloading function %s from file %s: %s, bdata(thread->testconfig->functionname), bdata(thread->testconfig->objfile), error);
+            ERROR_PRINT("Error dynloading function %s from file %s: %s", bdata(thread->testconfig->functionname), bdata(thread->testconfig->objfile), error);
             return -1;
         }
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Function pointer %p, thread->testconfig->function);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Function pointer %p", thread->testconfig->function);
         dlerror();
     }
     else
@@ -173,18 +173,18 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
         fd = bmkstemp(filetemplate);
         if (fd == -1)
         {
-            ERROR_PRINT(Failed to get temporary file name for assembly);
+            ERROR_PRINT("Failed to get temporary file name for assembly");
             bdestroy(compiler);
             bdestroy(filetemplate);
             return -1;
         }
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Generated file name is '%s', bdata(filetemplate));
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Generated file name is '%s'", bdata(filetemplate));
 
         asmfile = bstrcpy(filetemplate);
         close(fd);
         if (bunlink(filetemplate) == -1)
         {
-            ERROR_PRINT(Failed to unlink '%s', bdata(filetemplate));
+            ERROR_PRINT("Failed to unlink '%s'", bdata(filetemplate));
             bdestroy(compiler);
             bdestroy(filetemplate);
             return -1;
@@ -219,7 +219,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
                     ret = get_bmap_by_key(wcfg->results[t].values, sorted_valkeys->entry[j], (void**)&val);
                     if (ret == 0)
                     {
-                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing '%s' with '%s' in '%s', bdata(sorted_valkeys->entry[j]), bdata(val), bdata(wcodelines->entry[i]));
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Replacing '%s' with '%s' in '%s'", bdata(sorted_valkeys->entry[j]), bdata(val), bdata(wcodelines->entry[i]));
                         bfindreplace(wcodelines->entry[i], sorted_valkeys->entry[j], val, 0);
                     }
                 }
@@ -232,7 +232,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
                     ret = get_bmap_by_key(wcfg->results[t].variables, sorted_varkeys->entry[j], (void**)&val);
                     if (ret == 0)
                     {
-                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing '%s' with '%s' in '%s', bdata(sorted_varkeys->entry[j]), bdata(val), bdata(wcodelines->entry[i]));
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Replacing '%s' with '%s' in '%s'", bdata(sorted_varkeys->entry[j]), bdata(val), bdata(wcodelines->entry[i]));
                         bfindreplace(wcodelines->entry[i], sorted_varkeys->entry[j], val, 0);
                     }
                 }
@@ -245,7 +245,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
         ret = write_bstrList_to_file(wcodelines, bdata(asmfile));
         if (ret < 0)
         {
-            ERROR_PRINT(Failed to write assembly to file %s, bdata(asmfile));
+            ERROR_PRINT("Failed to write assembly to file %s", bdata(asmfile));
             bdestroy(asmfile);
             bdestroy(objfile);
             bstrListDestroy(wcodelines);
@@ -253,7 +253,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
         }
 
         bstring cmd = bformat("%s %s %s -o %s 2>&1", bdata(compiler), bdata(flags), bdata(asmfile), bdata(objfile));
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, CMD %s, bdata(cmd));
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "CMD %s", bdata(cmd));
         FILE * fp = popen(bdata(cmd), "r");
         if (fp)
         {
@@ -264,7 +264,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
                 struct bstrList* errlist = bsplit(bstdout, '\n');
                 for (int i = 0; i < errlist->qty; i++)
                 {
-                    ERROR_PRINT(%s, bdata(errlist->entry[i]));
+                    ERROR_PRINT("%s", bdata(errlist->entry[i]));
                 }
                 bstrListDestroy(errlist);
             }
@@ -274,7 +274,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
         else
         {
             ret = errno;
-            ERROR_PRINT(Failed to execute: %s, bdata(cmd))
+            ERROR_PRINT("Failed to execute: %s", bdata(cmd))
         }
         bdestroy(cmd);
         bdestroy(asmfile);
@@ -285,7 +285,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
                 btrimws(wcodelines->entry[i]);
                 if (blength(wcodelines->entry[i]) > 0)
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Code(hwthread %d): %s, t, bdata(wcodelines->entry[i]));
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Code(hwthread %d): %s", t, bdata(wcodelines->entry[i]));
                 }
             }
         }
