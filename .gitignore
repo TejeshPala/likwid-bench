@@ -48,3 +48,4 @@ likwid-bench
 /tests/**/test_timer-gettime
 /tests/**/test_timer-rdtsc
 /tests/**/test_table
+/tests/**/test_bitmask

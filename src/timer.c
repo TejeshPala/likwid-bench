@@ -141,7 +141,7 @@ static uint64_t _get_time_in_ns(void)
     clockid_t clockid = _get_clockid();
     if (clock_gettime(clockid, &ts) != 0)
     {
-        ERROR_PRINT(clock_gettime failed with err %d: %s, errno, strerror(errno));
+        ERROR_PRINT("clock_gettime failed with err %d: %s", errno, strerror(errno));
         return 0; // exit(EXIT_FAILURE);
     }
     uint64_t ns = (uint64_t)(ts.tv_sec * NANOS_PER_SEC + ts.tv_nsec);
@@ -266,7 +266,7 @@ int lb_timer_as_ns(TimerDataLB* tdata, uint64_t *ns)
     uint64_t diff = 0ULL;
     if (tdata->stop.uint64 <= 0ULL && tdata->start.uint64 <= 0ULL && (tdata->stop.uint64 <= tdata->start.uint64))
     {
-        ERROR_PRINT(Invalid time err %d: %s, errno, strerror(errno));
+        ERROR_PRINT("Invalid time err %d: %s", errno, strerror(errno));
         return -errno;
     }
     diff = tdata->stop.uint64 - tdata->start.uint64;
@@ -284,7 +284,7 @@ int lb_timer_as_ns(TimerDataLB* tdata, uint64_t *ns)
             }
             else
             {
-                ERROR_PRINT(Not Supported %d: %s, errno, strerror(errno));
+                ERROR_PRINT("Not Supported %d: %s", errno, strerror(errno));
                 return -ENOTSUP;
             }
         default:
@@ -342,7 +342,7 @@ int lb_timer_sleep(uint64_t nanoseconds)
     }
     if (err != 0 && err != EINTR)
     {
-        ERROR_PRINT(clock_nanosleep failed with error %d: %s, err, strerror(err));
+        ERROR_PRINT("clock_nanosleep failed with error %d: %s", err, strerror(err));
     }
     return err;
 }

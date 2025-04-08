@@ -44,7 +44,8 @@ TESTS = test_read_yaml_ptt \
 	test_bstrlib_helper \
 	test_timer-rdtsc \
 	test_timer-gettime \
-	test_table
+	test_table \
+	test_bitmask
 
 # External stuff
 BSTRLIB_OBJ := ../src/bstrlib.c ../src/bstrlib_helper.c
@@ -85,6 +86,8 @@ ALLOCATOR_HEADER := ../include/allocator.h ../include/test_types.h
 
 BITMAP_OBJ := ../src/bitmap.c
 BITMAP_HEADER := ../include/bitmap.h
+
+BITMASK_HEADER := ../include/bitmask.h
 
 HELPER_OBJ := ../src/helper.c
 HELPER_HEADER := ../include/helper.h
@@ -132,6 +135,9 @@ test_allocator: test_allocator.c $(ALLOCATOR_OBJ) $(ALLOCATOR_HEADER) $(BSTRLIB_
 
 test_bitmap: test_bitmap.c $(BITMAP_OBJ) $(BITMAP_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) test_bitmap.c $(BITMAP_OBJ) -o $@
+
+test_bitmask: test_bitmask.c $(BITMASK_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) test_bitmask.c -o $@
 
 test_bstrlib_helper: test_bstrlib_helper.c $(BSTRLIB_HEADER) $(BSTRLIB_OBJ)
 	$(CC) $(INCLUDES) $(CFLAGS) test_bstrlib_helper.c $(BSTRLIB_OBJ) -o $@

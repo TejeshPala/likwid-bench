@@ -81,13 +81,13 @@ static struct bstrList* get_argList(bstring str)
     obracket = bstrchrp(str, '(', 0);
     if (obracket == BSTR_ERR)
     {
-        ERROR_PRINT(No opening bracket in string %s, bdata(str));
+        ERROR_PRINT("No opening bracket in string %s", bdata(str));
         return bstrListCreate();
     }
     ebracket = bstrchrp(str, ')', obracket);
     if (ebracket == BSTR_ERR)
     {
-        ERROR_PRINT(No closing bracket in string %s, bdata(str));
+        ERROR_PRINT("No closing bracket in string %s", bdata(str));
         return bstrListCreate();
     }
     bstring s = bmidstr(str, obracket+1, ebracket - obracket - 1);
@@ -104,7 +104,7 @@ static bstring get_name(bstring str)
     obracket = bstrchrp(str, '(', 0);
     if (obracket == BSTR_ERR)
     {
-        ERROR_PRINT(No opening bracket in string %s, bdata(str));
+        ERROR_PRINT("No opening bracket in string %s", bdata(str));
         return bfromcstr("");
     }
     firstcomma = bstrchrp(str, ',', obracket);
@@ -113,7 +113,7 @@ static bstring get_name(bstring str)
         firstcomma = bstrchrp(str, ')', obracket);
         if (firstcomma == BSTR_ERR)
         {
-            ERROR_PRINT(No comma-after-opening or closing bracket in string %s, bdata(str));
+            ERROR_PRINT("No comma-after-opening or closing bracket in string %s", bdata(str));
             return bfromcstr("");
         }
     }
@@ -203,7 +203,7 @@ static int _analyse_keyword(TestConfig_t config, struct bstrList* openkeys, stru
                     openname = get_name(code->entry[line]);
                     // Add opening keyword line to body
                     bstrListAdd(body, code->entry[line]);
-                    DEBUG_PRINT(DEBUGLEV_DETAIL, Opening keyword '%s' for label '%s' in line %d, bdata(openkeys->entry[i]), bdata(openname), line);
+                    DEBUG_PRINT(DEBUGLEV_DETAIL, "Opening keyword '%s' for label '%s' in line %d", bdata(openkeys->entry[i]), bdata(openname), line);
                     // Store index in keyword list for matching the corresponding closing keyword
                     keyIdx = i;
                     // Store line index with opening keyword
@@ -231,7 +231,7 @@ static int _analyse_keyword(TestConfig_t config, struct bstrList* openkeys, stru
                 if (bstrcmp(openname, closename) == BSTR_OK)
                 {
                     // This is the related closing keyword to our opening
-                    DEBUG_PRINT(DEBUGLEV_DETAIL, Closing keyword '%s' for label '%s' in line %d, bdata(closekeys->entry[keyIdx]), bdata(closename), line);
+                    DEBUG_PRINT(DEBUGLEV_DETAIL, "Closing keyword '%s' for label '%s' in line %d", bdata(closekeys->entry[keyIdx]), bdata(closename), line);
                     // Store the keyword index for analysis
                     analyzeKey = keyIdx;
                     // This is used only inside the loop and we are leaving the keyword area
@@ -261,12 +261,12 @@ static int _analyse_keyword(TestConfig_t config, struct bstrList* openkeys, stru
     }
     if (openingKeyLine >= 0 && closingKeyLine < 0)
     {
-        DEBUG_PRINT(DEBUGLEV_INFO, Closing keyword %s(%s ...) missing, bdata(closekeys->entry[keyIdx]), bdata(openname));
+        DEBUG_PRINT(DEBUGLEV_INFO, "Closing keyword %s(%s ...) missing", bdata(closekeys->entry[keyIdx]), bdata(openname));
         return -EINVAL;
     }
     if (openingKeyLine < 0 && closingKeyLine >= 0)
     {
-        DEBUG_PRINT(DEBUGLEV_INFO, Closing keyword but corresponding opening keyword is missing);
+        DEBUG_PRINT(DEBUGLEV_INFO, "Closing keyword but corresponding opening keyword is missing");
         return -EINVAL;
     }
 
@@ -276,13 +276,13 @@ static int _analyse_keyword(TestConfig_t config, struct bstrList* openkeys, stru
         // First we parse the keyword area including beginning and closing keyword
         // The keyword lines contain inputs for the analysis
         struct bstrList* tmp = bstrListCreate();
-        DEBUG_PRINT(DEBUGLEV_DETAIL, Parsing keyword '%s .. %s', bdata(openkeys->entry[analyzeKey]), bdata(closekeys->entry[analyzeKey]));
+        DEBUG_PRINT(DEBUGLEV_DETAIL, "Parsing keyword '%s .. %s'", bdata(openkeys->entry[analyzeKey]), bdata(closekeys->entry[analyzeKey]));
         err = ptt_keys[analyzeKey].parse(config, body, tmp);
         if (err == 0)
         {
             // The output of the analysis is used as input for a recursive checking for nested keywords
             struct bstrList* tmpout = bstrListCreate();
-            DEBUG_PRINT(DEBUGLEV_DETAIL, Recursively check analysis results for nested keywords);
+            DEBUG_PRINT(DEBUGLEV_DETAIL, "Recursively check analysis results for nested keywords");
             err = _analyse_keyword(config, openkeys, closekeys, tmp, tmpout);
             if (err == 0)
             {
@@ -360,7 +360,7 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out, struct bstrList* regs
     }
     if (openkeys->qty != closekeys->qty)
     {
-        ERROR_PRINT(Invalid keyword definition);
+        ERROR_PRINT("Invalid keyword definition");
         bstrListDestroy(code);
         bstrListDestroy(openkeys);
         bstrListDestroy(closekeys);
@@ -391,14 +391,14 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out, struct bstrList* regs
         }
     }
     dstring = bjoin(opennames, &sep);
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Opening keyword labels: %s, bdata(dstring));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Opening keyword labels: %s", bdata(dstring));
     bdestroy(dstring);
     dstring = bjoin(closenames, &sep);
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Closing keyword labels: %s, bdata(dstring));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Closing keyword labels: %s", bdata(dstring));
     bdestroy(dstring);
     if (opennames->qty == 0 || closenames->qty == 0)
     {
-        ERROR_PRINT(Code without keyword names);
+        ERROR_PRINT("Code without keyword names");
         bstrListDestroy(code);
         bstrListDestroy(openkeys);
         bstrListDestroy(closekeys);
@@ -419,7 +419,7 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out, struct bstrList* regs
     }
     if ((bothnames->qty != opennames->qty) || (bothnames->qty != closenames->qty))
     {
-        ERROR_PRINT(Invalid label for keyword);
+        ERROR_PRINT("Invalid label for keyword");
         bstrListDestroy(code);
         bstrListDestroy(openkeys);
         bstrListDestroy(closekeys);
@@ -440,7 +440,7 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out, struct bstrList* regs
     // The do-while loop is used to also analyse inputs with multiple keywords after each other.
     int done = 0;
     do {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Round %d, round);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Round %d", round);
         _analyse_keyword(config, openkeys, closekeys, pttin, pttout);
         // Check if there are still opening or closing keywords in code
         int found = 0;
@@ -479,10 +479,10 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out, struct bstrList* regs
                 }
             }
         }
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, List of registers used before duplication removal);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "List of registers used before duplication removal");
         if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(regs);
         bstrListRemoveDup(regs);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, List of registers used after duplication removal);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "List of registers used after duplication removal");
         if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(regs);
 
         // Destroy input, not needed anymore
@@ -491,11 +491,11 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out, struct bstrList* regs
         if (!found)
         {
             done = 1;
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, No more keywords -> exit parsing)
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "No more keywords -> exit parsing");
         }
         else
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Still keywords in code -> new round)
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Still keywords in code -> new round");
             // Last output is new input
             pttin = pttout;
             // Fresh list for next round's output
@@ -518,7 +518,7 @@ int prepare_ptt(TestConfig_t config, struct bstrList* out, struct bstrList* regs
     return 0;
 }
 
-static int _generate_replacement_lists(RuntimeConfig* runcfg, struct bstrList* keys, struct bstrList* values, int* maxKeyLength, struct bstrList* regsused)
+static int _generate_replacement_lists(RuntimeConfig* runcfg, RuntimeThreadConfig* thread, struct bstrList* keys, struct bstrList* values, int* maxKeyLength, struct bstrList* regsused)
 {
     TestConfig_t config = runcfg->tcfg;
     int maxs = 0;
@@ -542,7 +542,7 @@ static int _generate_replacement_lists(RuntimeConfig* runcfg, struct bstrList* k
             }
         }
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, List of registers available);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "List of registers available");
     if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(regsavail);
 
 
@@ -552,55 +552,52 @@ static int _generate_replacement_lists(RuntimeConfig* runcfg, struct bstrList* k
     // - Infos about threading
     struct bstrList* blines = bstrListCreate();
     int str_count = 0;
-    for (int w = 0; w < runcfg->num_wgroups; w++)
+    if (thread->num_streams > regsavail->qty)
     {
-        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
-        if (wg->num_streams > regsavail->qty)
+        ERROR_PRINT("The Number of streams %d is higher than the %d registers available", thread->num_streams, regsavail->qty);
+        bstrListDestroy(regsavail);
+        bstrListDestroy(blines);
+        return -EINVAL;
+    }
+    for (int s = 0; s < thread->num_streams; s++)
+    {
+        RuntimeStreamConfig* data = &thread->sdata[s];
+        RuntimeThreadStreamConfig* str = &thread->tstreams[s];
+        for (int i = 0; i < regsavail->qty && data->name; i++)
         {
-            ERROR_PRINT(The Number of stream %d is higher than the %d registers available in workgroup %d, wg->num_streams, regsavail->qty, w);
-            bstrListDestroy(regsavail);
-            bstrListDestroy(blines);
-            return -EINVAL;
-        }
-        for (int s = 0; s < wg->num_streams; s++)
-        {
-            RuntimeStreamConfig* str = &wg->streams[s];
-            for (int i = 0; i < regsavail->qty && str->name; i++)
-            {
-                str_count++;
-                bstrListAdd(keys, str->name);
-                bstring reg = bformat("%s", bdata(regsavail->entry[i]));
-                bstring ptr = bformat("%p", str->ptr);
-                bstrListAdd(values, reg);
+            str_count++;
+            bstrListAdd(keys, data->name);
+            bstring reg = bformat("%s", bdata(regsavail->entry[i]));
+            bstring ptr = bformat("%p", str->tstream_ptr);
+            bstrListAdd(values, reg);
 #if defined(__x86_64) || defined(__x86_64__)
-                bstring line = bformat("mov %s, %s", bdata(regsavail->entry[i]), bdata(ptr));
+            bstring line = bformat("mov %s, %s", bdata(regsavail->entry[i]), bdata(ptr));
 #elif defined(__ARM_ARCH_8A) || defined(__aarch64__) || defined(__arm__)
-                bstring line = bformat("ldr %s, =%s", bdata(regsavail->entry[i]), bdata(ptr));
+            bstring line = bformat("ldr %s, =%s", bdata(regsavail->entry[i]), bdata(ptr));
 #elif defined(_ARCH_PPC) || defined(__powerpc) || defined(__ppc__) || defined(__PPC__)
-                bstring line = bformat("mov %s, %s", bdata(regsavail->entry[i]), bdata(ptr)); // to be replaced
+            bstring line = bformat("mov %s, %s", bdata(regsavail->entry[i]), bdata(ptr)); // to be replaced
 #endif
-                bstrListAdd(blines, line);
-                if (bstrListRemove(regsavail, reg) == BSTR_OK)
-                {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Register '%s' removed: List of registers available, bdata(reg));
-                    if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(regsavail);
-                }
-                bdestroy(reg);
-                bdestroy(ptr);
-                bdestroy(line);
-                break;
-            }
-
-            TestConfigStream *tstr = &runcfg->tcfg->streams[s];
-            for (int d = 0; d < str->dims; d++)
+            bstrListAdd(blines, line);
+            if (bstrListRemove(regsavail, reg) == BSTR_OK)
             {
-                bstring k = bformat("#%s", bdata(tstr->dims->entry[d]));
-                bstring v = bformat("%ld", getstreamelems(str));
-                bstrListAdd(keys, k);
-                bstrListAdd(values, v);
-                bdestroy(k);
-                bdestroy(v);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, "Register '%s' removed: List of registers available", bdata(reg));
+                if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(regsavail);
             }
+            bdestroy(reg);
+            bdestroy(ptr);
+            bdestroy(line);
+            break;
+        }
+
+        TestConfigStream *tstr = &runcfg->tcfg->streams[s];
+        for (int d = 0; d < data->dims; d++)
+        {
+            bstring k = bformat("#%s", bdata(tstr->dims->entry[d]));
+            bstring v = bformat("%d", str->tsizes);
+            bstrListAdd(keys, k);
+            bstrListAdd(values, v);
+            bdestroy(k);
+            bdestroy(v);
         }
     }
     if (str_count > 0)
@@ -609,7 +606,7 @@ static int _generate_replacement_lists(RuntimeConfig* runcfg, struct bstrList* k
         bstring val = bjoin(blines, &bnewline);
         bstrListAdd(values, val);
         bdestroy(val);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, The streams line '%s' for replacement is, bdata(&bstrptr))
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "The streams line '%s' for replacement is", bdata(&bstrptr))
         if (global_verbosity == DEBUGLEV_DEVELOP) bstrListPrint(blines);
     }
     bstrListDestroy(blines);
@@ -641,7 +638,7 @@ static int _generate_replacement_lists(RuntimeConfig* runcfg, struct bstrList* k
     return 0;
 }
 
-int generate_code(RuntimeConfig* runcfg, struct bstrList* out)
+int generate_code(RuntimeConfig* runcfg, RuntimeThreadConfig* thread, struct bstrList* out)
 {
     TestConfig_t config = runcfg->tcfg;
     struct bstrList* tmp = bstrListCreate();
@@ -654,7 +651,7 @@ int generate_code(RuntimeConfig* runcfg, struct bstrList* out)
     struct bstrList* keys = bstrListCreate();
     struct bstrList* values = bstrListCreate();
     int maxLength = 0;
-    int err = _generate_replacement_lists(runcfg, keys, values, &maxLength, regsused);
+    int err = _generate_replacement_lists(runcfg, thread, keys, values, &maxLength, regsused);
     
     for (int i = 0; i < tmp->qty; i++)
     {
@@ -664,7 +661,7 @@ int generate_code(RuntimeConfig* runcfg, struct bstrList* out)
             {
                 if (blength(keys->entry[j]) == l && binstr(tmp->entry[i], 0, keys->entry[j]) != BSTR_ERR)
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing '%s' with '%s' in '%s', bdata(keys->entry[j]), bdata(values->entry[j]), bdata(tmp->entry[i]));
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Replacing '%s' with '%s' in '%s'", bdata(keys->entry[j]), bdata(values->entry[j]), bdata(tmp->entry[i]));
                     bfindreplace(tmp->entry[i], keys->entry[j], values->entry[j], 0);
                 }
             }

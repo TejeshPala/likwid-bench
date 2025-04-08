@@ -19,27 +19,23 @@
         - N
       options:
         - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
 - Variables:
-  UOPS_PER_ITER: 1
   BYTES_PER_ELEM: 8
   LOADS_PER_ELEM: 1
   BYTES_PER_ITER: 8
   LOADS_PER_ITER: 1
   INST_PER_ITER: 1
-  UNROLL_FACTOR: 1 
 
 - Metrics:
   Read bandwidth [MByte/s]: BYTES_PER_ITER*ITER/TIME
   Total bandwidth [MByte/s]: BYTES_PER_ITER*ITER/TIME
   Total instructions: INST_PER_ITER*ITER
-  Total uops: UOPS_PER_ITER*ITER
-- Threads:
-  offsets:
-    - THREAD_ID*(N/NUM_THREADS)
-  sizes:
-    - N/NUM_THREADS
 - Language: asm
 ...
-LOOP(loop, x6=0, <, x0=N, UNROLL_FACTOR)
+LOOP(loop, x6=0, <, x0=N, 1)
 ldr     x4, [STR0, x6, lsl 3]
 LOOPEND(loop)

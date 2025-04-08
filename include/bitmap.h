@@ -2,6 +2,7 @@
 #ifndef BITMAP_H
 #define BITMAP_H
 
+#include <inttypes.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -16,15 +17,15 @@
 
 typedef struct {
     BitmapDataType *data;
-    size_t          size;
-    size_t          alignment;
+    uint64_t          size;
+    uint64_t          alignment;
 } Bitmap;
 
-int create_bitmap(size_t size, size_t alignment, Bitmap* bitmap);
+int create_bitmap(uint64_t size, uint64_t alignment, Bitmap* bitmap);
 void destroy_bitmap(Bitmap *bitmap);
-int set_bit(Bitmap *bitmap, size_t index);
-int clear_bit(Bitmap *bitmap, size_t index);
-int is_bit_set(Bitmap *bitmap, size_t index);
+int set_bit(Bitmap *bitmap, uint64_t index);
+int clear_bit(Bitmap *bitmap, uint64_t index);
+int is_bit_set(Bitmap *bitmap, uint64_t index);
 void print_set_bits(const Bitmap *bitmap);
 
 #endif /* BITMAP_H */

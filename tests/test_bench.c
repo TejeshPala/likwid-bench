@@ -45,21 +45,21 @@ int main(int argc, char* argv) {
         return -ENOMEM;
     }
     memset(tconfig->command, 0, sizeof(RuntimeThreadCommand));
-    tconfig->command->tstreams = malloc(2*sizeof(RuntimeStreamConfig));
-    if (!tconfig->command->tstreams)
+    tconfig->sdata = malloc(2*sizeof(RuntimeStreamConfig));
+    if (!tconfig->sdata)
     {
         free(data);
         free(tconfig->command);
         free(tconfig);
         return -ENOMEM;
     }
-    tconfig->command->tstreams[0].ptr = malloc(10000*sizeof(int));
-    tconfig->command->tstreams[0].dimsizes[0] = 10000*sizeof(int);
-    tconfig->command->tstreams[0].dims = 1;
-    tconfig->command->tstreams[0].id = 0;
-    tconfig->command->tstreams[0].offsets[0] = 0;
-    tconfig->command->tstreams[0].type = TEST_STREAM_TYPE_INT;
-    tconfig->command->num_streams = 1;
+    tconfig->sdata[0].ptr = malloc(10000*sizeof(int));
+    tconfig->sdata[0].dimsizes[0] = 10000*sizeof(int);
+    tconfig->sdata[0].dims = 1;
+    tconfig->sdata[0].id = 0;
+    tconfig->sdata[0].offsets[0] = 0;
+    tconfig->sdata[0].type = TEST_STREAM_TYPE_INT;
+    tconfig->num_streams = 1;
     tconfig->command->cmdfunc.run = (BenchFuncPrototype)myfunc;
     tconfig->command->cmd = LIKWID_THREAD_COMMAND_RUN;
 
@@ -72,8 +72,8 @@ int main(int argc, char* argv) {
     printf("running benchmark\n");
     run_benchmark(tconfig);
     printf("benchmark finished in %f seconds\n", tconfig->runtime);
-    free(tconfig->command->tstreams[0].ptr);
-    free(tconfig->command->tstreams);
+    free(tconfig->sdata[0].ptr);
+    free(tconfig->sdata);
     free(tconfig->command);
     free(tconfig->data);
     free(tconfig);
