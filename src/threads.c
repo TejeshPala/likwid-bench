@@ -771,7 +771,7 @@ int update_threads(RuntimeConfig* runcfg)
                     {
                         str->tsizes = (uint64_t)(elems - str->toffsets);
                     }
-                    DEBUG_PRINT(DEBUGLEV_INFO, "thread: %d stream: %d tsizes: %" PRIu64 "toffsets: %zu", i, s, str->tsizes, str->toffsets);
+                    DEBUG_PRINT(DEBUGLEV_INFO, "thread: %d stream: %d tsizes: %" PRIu64 " toffsets: %zu", i, s, str->tsizes, str->toffsets);
                     if (str->tsizes % bytesperiter != 0 || str->toffsets % bytesperiter != 0)
                     {
                         if (thread->local_id == 0 && s == 0) WARN_PRINT("SANITIZING A rounddown is applied on each thread sizes and offsets as %s is set to %" PRIu64, bdata(&bbytesperiter), bytesperiter);
@@ -787,7 +787,7 @@ int update_threads(RuntimeConfig* runcfg)
                             rounddown_nbits(&str->toffsets, str->toffsets, bytesperiter);
                         }
                     }
-                    DEBUG_PRINT(DEBUGLEV_INFO, "After rounddown - thread: %d stream: %d tsizes: %" PRIu64 "toffsets: %zu", i, s, str->tsizes, str->toffsets);
+                    DEBUG_PRINT(DEBUGLEV_INFO, "After rounddown - thread: %d stream: %d tsizes: %" PRIu64 " toffsets: %zu", i, s, str->tsizes, str->toffsets);
                     switch(thread->sdata[s].type)
                     {
                         case TEST_STREAM_TYPE_SINGLE:
