@@ -5,13 +5,13 @@
 #define NUM_TESTS 11
 
 typedef struct {
-    size_t  in;
-    size_t  nbits;
-    size_t  expected_result;
+    uint64_t  in;
+    uint64_t  nbits;
+    uint64_t  expected_result;
     int     expected_error;
 } TestCase;
 
-void run_tests(const char *test_name, TestCase *tests, int num_tests, int (*func)(size_t*, size_t, size_t))
+void run_tests(const char *test_name, TestCase *tests, int num_tests, int (*func)(uint64_t*, uint64_t, uint64_t))
 {
     printf(SEPARATOR);
     printf("Running %s tests\n", test_name);
@@ -19,34 +19,34 @@ void run_tests(const char *test_name, TestCase *tests, int num_tests, int (*func
     int fail_count = 0;
     int should_fail = 0;
 
-    for (size_t i = 0; i < num_tests; i++)
+    for (int i = 0; i < num_tests; i++)
     {
-        size_t out;
+        uint64_t out;
         int err = func(&out, tests[i].in, tests[i].nbits);
         if (err == tests[i].expected_error)
         {
             if (out == tests[i].expected_result)
             {
-                printf("Test %2zu: PASS (in=%-10zu, nbits=%-5zu, expected=%-10zu, actual=%-10zu)\n",
+                printf("Test %2d: PASS (in=%-10" PRIu64 ", nbits=%-5" PRIu64 ", expected=%-10" PRIu64 ", actual=%-10" PRIu64 ")\n",
                     i + 1, tests[i].in, tests[i].nbits, tests[i].expected_result, out);
                 pass_count++;
             }
             else
             {
-                printf("Test %2zu: SHOULD FAIL (in=%-10zu, nbits=%-5zu, expected=%-10zu, actual=%-10zu)\n",
+                printf("Test %2d: SHOULD FAIL (in=%-10" PRIu64 ", nbits=%-5" PRIu64 ", expected=%-10" PRIu64 ", actual=%-10" PRIu64 ")\n",
                     i + 1, tests[i].in, tests[i].nbits, tests[i].expected_result, out);
                 should_fail++;
             }
         }
         else
         {
-            printf("Test %2zu: FAIL (in=%-10zu, nbits=%-5zu, expected=%-10zu, actual=%-10zu, err=%d)\n",
+            printf("Test %2d: FAIL (in=%-10" PRIu64 ", nbits=%-5" PRIu64 ", expected=%-10" PRIu64 ", actual=%-10" PRIu64 ", err=%d)\n",
                 i + 1, tests[i].in, tests[i].nbits, tests[i].expected_result, out, err);
             fail_count++;
         }
     }
     
-    printf("Total: \t%zu Passed: \t%d Failed: \t%d Should Fail: \t%d\n", num_tests, pass_count, fail_count, should_fail);
+    printf("Total: \t%d Passed: \t%d Failed: \t%d Should Fail: \t%d\n", num_tests, pass_count, fail_count, should_fail);
 }
 
 
@@ -60,12 +60,12 @@ int main()
         {128, 64, 128, 0},
         {200, 128, 256, 0},
         {0, 64, 0, 0},
-        {SIZE_MAX - 63, 64, SIZE_MAX, 0},
+        {UINT64_MAX - 63, 64, UINT64_MAX, 0},
 
         {1, 2, 2, 0},
         {5, 4, 8, 0},
         {100, 0, 0, -EINVAL},
-        {SIZE_MAX - 30, 64, 0, -EOVERFLOW},
+        {UINT64_MAX - 30, 64, 0, -EOVERFLOW},
     };
 
     TestCase rounddown_tests[] =
@@ -76,7 +76,7 @@ int main()
         {128, 64, 128, 0},
         {200, 128, 128, 0},
         {0, 64, 0, 0},
-        {SIZE_MAX, 64, SIZE_MAX & ~63, 0},
+        {UINT64_MAX, 64, UINT64_MAX & ~63, 0},
 
         {7, 3, 6, 0},
         {0, 0, 0, -EINVAL},
@@ -91,7 +91,7 @@ int main()
         {32, 64, 64, 0},
         {200, 128, 256, 0},
         {0, 64, 0, 0},
-        {SIZE_MAX - (SIZE_MAX % 64), 64, SIZE_MAX - (SIZE_MAX % 64), 0},
+        {UINT64_MAX - (UINT64_MAX % 64), 64, UINT64_MAX - (UINT64_MAX % 64), 0},
 
         {15, 8, 16, 0},
         {100, 0, 0, -EINVAL},
@@ -110,12 +110,12 @@ int main()
         {128, 64, 128, 0},
         {200, 128, 256, 0},
         {0, 64, 0, 0},
-        {SIZE_MAX - 63, 64, SIZE_MAX, 0},
+        {UINT64_MAX - 63, 64, UINT64_MAX, 0},
 
         {1, 1, 1, 0},
         {5, 4, 8, 0},
         {100, 0, 0, -EINVAL},
-        {SIZE_MAX - 30, 64, 0, -EOVERFLOW},
+        {UINT64_MAX - 30, 64, 0, -EOVERFLOW},
     };
 
     TestCase rounddown_pow2_tests[] =
@@ -126,7 +126,7 @@ int main()
         {128, 64, 128, 0},
         {200, 128, 128, 0},
         {0, 64, 0, 0},
-        {SIZE_MAX & ~63, 64, SIZE_MAX & ~63, 0},
+        {UINT64_MAX & ~63, 64, UINT64_MAX & ~63, 0},
 
         {7, 3, 6, -EINVAL},
         {0, 0, 0, -EINVAL},
@@ -141,7 +141,7 @@ int main()
         {32, 64, 64, 0},
         {200, 128, 256, 0},
         {0, 64, 0, 0},
-        {SIZE_MAX - (SIZE_MAX % 64), 64, SIZE_MAX - (SIZE_MAX % 64), 0},
+        {UINT64_MAX - (UINT64_MAX % 64), 64, UINT64_MAX - (UINT64_MAX % 64), 0},
 
         {15, 8, 16, 0},
         {100, 0, 0, -EINVAL},
