@@ -1,3 +1,5 @@
+#include <inttypes.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,12 +29,12 @@ void delete_workgroup(RuntimeWorkgroupConfig* wg)
     {
         for (int l = 0; l < wg->num_threads; l++)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy result storage for thread %d (HWThread %d), l, wg->hwthreads[l]);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy result storage for thread %d (HWThread %d)", l, wg->hwthreads[l]);
             destroy_result(&wg->results[l]);
         }
         free(wg->results);
         wg->results = NULL;
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy result storage for workgroup %s, bdata(wg->str));
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy result storage for workgroup %s", bdata(wg->str));
         destroy_result(wg->group_results);
     }
     if (wg->hwthreads)
@@ -59,7 +61,7 @@ void release_streams(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
             {
                 for (int s = 0; s < wg->num_streams; s++)
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Releasing workgroup %d %dd arrays for stream %s, w, wg->streams[s].dims, bdata(wg->streams[s].name));
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Releasing workgroup %d %dd arrays for stream %s", w, wg->streams[s].dims, bdata(wg->streams[s].name));
                     release_arrays(&wg->streams[s]);
                     bdestroy(wg->streams[s].name);
                 }
@@ -78,19 +80,19 @@ int resolve_workgroup(RuntimeWorkgroupConfig* wg, int maxThreads)
     wg->hwthreads = malloc(maxThreads * sizeof(int));
     if (!wg->hwthreads)
     {
-        ERROR_PRINT(Failed to allocate hwthread list for workgroup string %s, bdata(wg->str));
+        ERROR_PRINT("Failed to allocate hwthread list for workgroup string %s", bdata(wg->str));
         return -ENOMEM;
     }
 
     int nthreads = lb_cpustr_to_cpulist(wg->str, wg->hwthreads, maxThreads);
     if (nthreads < 0)
     {
-        ERROR_PRINT(Failed to resolve workgroup string %s, bdata(wg->str));
+        ERROR_PRINT("Failed to resolve workgroup string %s", bdata(wg->str));
         free(wg->hwthreads);
         wg->hwthreads = NULL;
         return nthreads;
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Workgroup string %s resolves to %d threads, bdata(wg->str), nthreads);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Workgroup string %s resolves to %d threads", bdata(wg->str), nthreads);
     wg->num_threads = nthreads;
     return 0;
 }
@@ -120,12 +122,12 @@ int allocate_workgroup_stuff(int detailed, RuntimeWorkgroupConfig* wg)
     wg->results = malloc(wg->num_threads * sizeof(RuntimeWorkgroupResult));
     if (!wg->results)
     {
-        ERROR_PRINT(Unable to allocate memory for results);
+        ERROR_PRINT("Unable to allocate memory for results");
         return -ENOMEM;
     }
     for (int j = 0; j < wg->num_threads; j++)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Init result storage for thread %d (HWThread %d), j, wg->hwthreads[j]);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Init result storage for thread %d (HWThread %d)", j, wg->hwthreads[j]);
         err = init_result(&wg->results[j]);
         if (err < 0)
         {
@@ -145,7 +147,7 @@ int allocate_workgroup_stuff(int detailed, RuntimeWorkgroupConfig* wg)
     wg->group_results = malloc(sizeof(RuntimeWorkgroupResult));
     if (!wg->group_results)
     {
-        ERROR_PRINT(Unable to allocate memory for group results);
+        ERROR_PRINT("Unable to allocate memory for group results");
         for (int j = 0; j < wg->num_threads; j++)
         {
             destroy_result(&wg->results[j]);
@@ -154,7 +156,7 @@ int allocate_workgroup_stuff(int detailed, RuntimeWorkgroupConfig* wg)
         wg->results = NULL;
         return -ENOMEM;
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Init result storage for workgroup %s, bdata(wg->str));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Init result storage for workgroup %s", bdata(wg->str));
     err = init_result(wg->group_results);
     if (err < 0)
     {
@@ -197,7 +199,7 @@ int resolve_workgroups(int detailed, int num_wgroups, RuntimeWorkgroupConfig* wg
         }
         else
         {
-            ERROR_PRINT(Unable to resolve workgroup for each workgroup);
+            ERROR_PRINT("Unable to resolve workgroup for each workgroup");
             return err;
         }
     }
@@ -207,11 +209,11 @@ int resolve_workgroups(int detailed, int num_wgroups, RuntimeWorkgroupConfig* wg
 int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
 {
     int err = 0;
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Allocating %d streams, runcfg->tcfg->num_streams);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Allocating %d streams", runcfg->tcfg->num_streams);
     wg->streams = malloc(runcfg->tcfg->num_streams * sizeof(RuntimeStreamConfig));
     if (!wg->streams)
     {
-        ERROR_PRINT(Unable to allocate memory for Streams);
+        ERROR_PRINT("Unable to allocate memory for Streams");
         return -ENOMEM;
     }
     memset(wg->streams, 0, runcfg->tcfg->num_streams * sizeof(RuntimeStreamConfig));
@@ -229,21 +231,21 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
             for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
             {
                 bstring t = bstrcpy(istream->dims->entry[k]);
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream %d: dimsize before %s, j, bdata(t));
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, "Stream %d: dimsize before %s", j, bdata(t));
                 replace_all(runcfg->global_results, t, NULL);
-                size_t res = 0;
-                int c = sscanf(bdata(t), "%lld", &res);
+                uint64_t res = 0;
+                int c = sscanf(bdata(t), "%" SCNu64, &res);
                 if (c == 1)
                 {
                     ostream->dimsizes[k] = res;
                 }
                 if (res == 0)
                 {
-                    ERROR_PRINT(Invalid dimension size %s -> %lld after conversion, bdata(istream->dims->entry[k]), res);
+                    ERROR_PRINT("Invalid dimension size %s -> %" PRIu64 "after conversion", bdata(istream->dims->entry[k]), res);
                     bdestroy(t);
                     return -EINVAL;
                 }
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, Stream %d: dimsize after %lld, j, ostream->dimsizes[k]);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, "Stream %d: dimsize after %" PRIu64, j, ostream->dimsizes[k]);
                 ostream->dims++;
                 bdestroy(t);
             }
@@ -310,12 +312,12 @@ int _aggregate_results(struct bstrList* bkeys, struct bstrList** bvalues, Runtim
                 err = add_value(res, bkey, calc_result);
                 if (err != 0)
                 {
-                    ERROR_PRINT(Unable to add value to the results);
+                    ERROR_PRINT("Unable to add value to the results");
                 }
             }
             else
             {
-                ERROR_PRINT(Error calculating formula: %s, bdata(full_formula));
+                ERROR_PRINT("Error calculating formula: %s", bdata(full_formula));
             }
             bdestroy(full_formula);
             bdestroy(bkey);
@@ -349,7 +351,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
     struct bstrList** bvalues = NULL;
     if (!bkeys)
     {
-        ERROR_PRINT(Unable to allocate memory for keys);
+        ERROR_PRINT("Unable to allocate memory for keys");
         return -ENOMEM;
     }
     if (bkeys->qty == 0)
@@ -357,7 +359,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
         collect_keys(&wgroups[0].results[0], bkeys);
         if (bkeys->qty == 0)
         {
-            ERROR_PRINT(No keys are collected from the workgroup);
+            ERROR_PRINT("No keys are collected from the workgroup");
             bstrListDestroy(bkeys);
             return -EINVAL;
         }
@@ -372,7 +374,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
     bgrp_values = calloc(bkeys_sorted->qty, sizeof(struct bstrList*));
     if (!bgrp_values)
     {
-        ERROR_PRINT(Unable to allocate memory for group values);
+        ERROR_PRINT("Unable to allocate memory for group values");
         bstrListDestroy(bkeys_sorted);
         return -ENOMEM;
     }
@@ -381,7 +383,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
         bgrp_values[id] = bstrListCreate();
         if (!bgrp_values[id])
         {
-            ERROR_PRINT(Unable to allocate memory for each group values);
+            ERROR_PRINT("Unable to allocate memory for each group values");
             for (int j = 0; j < id; j++)
             {
                 bstrListDestroy(bgrp_values[j]);
@@ -398,7 +400,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
         bvalues = calloc(bkeys_sorted->qty, sizeof(struct bstrList*));
         if (!bvalues)
         {
-            ERROR_PRINT(Unable to allocate memory for values of %d workgroup, w);
+            ERROR_PRINT("Unable to allocate memory for values of %d workgroup", w);
             bstrListDestroy(bkeys_sorted);
             return -ENOMEM;
         }
@@ -407,7 +409,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
             bvalues[id] = bstrListCreate();
             if (!bvalues[id])
             {
-                ERROR_PRINT(Unable to allocate memory for each values);
+                ERROR_PRINT("Unable to allocate memory for each values");
                 for (int j = 0; j < id; j++)
                 {
                     bstrListDestroy(bvalues[j]);
@@ -446,7 +448,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
                     err = update_value(result, bkeys_sorted->entry[id], value);
                     if (err == 0)
                     {
-                        DEBUG_PRINT(DEBUGLEV_DEVELOP, Value updated for thread %d for key %s with value %.15lf, thread->data->hwthread, bdata(bkeys_sorted->entry[id]), value);
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Value updated for thread %d for key %s with value %.15lf", thread->data->hwthread, bdata(bkeys_sorted->entry[id]), value);
                     }
                     bstrListAdd(bvalues[id], t_value);
                     bstrListAdd(bgrp_values[id], t_value);
@@ -496,7 +498,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
         err = _aggregate_results(bkeys_sorted, bvalues, wg->group_results);
         if (err != 0)
         {
-            ERROR_PRINT(Error in aggregation of group results for workgroup %d, w);
+            ERROR_PRINT("Error in aggregation of group results for workgroup %d", w);
         }
         for (int id = 0; id < bkeys_sorted->qty; id ++)
         {
@@ -512,7 +514,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
     err = _aggregate_results(bkeys_sorted, bgrp_values, runcfg->global_results);
     if (err != 0)
     {
-        ERROR_PRINT(Error in aggregation of global results);
+        ERROR_PRINT("Error in aggregation of global results");
     }
     for (int id = 0; id < bkeys_sorted->qty; id ++)
     {

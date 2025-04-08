@@ -51,7 +51,7 @@ static bstring get_architecture()
     return bfromcstr(buffer.machine);
 }
 
-static bstring hline()
+static bstring bhline()
 {
     bstring bdash = bfromcstr("");
     binsertch(bdash, 0, 80, '-');
@@ -64,13 +64,12 @@ int allocate_runtime_config(RuntimeConfig** config)
     RuntimeConfig* runcfg = malloc(sizeof(RuntimeConfig));
     if (!runcfg)
     {
-        ERROR_PRINT(Error allocating space for runtime configuration)
+        ERROR_PRINT("Error allocating space for runtime configuration");
         return -ENOMEM;
     }
     memset(runcfg, 0, sizeof(RuntimeConfig));
     runcfg->wgroups = NULL;
     runcfg->tcfg = NULL;
-    runcfg->codelines = NULL;
     runcfg->params = NULL;
     runcfg->global_results = NULL;
     runcfg->testname = bfromcstr("");
@@ -92,21 +91,21 @@ void free_runtime_config(RuntimeConfig* runcfg)
 {
     if (runcfg)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy pttfile in RuntimeConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy pttfile in RuntimeConfig");
         bdestroy(runcfg->pttfile);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy testname in RuntimeConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy testname in RuntimeConfig");
         bdestroy(runcfg->testname);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy tmpfolder in RuntimeConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy tmpfolder in RuntimeConfig");
         bdestroy(runcfg->tmpfolder);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy compiler in RuntimeConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy compiler in RuntimeConfig");
         bdestroy(runcfg->compiler);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy kernelfolder in RuntimeConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy kernelfolder in RuntimeConfig");
         bdestroy(runcfg->kernelfolder);
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy arraysize in RuntimeConfig);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy arraysize in RuntimeConfig");
         bdestroy(runcfg->arraysize);
         if (runcfg->wgroups)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy workgroups in RuntimeConfig);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy workgroups in RuntimeConfig");
             for (int i = 0; i < runcfg->num_wgroups; i++)
             {
                 bdestroy(runcfg->wgroups[i].str);
@@ -117,6 +116,10 @@ void free_runtime_config(RuntimeConfig* runcfg)
                         destroy_result(&runcfg->wgroups[i].results[j]);
                         if (runcfg->wgroups[i].threads)
                         {
+                            if (runcfg->wgroups[i].threads[j].testconfig)
+                            {
+                                close_function(&runcfg->wgroups[i].threads[j]);
+                            }
                             if (runcfg->wgroups[i].threads[j].data)
                             {
                                 free(runcfg->wgroups[i].threads[j].data);
@@ -131,6 +134,11 @@ void free_runtime_config(RuntimeConfig* runcfg)
                                 }
                                 free(runcfg->wgroups[i].threads[j].command);
                                 runcfg->wgroups[i].threads[j].command = NULL;
+                            }
+                            if (runcfg->wgroups[i].threads[j].codelines)
+                            {
+                                bstrListDestroy(runcfg->wgroups[i].threads[j].codelines);
+                                runcfg->wgroups[i].threads[j].codelines = NULL;
                             }
                         }
                     }
@@ -161,26 +169,6 @@ void free_runtime_config(RuntimeConfig* runcfg)
                     runcfg->wgroups[i].streams = NULL;
                     runcfg->wgroups[i].num_streams = 0;
                 }
-                if (runcfg->wgroups[i].testconfig.objfile)
-                {
-                    bdestroy(runcfg->wgroups[i].testconfig.objfile);
-                }
-                if (runcfg->wgroups[i].testconfig.compiler)
-                {
-                    bdestroy(runcfg->wgroups[i].testconfig.compiler);
-                }
-                if (runcfg->wgroups[i].testconfig.flags)
-                {
-                    bdestroy(runcfg->wgroups[i].testconfig.flags);
-                }
-                if (runcfg->wgroups[i].testconfig.functionname)
-                {
-                    bdestroy(runcfg->wgroups[i].testconfig.functionname);
-                }
-                if (runcfg->wgroups[i].testconfig.function)
-                {
-                    close_function(&runcfg->wgroups[i]);
-                }
             }
             
             free(runcfg->wgroups);
@@ -189,7 +177,7 @@ void free_runtime_config(RuntimeConfig* runcfg)
         }
         if (runcfg->params)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy parameter in RuntimeConfig);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy parameter in RuntimeConfig");
             for (int i = 0; i < runcfg->num_params; i++)
             {
                 bdestroy(runcfg->params[i].name);
@@ -202,14 +190,9 @@ void free_runtime_config(RuntimeConfig* runcfg)
         }
         if (runcfg->tcfg)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Destroy TestConfig in RuntimeConfig);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy TestConfig in RuntimeConfig");
             close_yaml_ptt(runcfg->tcfg);
             runcfg->tcfg = NULL;
-        }
-        if (runcfg->codelines)
-        {
-            bstrListDestroy(runcfg->codelines);
-            runcfg->codelines = NULL;
         }
 
         if (runcfg->global_results)
@@ -301,7 +284,7 @@ int main(int argc, char** argv)
     //err = parse_baseopts(argc, argv, runcfg);
     if (err < 0)
     {
-        ERROR_PRINT(Error parsing base options)
+        ERROR_PRINT("Error parsing base options");
         printCliOptions(&baseopts);
         goto main_out;
     }
@@ -312,7 +295,7 @@ int main(int argc, char** argv)
     }
     if (runcfg->verbosity > 0)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting verbosity to %d, runcfg->verbosity);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Setting verbosity to %d", runcfg->verbosity);
         global_verbosity = runcfg->verbosity;
     }
 
@@ -329,7 +312,7 @@ int main(int argc, char** argv)
     err = read_yaml_ptt(bdata(runcfg->pttfile), &runcfg->tcfg);
     if (err < 0)
     {
-        ERROR_PRINT(Error reading %s, bdata(runcfg->pttfile));
+        ERROR_PRINT("Error reading %s", bdata(runcfg->pttfile));
         goto main_out;
     }
 
@@ -353,12 +336,12 @@ int main(int argc, char** argv)
     err = assignTestCliOptions(&testopts, runcfg);
     if (err < 0)
     {
-        ERROR_PRINT(Error assigning runtime CLI test options);
+        ERROR_PRINT("Error assigning runtime CLI test options");
         goto main_out;
     }
     else if (err > 0)
     {
-        ERROR_PRINT(Error not all required test parameters set);
+        ERROR_PRINT("Error not all required test parameters set");
         goto main_out;
     }
 
@@ -368,13 +351,13 @@ int main(int argc, char** argv)
         if (err < 0)
         {
             errno = -err;
-            ERROR_PRINT(Error assigning workgroup CLI options);
+            ERROR_PRINT("Error assigning workgroup CLI options");
             goto main_out;
         }
         if (runcfg->num_wgroups == 0)
         {
             errno = EINVAL;
-            ERROR_PRINT(No workgroups on the command line);
+            ERROR_PRINT("No workgroups on the command line");
             goto main_out;
         }
     }
@@ -382,11 +365,12 @@ int main(int argc, char** argv)
     err = parse_cpu_folders();
     if (err < 0)
     {
-        ERROR_PRINT(Error parsing CPU folders);
+        ERROR_PRINT("Error parsing CPU folders");
         goto main_out;
     }
 
-    printf("%s", bdata(hline()));
+    bstring hline = bhline();
+    printf("%s", bdata(hline));
     printf("Application: LIKWID-BENCH\n");
     printf("Test: %s\n", bdata(runcfg->testname));
 
@@ -396,7 +380,7 @@ int main(int argc, char** argv)
     err = resolve_workgroups(runcfg->detailed, runcfg->num_wgroups, runcfg->wgroups);
     if (err < 0)
     {
-        ERROR_PRINT(Error resolving workgroups);
+        ERROR_PRINT("Error resolving workgroups");
         goto main_out;
     }
 
@@ -406,7 +390,7 @@ int main(int argc, char** argv)
     err = check_feature_flags(runcfg);
     if (err < 0)
     {
-        ERROR_PRINT(Error checking CPU flags);
+        ERROR_PRINT("Error checking CPU flags");
         goto main_out;
     }
 
@@ -416,14 +400,14 @@ int main(int argc, char** argv)
         RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
         if (runcfg->num_wgroups != 1)
         {
-            printf("\t%d work group - %d threads\n", w + 1, wg->num_threads);
+            printf("\twork group %d - %d threads\n", w + 1, wg->num_threads);
         }
         else
         {
             printf("\tUsing %d threads\n", wg->num_threads);
         }
     }
-    printf("%s", bdata(hline()));
+    printf("%s", bdata(hline));
 
     /*
      * Evaluate variables, constants, ... for remaining operations
@@ -432,19 +416,19 @@ int main(int argc, char** argv)
     runcfg->global_results = malloc(sizeof(RuntimeWorkgroupResult));
     if (!runcfg->global_results)
     {
-        ERROR_PRINT(Unable to allocate memory for global results);
+        ERROR_PRINT("Unable to allocate memory for global results");
         goto main_out;
     }
     err = init_result(runcfg->global_results);
     if (err < 0)
     {
-        ERROR_PRINT(Error initializing global result storage);
+        ERROR_PRINT("Error initializing global result storage");
         goto main_out;
     }
     err = fill_results(runcfg);
     if (err < 0)
     {
-        ERROR_PRINT(Error filling result storages);
+        ERROR_PRINT("Error filling result storages");
         goto main_out;
     }
 
@@ -461,24 +445,9 @@ int main(int argc, char** argv)
         err = manage_streams(wg, runcfg);
         if (err < 0)
         {
-            ERROR_PRINT(Error allocating streams);
+            ERROR_PRINT("Error allocating streams");
             goto main_out;
         }
-    }
-
-    /*
-     * Generate assembly
-     */
-    runcfg->codelines = bstrListCreate();
-    err = generate_code(runcfg, runcfg->codelines);
-    if (err < 0)
-    {
-        ERROR_PRINT(Error generating code);
-        goto main_out;
-    }
-    for (int i = 0; i < runcfg->codelines->qty; i++)
-    {
-        DEBUG_PRINT(DEBUGLEV_DETAIL, "CODE: %s\n", bdata(runcfg->codelines->entry[i]));
     }
 
     /*
@@ -487,8 +456,31 @@ int main(int argc, char** argv)
     err = update_threads(runcfg);
     if (err < 0)
     {
-        ERROR_PRINT(Error updating thread groups);
+        ERROR_PRINT("Error updating thread groups");
         goto main_out;
+    }
+
+    /*
+     * Generate assembly
+     */
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        for (int t = 0; t < wg->num_threads; t++)
+        {
+            RuntimeThreadConfig* thread =  &wg->threads[t];
+            thread->codelines = bstrListCreate();
+            err = generate_code(runcfg, thread, thread->codelines);
+            if (err < 0)
+            {
+                ERROR_PRINT("Error generating code");
+                goto main_out;
+            }
+            for (int i = 0; i < thread->codelines->qty; i++)
+            {
+                DEBUG_PRINT(DEBUGLEV_DETAIL, "HWTHREAD %d CODE: %s", t, bdata(thread->codelines->entry[i]));
+            }
+        }
     }
 
     /*
@@ -499,14 +491,22 @@ int main(int argc, char** argv)
         err = dynload_create_runtime_test_config(runcfg, &runcfg->wgroups[i]);
         if (err < 0)
         {
-            ERROR_PRINT(Error generating function object);
+            ERROR_PRINT("Error generating function object");
             goto main_out;
         }
-        err = open_function(&runcfg->wgroups[i]);
-        if (err < 0)
+    }
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        for (int i = 0; i < wg->num_threads; i++)
         {
-            ERROR_PRINT(Error opening function objects);
-            goto main_out;
+            RuntimeThreadConfig* thread =  &wg->threads[i];
+            err = open_function(thread);
+            if (err < 0)
+            {
+                ERROR_PRINT("Error opening function objects");
+                goto main_out;
+            }
         }
     }
 
@@ -516,7 +516,7 @@ int main(int argc, char** argv)
     err = create_threads(runcfg->num_wgroups, runcfg->wgroups);
     if (err < 0)
     {   
-        ERROR_PRINT(Error creating thread);
+        ERROR_PRINT("Error creating thread");
         destroy_threads(runcfg->num_wgroups, runcfg->wgroups);
         goto main_out;
     }
@@ -530,7 +530,7 @@ int main(int argc, char** argv)
             err = send_cmd(LIKWID_THREAD_COMMAND_INITIALIZE, &wg->threads[i]);
             if (err < 0)
             {
-                ERROR_PRINT(Error communicating with threads);
+                ERROR_PRINT("Error communicating with threads");
                 destroy_threads(runcfg->num_wgroups, runcfg->wgroups);
                 goto main_out;
             }
@@ -546,12 +546,12 @@ int main(int argc, char** argv)
         for (int i = 0; i < wg->num_threads; i++)
         {
             RuntimeThreadConfig* thread =  &wg->threads[i];
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Setting thread %d run command function to %p, thread->local_id, wg->testconfig.function);
-            thread->command->cmdfunc.run = wg->testconfig.function;
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Setting thread %d run command function to %p", thread->local_id, thread->testconfig->function);
+            thread->command->cmdfunc.run = thread->testconfig->function;
             err = send_cmd(LIKWID_THREAD_COMMAND_RUN, thread);
             if (err < 0)
             {
-                ERROR_PRINT(Error communicating with threads);
+                ERROR_PRINT("Error communicating with threads");
                 destroy_threads(runcfg->num_wgroups, runcfg->wgroups);
                 goto main_out;
             }
@@ -569,7 +569,7 @@ int main(int argc, char** argv)
             err = send_cmd(LIKWID_THREAD_COMMAND_EXIT, &wg->threads[i]);
             if (err < 0)
             {
-                ERROR_PRINT(Error communicating with threads);
+                ERROR_PRINT("Error communicating with threads");
                 destroy_threads(runcfg->num_wgroups, runcfg->wgroups);
                 goto main_out;
             }
@@ -579,14 +579,14 @@ int main(int argc, char** argv)
     err = join_threads(runcfg->num_wgroups, runcfg->wgroups);
     if (err < 0)
     {
-        ERROR_PRINT(Error joining threads);
+        ERROR_PRINT("Error joining threads");
         goto main_out;
     }
 
     err = update_results(runcfg, runcfg->num_wgroups, runcfg->wgroups);
     if (err != 0)
     {
-        ERROR_PRINT(Error updating results);
+        ERROR_PRINT("Error updating results");
     }
 
     /*
@@ -600,7 +600,7 @@ int main(int argc, char** argv)
     err = destroy_threads(runcfg->num_wgroups, runcfg->wgroups);
     if (err != 0)
     {
-        ERROR_PRINT(Error destroying thread groups);
+        ERROR_PRINT("Error destroying thread groups");
         goto main_out;
     }
 
@@ -694,9 +694,10 @@ int main(int argc, char** argv)
     }
     LIKWID_MARKER_CLOSE;
 #endif
+    bdestroy(hline);
 
 main_out:
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, MAIN_OUT);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "MAIN_OUT");
     free_runtime_config(runcfg);
     destroyCliOptions(&baseopts);
     destroyCliOptions(&testopts);
@@ -716,6 +717,6 @@ main_out:
     {
         bstrListDestroy(args);
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, MAIN_OUT DONE);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "MAIN_OUT DONE");
     return 0;
 }

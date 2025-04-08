@@ -442,26 +442,26 @@ int init_result(RuntimeWorkgroupResult* result)
     int err = 0;
     result->values = NULL;
     result->variables = NULL;
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Creating values map);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Creating values map");
     err = init_bmap(&result->values, bmap_free);
     if (err != 0)
     {
-        ERROR_PRINT(Creating values map failed);
+        ERROR_PRINT("Creating values map failed");
         result->values = NULL;
         result->variables = NULL;
         return err;
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Creating variables map);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Creating variables map");
     err = init_bmap(&result->variables, bmap_free);
     if (err != 0)
     {
-        ERROR_PRINT(Creating variables map failed);
+        ERROR_PRINT("Creating variables map failed");
         destroy_bmap(result->values);
         result->values = NULL;
         result->variables = NULL;
         return err;
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Values %p Variables %p, result->values, result->variables);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Values %p Variables %p", result->values, result->variables);
     return 0;
 }
 
@@ -473,25 +473,25 @@ int add_value(RuntimeWorkgroupResult* result, bstring name, double value)
     {
         return -EINVAL;
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Searching for value %s, bdata(name));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Searching for value %s", bdata(name));
     err = get_bmap_by_key(result->values, name, (void**)&v);
     if (err == -ENOENT)
     {
         v = bformat("%.15lf", value);
         if (v)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Adding value %s -> %s, bdata(name), bdata(v));
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Adding value %s -> %s", bdata(name), bdata(v));
             err = add_bmap(result->values, name, (void*)v);
             if (err < 0)
             {
-                ERROR_PRINT(Failed adding value %s = %s, bdata(name), bdata(v));
+                ERROR_PRINT("Failed adding value %s = %s", bdata(name), bdata(v));
                 return err;
             }
         }
     }
     else
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Value %s already exists, bdata(name));
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Value %s already exists", bdata(name));
         return -EEXIST;
     }
     return 0;
@@ -505,7 +505,7 @@ int update_value(RuntimeWorkgroupResult* result, bstring name, double value)
     {
         return -EINVAL;
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Searching for value %s, bdata(name));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Searching for value %s", bdata(name));
     bstring old_v = NULL;
     err = get_bmap_by_key(result->values, name, (void**)&old_v);
     if (err == 0)
@@ -513,19 +513,19 @@ int update_value(RuntimeWorkgroupResult* result, bstring name, double value)
         v = bformat("%.15lf", value);
         if (v)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Updating value %s -> %s, bdata(name), bdata(v));
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Updating value %s -> %s", bdata(name), bdata(v));
             err = update_bmap(result->values, name, (void*)v, (void**)&old_v);
             bdestroy(old_v);
             if (err < 0)
             {
-                ERROR_PRINT(Failed updating value %s = %s, bdata(name), bdata(v));
+                ERROR_PRINT("Failed updating value %s = %s", bdata(name), bdata(v));
                 return 0;
             }
         }
     }
     else
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Unable to update %s, bdata(name));
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Unable to update %s", bdata(name));
         return -ENOENT;
     }
     return 0;
@@ -539,25 +539,25 @@ int add_variable(RuntimeWorkgroupResult* result, bstring name, bstring value)
     {
         return -EINVAL;
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Searching for variable %s, bdata(name));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Searching for variable %s", bdata(name));
     err = get_bmap_by_key(result->variables, name, (void**)&v);
     if (err == -ENOENT)
     {
         v = bstrcpy(value);
         if (v)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Adding variable %s -> %s, bdata(name), bdata(v));
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Adding variable %s -> %s", bdata(name), bdata(v));
             err = add_bmap(result->variables, name, (void*)v);
             if (err < 0)
             {
-                ERROR_PRINT(Failed adding variable %s = %s, bdata(name), bdata(v));
+                ERROR_PRINT("Failed adding variable %s = %s", bdata(name), bdata(v));
                 return err;
             }
         }
     }
     else
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Variable %s already exists, bdata(name));
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Variable %s already exists", bdata(name));
         return -EEXIST;
     }
     return 0;
@@ -571,7 +571,7 @@ int update_variable(RuntimeWorkgroupResult* result, bstring name, bstring value)
     {
         return -EINVAL;
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Searching for variable %s, bdata(name));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Searching for variable %s", bdata(name));
     bstring old_v;
     err = get_bmap_by_key(result->variables, name, (void**)&old_v);
     if (err == 0)
@@ -579,19 +579,19 @@ int update_variable(RuntimeWorkgroupResult* result, bstring name, bstring value)
         v = bstrcpy(value);
         if (v)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, Updating value %s -> %s, bdata(name), bdata(v));
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Updating value %s -> %s", bdata(name), bdata(v));
             err = update_bmap(result->variables, name, (void*)v, (void**)&old_v);
             bdestroy(old_v);
             if (err < 0)
             {
-                ERROR_PRINT(Failed updating variable %s = %s, bdata(name), bdata(v));
+                ERROR_PRINT("Failed updating variable %s = %s", bdata(name), bdata(v));
                 return 0;
             }
         }
     }
     else
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Unable to update %s, bdata(name));
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Unable to update %s", bdata(name));
         return -ENOENT;
     }
     return 0;
@@ -605,14 +605,14 @@ int get_value(RuntimeWorkgroupResult* result, bstring name, double* value)
     {
         return -EINVAL;
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Searching for value %s, bdata(name));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Searching for value %s", bdata(name));
     err = get_bmap_by_key(result->values, name, (void**)&v);
     if (err == -ENOENT || v == NULL)
     {
-        ERROR_PRINT(Value for name %s does not exist, bdata(name));
+        ERROR_PRINT("Value for name %s does not exist", bdata(name));
         return err;
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Retrived value for %s is %s, bdata(name), bdata(v));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Retrived value for %s is %s", bdata(name), bdata(v));
     char* endptr;
     const char* cval = bdata(v);
     *value = strtod(cval, &endptr);
@@ -627,14 +627,14 @@ int get_variable(RuntimeWorkgroupResult* result, bstring name, uint64_t* value)
     {
         return -EINVAL;
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Searching for variable %s, bdata(name));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Searching for variable %s", bdata(name));
     err = get_bmap_by_key(result->variables, name, (void**)&v);
     if (err == -ENOENT || v == NULL)
     {
-        ERROR_PRINT(Variable for name %s does not exist, bdata(name));
+        ERROR_PRINT("Variable for name %s does not exist", bdata(name));
         return err;
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Retrived variable for %s is %s, bdata(name), bdata(v));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Retrived variable for %s is %s", bdata(name), bdata(v));
     char* endptr;
     const char* cval = bdata(v);
     *value = strtol(cval, &endptr, 10);
@@ -663,7 +663,7 @@ static void replace_all_cb(mpointer key, mpointer value, mpointer user_data)
         {
             if (bstrcmp(data->exclude->entry[i], bkey) == BSTR_OK)
             {
-                DEBUG_PRINT(DEBUGLEV_DETAIL, Skipping excluded %s, bdata(bkey));
+                DEBUG_PRINT(DEBUGLEV_DETAIL, "Skipping excluded %s", bdata(bkey));
                 return;
             }
         }
@@ -671,11 +671,11 @@ static void replace_all_cb(mpointer key, mpointer value, mpointer user_data)
 
     if (binstrcaseless(data->formula, 0, bkey) != BSTR_ERR)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing '%s' with '%s' in '%s', bdata(bkey), bdata(bval), bdata(data->formula));
-        err = bfindreplacecaseless(data->formula, bkey, bval, 0);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Replacing '%s' with '%s' in '%s'", bdata(bkey), bdata(bval), bdata(data->formula));
+        err = bfindreplace(data->formula, bkey, bval, 0);
         if (err != BSTR_OK)
         {
-            ERROR_PRINT(Failed to replace %s in '%s', bdata(bkey), bdata(data->formula));
+            ERROR_PRINT("Failed to replace %s in '%s'", bdata(bkey), bdata(data->formula));
         }
         if (data->exclude)
         {
@@ -697,9 +697,9 @@ int replace_all(RuntimeWorkgroupResult* result, bstring formula, struct bstrList
         .exclude = exclude,
         .map = result->variables,
     };
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing variables);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Replacing variables");
     foreach_in_bmap(result->variables, replace_all_cb, &data);
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Replacing values);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Replacing values");
     data.map = result->values;
     foreach_in_bmap(result->values, replace_all_cb, &data);
     btrunc(formula, 0);
@@ -725,16 +725,16 @@ void print_result(RuntimeWorkgroupResult* result)
 
 void destroy_result(RuntimeWorkgroupResult* result)
 {
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, Values %p Variables %p, result->values, result->variables);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Values %p Variables %p", result->values, result->variables);
     if (result->values)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Free values map);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Free values map");
         destroy_bmap(result->values);
         result->values = NULL;
     }
     if (result->variables)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, Free variables map);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Free variables map");
         destroy_bmap(result->variables);
         result->variables = NULL;
     }
@@ -755,7 +755,7 @@ int fill_results(RuntimeConfig* runcfg)
                 bstring btmp = bstrcpy(istream->dims->entry[k]);
                 if (biseq(p->name, btmp) && blength(p->value) > 0)
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, Add runtime parameter %s, bdata(p->name));
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Add runtime parameter %s", bdata(p->name));
                     bstring barraysize = bformat("%lld", convertToBytes(p->value));
                     add_variable(runcfg->global_results, btmp, barraysize);
                     for (int w = 0; w < runcfg->num_wgroups; w++)

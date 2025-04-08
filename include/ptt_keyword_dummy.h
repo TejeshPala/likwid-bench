@@ -43,32 +43,32 @@ int parse_dummy(TestConfig_t config, struct bstrList* code, struct bstrList* out
     struct tagbstring bkeyend = bsStatic("DUMMYEND");
     for (int i = 0; i < code->qty; i++)
     {
-        DEBUG_PRINT(DEBUGLEV_DEVELOP, DUMMY: %s, bdata(code->entry[i]));
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "DUMMY: %s", bdata(code->entry[i]));
     }
     // First we do some basic checks
     // Does the first line start with 'DUMMY'
     if (!has_prefix(code->entry[0], &bkeybegin))
     {
-        ERROR_PRINT(First line does not start with %s, bdata(&bkeybegin));
+        ERROR_PRINT("First line does not start with %s", bdata(&bkeybegin));
         return -EINVAL;
     }
     // Does the last line start with 'DUMMYEND'
     if (!has_prefix(code->entry[code->qty-1], &bkeyend))
     {
-        ERROR_PRINT(Last line does not start with %s, bdata(&bkeyend));
+        ERROR_PRINT("Last line does not start with %s", bdata(&bkeyend));
         return -EINVAL;
     }
     // Now get a list of all arguments in the first line -> DUMMY(arg0, arg1, ...)
     struct bstrList* beginArgs = get_argList(code->entry[0]);
     if (!beginArgs)
     {
-        ERROR_PRINT(Arguments missing in %s line: %s, bdata(&bkeybegin), bdata(code->entry[0]));
+        ERROR_PRINT("Arguments missing in %s line: %s", bdata(&bkeybegin), bdata(code->entry[0]));
         return -EINVAL;
     }
     // The DUMMY line should have just a single argument
     if (beginArgs->qty != 1)
     {
-        ERROR_PRINT(Arguments missing in %s line: %s, bdata(&bkeybegin), bdata(code->entry[0]));
+        ERROR_PRINT("Arguments missing in %s line: %s", bdata(&bkeybegin), bdata(code->entry[0]));
         bstrListDestroy(beginArgs);
         return -EINVAL;
     }
@@ -77,7 +77,7 @@ int parse_dummy(TestConfig_t config, struct bstrList* code, struct bstrList* out
     struct bstrList* endArgs = get_argList(code->entry[code->qty-1]);
     if (!endArgs)
     {
-        ERROR_PRINT(Arguments missing in %s line: %s, bdata(&bkeyend), bdata(code->entry[code->qty-1]));
+        ERROR_PRINT("Arguments missing in %s line: %s", bdata(&bkeyend), bdata(code->entry[code->qty-1]));
         bstrListDestroy(beginArgs);
         return -EINVAL;
     }
@@ -85,7 +85,7 @@ int parse_dummy(TestConfig_t config, struct bstrList* code, struct bstrList* out
     // Do both lines have the same first argument aka the keyword label
     if (bstrcmp(beginArgs->entry[0], endArgs->entry[0]) != BSTR_OK)
     {
-        ERROR_PRINT(%s and %s for different loops %s <-> %s, bdata(&bkeybegin), bdata(&bkeyend), bdata(beginArgs->entry[0]), bdata(endArgs->entry[0]));
+        ERROR_PRINT("%s and %s for different loops %s <-> %s", bdata(&bkeybegin), bdata(&bkeyend), bdata(beginArgs->entry[0]), bdata(endArgs->entry[0]));
         bstrListDestroy(beginArgs);
         bstrListDestroy(endArgs);
         return -EINVAL;
