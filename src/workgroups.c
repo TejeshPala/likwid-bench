@@ -474,7 +474,11 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
                     }
                     // printf("bcpy: %s\n", bdata(btmp));
                     replace_all(result, btmp, NULL);
-                    calculator_calc(bdata(btmp), &val);
+                    err = calculator_calc(bdata(btmp), &val);
+                    if (err != 0)
+                    {
+                        ERROR_PRINT("Error calculating formula: %s", bdata(btmp));
+                    }
                     // printf("bcpy: %s, value: %lf\n", bdata(btmp), val);
                     if (binstrcaseless(bcpy, 0, &mbytes) != BSTR_ERR)
                     {
@@ -485,7 +489,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
                     {
                         add_value(result, bcpy, val);
                     }
-                    bstring bval = bformat("%lf", val);
+                    bstring bval = bformat("%15lf", val);
                     bstrListAdd(bvalues[bkeys_sorted->qty + i - cfg->num_metrics], bval);
                     bstrListAdd(bgrp_values[bkeys_sorted->qty + i - cfg->num_metrics], bval);
                     bdestroy(bval);
