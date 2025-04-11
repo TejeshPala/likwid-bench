@@ -164,7 +164,7 @@ static int _allocate_arrays_2dim(RuntimeStreamConfig *sdata)
     {
         return msize2;
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, "_allocate_arrays_2dim s1 %" PRIu64 "s2 %" PRIu64 "of %" PRIu64 " Bytes", size1, size2, getstreambytes(sdata));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "_allocate_arrays_2dim s1 %" PRIu64 " s2 %" PRIu64 " of %" PRIu64 " Bytes", size1, size2, getstreambytes(sdata));
     printf("Allocating 2 dimension array %s[%" PRIu64 "][%" PRIu64 "]: %" PRIu64 " Bytes\n", bdata(sdata->name), size1, size2, getstreambytes(sdata));
     switch(sdata->type)
     {
