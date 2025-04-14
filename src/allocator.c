@@ -115,7 +115,7 @@ int _allocate_arrays_1dim(RuntimeStreamConfig *sdata)
     uint64_t msize;
     if (msize < 0) return msize;
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "_allocate_arrays_1dim %" PRIu64 " Bytes with stream name %s", getstreambytes(sdata), bdata(sdata->name));
-    printf("Allocating 1 dimension array %s: %" PRIu64 " Bytes - Vector Length %ld\n", bdata(sdata->name), getstreambytes(sdata), size);
+    printf("Allocating 1 dimension array %s[%" PRIu64 "] - %" PRIu64 " Bytes\n", bdata(sdata->name), size, getstreambytes(sdata));
     switch(sdata->type)
     {
         DEFINE_1DIM_TYPE_CASE_ALLOC(TEST_STREAM_TYPE_DOUBLE, double, sdata->offsets[0])
