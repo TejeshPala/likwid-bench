@@ -6,6 +6,7 @@
 #ifndef WITH_BSTRING
 #define WITH_BSTRING
 #endif
+#include "allocator.h"
 #include "map.h"
 #include "results.h"
 #include "calculator.h"
@@ -15,6 +16,19 @@
 #include "helper.h"
 #include "test_strings.h"
 
+
+typedef struct {
+    struct tagbstring key;
+    struct tagbstring value;
+} KeyValuePair;
+
+KeyValuePair _SizeOfStreamType[] = {
+    {bsStatic("SIZEOF_SINGLE"), bsStatic("4")},
+    {bsStatic("SIZEOF_DOUBLE"), bsStatic("8")},
+    {bsStatic("SIZEOF_INT"), bsStatic("4")},
+    {bsStatic("SIZEOF_HALF"), bsStatic("2")},
+    {bsStatic("SIZEOF_INT64"), bsStatic("8")},
+};
 
 static BenchResults* bench_results = NULL;
 
@@ -756,7 +770,7 @@ int fill_results(RuntimeConfig* runcfg)
                 if (biseq(p->name, btmp) && blength(p->value) > 0)
                 {
                     DEBUG_PRINT(DEBUGLEV_DEVELOP, "Add runtime parameter %s", bdata(p->name));
-                    bstring barraysize = bformat("%lld", convertToBytes(p->value));
+                    bstring barraysize = bformat("%" PRIu64, convertToBytes(p->value)); // array in Bytes
                     add_variable(runcfg->global_results, btmp, barraysize);
                     for (int w = 0; w < runcfg->num_wgroups; w++)
                     {
@@ -851,6 +865,13 @@ int fill_results(RuntimeConfig* runcfg)
     bstring x = bformat("%d", total_threads);
     add_variable(runcfg->global_results, &bnumthreads, x);
     bdestroy(x);
+
+    // The kv pairs is set to 5. If added any new to _SizeOfStreamType, increment the counter
+    for (int i = 0; i < 5; i++)
+    {
+        add_variable(runcfg->global_results, &_SizeOfStreamType[i].key, &_SizeOfStreamType[i].value);
+    }
+
     return 0;
 }
 

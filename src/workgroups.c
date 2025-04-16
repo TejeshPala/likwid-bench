@@ -473,6 +473,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
                         }
                     }
                     // printf("bcpy: %s\n", bdata(btmp));
+                    replace_all(runcfg->global_results, btmp, NULL);
                     replace_all(result, btmp, NULL);
                     err = calculator_calc(bdata(btmp), &val);
                     if (err != 0)
