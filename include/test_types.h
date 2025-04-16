@@ -221,9 +221,9 @@ typedef struct {
 typedef _thread_data* thread_data_t;
 
 typedef struct {
-    uint64_t tsizes;
-    off_t   toffsets;
-    void*   tstream_ptr;
+    uint64_t    tsizes[3];
+    off_t       toffsets[3];
+    void*       tstream_ptr;
 } RuntimeThreadStreamConfig;
 
 typedef struct {

@@ -593,7 +593,7 @@ static int _generate_replacement_lists(RuntimeConfig* runcfg, RuntimeThreadConfi
         for (int d = 0; d < data->dims; d++)
         {
             bstring k = bformat("#%s", bdata(tstr->dims->entry[d]));
-            bstring v = bformat("%" PRIu64, str->tsizes);
+            bstring v = bformat("%" PRIu64, str->tsizes[d]);
             bstrListAdd(keys, k);
             bstrListAdd(values, v);
             bdestroy(k);
