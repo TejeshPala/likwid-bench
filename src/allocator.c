@@ -101,6 +101,7 @@ uint64_t getstreamdimbytes(RuntimeStreamConfig *sdata, int dim)
     case streamtype: \
         if (offset < 0 || (uint64_t)offset >= sdata->dimsizes[0]) return -EINVAL; \
         msize = (size + offset) * sizeof(datatype); \
+        if (msize <= 0) return -EINVAL; \
         datatype * p_##datatype; \
         if (posix_memalign((void*)&p_##datatype, CL_SIZE, msize) != 0) return -ENOMEM; \
         sdata->base_ptr = p_##datatype; \
@@ -113,7 +114,6 @@ int _allocate_arrays_1dim(RuntimeStreamConfig *sdata)
     
     uint64_t size = getstreamelems(sdata);
     uint64_t msize;
-    if (msize < 0) return msize;
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "_allocate_arrays_1dim %" PRIu64 " Bytes with stream name %s", getstreambytes(sdata), bdata(sdata->name));
     printf("Allocating 1 dimension array %s[%" PRIu64 "] - %" PRIu64 " Bytes\n", bdata(sdata->name), size, getstreambytes(sdata));
     switch(sdata->type)
@@ -129,6 +129,7 @@ int _allocate_arrays_1dim(RuntimeStreamConfig *sdata)
             fprintf(stderr, "Unknown stream type\n");
             break;
     }
+    if (msize == 0) return -EINVAL;
     return 0;
 }
 
@@ -137,6 +138,7 @@ int _allocate_arrays_1dim(RuntimeStreamConfig *sdata)
         if (offset1 < 0 || offset2 < 0 || (uint64_t)offset1 >= sdata->dimsizes[0] || (uint64_t)offset2 >= sdata->dimsizes[1]) return -EINVAL; \
         msize1 = (offset1 + size1) * sizeof(datatype*); \
         msize2 = (offset2 + size2) * (offset1 + size1) * sizeof(datatype); \
+        if (msize1 <= 0 || msize2 <= 0) return -EINVAL; \
         datatype ** p_##datatype; \
         if (posix_memalign((void**)&p_##datatype, CL_SIZE, msize1) != 0) return -ENOMEM; \
         if (posix_memalign((void**)&p_##datatype[0], CL_SIZE, msize2) != 0) { free(p_##datatype); return -ENOMEM; } \
@@ -156,14 +158,6 @@ static int _allocate_arrays_2dim(RuntimeStreamConfig *sdata)
     uint64_t size1 = sdata->dimsizes[0] / getsizeof(sdata->type);
     uint64_t size2 = sdata->dimsizes[1] / getsizeof(sdata->type);
     uint64_t msize1, msize2;
-    if (msize1 < 0)
-    {
-        return msize1;
-    }
-    else if (msize2 < 0)
-    {
-        return msize2;
-    }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "_allocate_arrays_2dim s1 %" PRIu64 " s2 %" PRIu64 " of %" PRIu64 " Bytes", size1, size2, getstreambytes(sdata));
     printf("Allocating 2 dimension array %s[%" PRIu64 "][%" PRIu64 "]: %" PRIu64 " Bytes\n", bdata(sdata->name), size1, size2, getstreambytes(sdata));
     switch(sdata->type)
@@ -179,6 +173,14 @@ static int _allocate_arrays_2dim(RuntimeStreamConfig *sdata)
             fprintf(stderr, "Unknown stream type\n");
             break;
     }
+    if (msize1 == 0)
+    {
+        return -EINVAL;
+    }
+    else if (msize2 == 0)
+    {
+        return -EINVAL;
+    }
     return 0;
 }
 
@@ -191,6 +193,7 @@ static int _allocate_arrays_2dim(RuntimeStreamConfig *sdata)
         msize1 = (size1 + offset1) * sizeof(datatype**); \
         msize2 = (size1 + offset1) * (size2 + offset2) * sizeof(datatype*); \
         msize3 = (size1 + offset1) * (size2 + offset2) * (size3 + offset3) * sizeof(datatype); \
+        if (msize1 <= 0 || msize2 <= 0 || msize3 <= 0) return -EINVAL; \
         datatype *** p_##datatype; \
         if (posix_memalign((void**)&p_##datatype, CL_SIZE, msize1) != 0) return -ENOMEM; \
         if (posix_memalign((void**)&p_##datatype[0], CL_SIZE, msize2) != 0) { free(p_##datatype); return -ENOMEM; } \
@@ -216,18 +219,6 @@ static int _allocate_arrays_3dim(RuntimeStreamConfig *sdata)
     uint64_t size2 = sdata->dimsizes[1] / getsizeof(sdata->type);
     uint64_t size3 = sdata->dimsizes[2] / getsizeof(sdata->type);
     uint64_t msize1, msize2, msize3;
-    if (msize1 < 0)
-    {
-        return msize1;
-    }
-    else if (msize2 < 0)
-    {
-        return msize2;
-    }
-    else if (msize3 < 0)
-    {
-        return msize3;
-    }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "_allocate_arrays_3dim s1 %" PRIu64 " s2 %" PRIu64 " s3 %" PRIu64 " of %" PRIu64 " Bytes", size1, size2, size3, getstreambytes(sdata));
     printf("Allocating 3 dimension array %s[%" PRIu64 "][%" PRIu64 "][%" PRIu64 "]: %" PRIu64 " Bytes\n", bdata(sdata->name), size1, size2, size3, getstreambytes(sdata));
     switch(sdata->type)
@@ -242,6 +233,18 @@ static int _allocate_arrays_3dim(RuntimeStreamConfig *sdata)
         default:
             fprintf(stderr, "Unknown stream type\n");
             break;
+    }
+    if (msize1 == 0)
+    {
+        return -EINVAL;
+    }
+    else if (msize2 == 0)
+    {
+        return -EINVAL;
+    }
+    else if (msize3 == 0)
+    {
+        return -EINVAL;
     }
     return 0;
 }
