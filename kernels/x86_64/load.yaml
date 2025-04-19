@@ -30,13 +30,14 @@
   BYTES_PER_ITER: 64
   LOADS_PER_ITER: 8
   INST_PER_ITER: 8
+  INST_LOOP: 11
+  UOPS_LOOP: 10
 
 - Metrics:
-  Read bandwidth [MByte/s]: BYTES_PER_ITER*ITER/TIME
-  Total bandwidth [MByte/s]: BYTES_PER_ITER*ITER/TIME
-  Total instructions: INST_PER_ITER*ITER
-  Total uops: UOPS_PER_ITER*ITER
-- Threads:
+  Read bandwidth [MByte/s]: (ITER*(N/NUM_THREADS))/time
+  Total bandwidth [MByte/s]: (ITER*(N/NUM_THREADS))/time
+  Total instructions: ITER*((N/NUM_THREADS)/SIZEOF_DOUBLE)*(INST_LOOP/INST_PER_ITER)
+  Total uops: ITER*((N/NUM_THREADS)/SIZEOF_DOUBLE)*(UOPS_LOOP/UOPS_PER_ITER)
 - Language: asm
 ...
 LOOP(loop, rax=0, <, rdi=N, 8)
