@@ -258,7 +258,7 @@ typedef struct {
 typedef struct {
     int help;
     int verbosity;
-    int iterations;
+    uint64_t iterations;
     double runtime;
     int csv;
     int json;

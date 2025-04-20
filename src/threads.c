@@ -556,10 +556,10 @@ int update_threads(RuntimeConfig* runcfg)
         iter = (runcfg->iterations > MIN_ITERATIONS) ? runcfg->iterations : MIN_ITERATIONS;
         if (runcfg->iterations < MIN_ITERATIONS)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Overwriting iterations to %d", MIN_ITERATIONS);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Overwriting iterations to %" PRIu64 , MIN_ITERATIONS);
         }
         runcfg->iterations = iter;
-        printf("The iterations updated per thread are: %d\n", runcfg->iterations);
+        printf("The iterations updated per thread are: %" PRIu64 "\n", runcfg->iterations);
     }
     bstring brun_iters = bformat("%ld", runcfg->iterations);
     // printf("Num Workgroups: %d\n", runcfg->num_wgroups);

@@ -790,11 +790,11 @@ int fill_results(RuntimeConfig* runcfg)
     bstring biter;
     if (runcfg->iterations >= 0)
     {
-	    biter = bformat("%d", runcfg->iterations);
+	    biter = bformat("%" PRIu64, runcfg->iterations);
     }
     else
     {
-	    biter = bformat("%d", 0);
+	    biter = bformat("%" PRIu64, 0);
     }
     add_variable(runcfg->global_results, &biterations, biter);
     for (int i = 0; i < runcfg->num_wgroups; i++)

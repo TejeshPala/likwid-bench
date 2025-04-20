@@ -31,13 +31,13 @@
 
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
+#include "test_strings.h"
 
 #define ARCHNAME "x86-64"
 
 
 int header(struct bstrList* code, bstring funcname)
 {
-    struct tagbstring bstrptr = bsStatic("# STREAMPTRFORREPLACMENT");
     bstring glline = bformat(".global %s", bdata(funcname));
     bstring typeline = bformat(".type %s, @function", bdata(funcname));
     bstring label = bformat("%s :", bdata(funcname));
