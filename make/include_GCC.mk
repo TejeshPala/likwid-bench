@@ -16,6 +16,6 @@ LIBDIRS  =
 LIBS     =
 
 ifeq ($(strip $(ADDRESS_SANITIZER)), true)
-CPPFLAGS += -fsanitize=address -fno-omit-frame-pointer
+CPPFLAGS += -fsanitize=address -fsanitize-address-use-after-scope -fno-omit-frame-pointer
 LIBS     += -lasan
 endif

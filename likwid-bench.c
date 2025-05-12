@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <libgen.h>
 #include <sys/utsname.h>
+#include <sys/mman.h>
+#include <signal.h>
 
 #include "error.h"
 #include "bstrlib.h"
@@ -135,7 +137,7 @@ void free_runtime_config(RuntimeConfig* runcfg)
                                 free(runcfg->wgroups[i].threads[j].command);
                                 runcfg->wgroups[i].threads[j].command = NULL;
                             }
-                            if (runcfg->wgroups[i].threads[j].codelines)
+                            if (runcfg->wgroups[i].threads[j].codelines != NULL)
                             {
                                 bstrListDestroy(runcfg->wgroups[i].threads[j].codelines);
                                 runcfg->wgroups[i].threads[j].codelines = NULL;
@@ -159,9 +161,10 @@ void free_runtime_config(RuntimeConfig* runcfg)
                 {
                     for (int w = 0; w < runcfg->wgroups[i].num_streams; w++)
                     {
-                        if (runcfg->wgroups[i].streams[w].ptr)
+                        if (runcfg->wgroups[i].streams[w].ptr != NULL)
                         {
                             free(runcfg->wgroups[i].streams[w].ptr);
+                            runcfg->wgroups[i].streams[w].ptr = NULL;
                         }
                         bdestroy(runcfg->wgroups[i].streams[w].name);
                     }
@@ -210,6 +213,37 @@ void free_runtime_config(RuntimeConfig* runcfg)
     }
 }
 
+void sig_handler(int signum, siginfo_t *info, void *context)
+{
+    int err = errno;
+    if (info && info->si_addr && (signum == SIGSEGV || signum == SIGBUS || signum == SIGILL || signum == SIGFPE))
+    {
+        ERROR_PRINT("Signal interrupted: %d - %s at: %p", signum, strsignal(signum), info->si_addr);
+    }
+    else
+    {
+        ERROR_PRINT("Signal interrupted: %d - %s", signum, strsignal(signum));
+    }
+    _exit(EXIT_FAILURE);
+}
+
+void sig_handlers()
+{
+    int num_signals = 13;
+    int signals[] = {SIGINT, SIGTERM, SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGBUS, SIGHUP, SIGQUIT, SIGTSTP, SIGXCPU, SIGXFSZ, SIGPIPE};
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_sigaction = sig_handler;
+    sa.sa_flags = SA_SIGINFO;
+    for (int i = 0; i < num_signals; i++)
+    {
+        if (sigaction(signals[i], &sa, NULL) == -1)
+        {
+            WARN_PRINT("Issue while handling signal: %d - %s", signals[i], strsignal(signals[i]));
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
 #ifdef LIKWID_PERFMON
@@ -219,6 +253,16 @@ int main(int argc, char** argv)
     }
     LIKWID_MARKER_INIT;
 #endif
+
+    // sig_handlers();
+
+    if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0)
+    {
+        ERROR_PRINT("mlockall failed!");
+        goto main_out;
+    }
+
+
     int c = 0, err = 0, print_help = 0;
     int option_index = -1;
     RuntimeConfig* runcfg = NULL;
@@ -696,6 +740,8 @@ int main(int argc, char** argv)
 #endif
     bdestroy(hline);
 
+    munlockall();
+
 main_out:
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "MAIN_OUT");
     free_runtime_config(runcfg);
@@ -717,6 +763,13 @@ main_out:
     {
         bstrListDestroy(args);
     }
+    /*
+    if (hline)
+    {
+        bdestroy(hline);
+    }
+    */
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "MAIN_OUT DONE");
+    munlockall();
     return 0;
 }

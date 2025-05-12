@@ -45,17 +45,27 @@
 #endif
 
 
-uint64_t _linear_offset(int ndims, const off_t* offsets, const uint64_t* dimsizes)
+uint64_t _linear_offset(int ndims, const off_t* offsets, const uint64_t* dimsizes, const uint64_t size)
 {
     off_t off = 0;
     uint64_t stride = 1;
-    for (int d = 0; d < ndims; d++)
+    for (int d = ndims - 1; d >= 0; d--)
     {
-        // fprintf(stdout, "dim: %" PRIu64 " off: %" PRIu64 "\n", dimsizes[d], offsets[d]);
+        // fprintf(stdout, "dim[%d]: %" PRIu64 " off: %" PRIu64 " stride: %" PRIu64 "\n", d, dimsizes[d], offsets[d], stride);
         off += offsets[d] * stride;
         stride *= dimsizes[d];
     }
-    return off;
+        // fprintf(stdout, "Final linear offset (in elements): %" PRIu64 ", in bytes: %" PRIu64 "\n", off, off * size);
+    return off * size;
+}
+
+bool _ptr_in_range(const void* base_ptr, uint64_t elems_size, const void* off_ptr, uint64_t size)
+{
+    // DEBUG_PRINT(DEBUGLEV_INFO, "base_ptr: %p, access size: %" PRIu64 " , off_ptr: %p, elems_size: %" PRIu64, base_ptr, size, off_ptr, elems_size);
+    if ((uintptr_t)off_ptr < (uintptr_t)base_ptr) return false;
+    else if ((uintptr_t)(off_ptr) + size < (uintptr_t)off_ptr) return false;
+    else if ((uintptr_t)(off_ptr) + size > (uintptr_t)(base_ptr) + elems_size) return false;
+    return true;
 }
 
 int destroy_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
@@ -105,7 +115,7 @@ int destroy_threads(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
                     free(wg->threads[i].tstreams);
                     wg->threads[i].tstreams = NULL;
                 }
-                if (wg->threads[i].codelines)
+                if (wg->threads[i].codelines != NULL)
                 {
                     DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroying thread %3d codelines", wg->threads[i].local_id);
                     bstrListDestroy(wg->threads[i].codelines);
@@ -218,18 +228,16 @@ double get_time_s()
     return ts.tv_sec + ts.tv_nsec * 1e-9;
 }
 
-int initialize_local(RuntimeThreadConfig* thread, int thread_id)
+int initialize_local(RuntimeThreadConfig* thread, RuntimeStreamConfig* data, int thread_id, int s)
 {
     int err = 0;
-    for (int s = 0; s < thread->num_streams; s++)
     {
-        RuntimeStreamConfig* data = &thread->sdata[s];
         RuntimeThreadStreamConfig* str = &thread->tstreams[s];
         // DEBUG_PRINT(DEBUGLEV_DEVELOP, dims: %d, sdata->dims);
         data->init_val = thread->command->init_val;
         RuntimeStreamConfig tmp = *data;
         tmp.dims = data->dims;
-        tmp.ptr = (char*)data->ptr + (_linear_offset(data->dims, str->toffsets, str->tsizes) * getsizeof(data->type));
+        tmp.ptr = (char*)str->tstream_ptr;
         for (int k = 0; k < data->dims; k++)
         {
             // fprintf(stdout, "sizes: %" PRIu64 " ,offsets: %" PRIu64 "\n", str->tsizes[k], str->toffsets[k]);
@@ -270,37 +278,39 @@ int initialize_local(RuntimeThreadConfig* thread, int thread_id)
     return err;
 }
 
-int initialize_global(RuntimeThreadConfig* thread)
+int initialize_global(RuntimeThreadConfig* thread, RuntimeStreamConfig* data, int s)
 {
     int err = 0;
-    for (int s = 0; s < thread->num_streams; s++)
     {
-        RuntimeStreamConfig* data = &thread->sdata[s];
         RuntimeThreadStreamConfig* str = &thread->tstreams[s];
         data->init_val = thread->sdata[s].init_val;
         RuntimeStreamConfig tmp = *data;
-        tmp.ptr = (char*)data->ptr;
+        tmp.ptr = (char*)str->tstream_ptr;
         tmp.dims = data->dims;
-        switch ((StreamDimension)data->dims)
+        for (int k = 0; k < data->dims; k++)
         {
-            case STREAM_DIM_1D:
-                {
-                    tmp.dimsizes[0] = data->dimsizes[0];
-                    break;
-                }
-            case STREAM_DIM_2D:
-                {
-                    tmp.dimsizes[0] = data->dimsizes[0];
-                    tmp.dimsizes[1] = data->dimsizes[1];
-                    break;
-                }
-            case STREAM_DIM_3D:
-                {
-                    tmp.dimsizes[0] = data->dimsizes[0];
-                    tmp.dimsizes[1] = data->dimsizes[1];
-                    tmp.dimsizes[2] = data->dimsizes[2];
-                    break;
-                }
+            // fprintf(stdout, "sizes: %" PRIu64 " ,offsets: %" PRIu64 "\n", str->tsizes[k], str->toffsets[k]);
+            tmp.dimsizes[k] = (uint64_t)str->tsizes[k] * getsizeof(data->type);
+            tmp.offsets[k] = (uint64_t)str->toffsets[k] * getsizeof(data->type);
+            // fprintf(stdout, "tmpsizes: %" PRIu64 " ,offsets: %" PRIu64 "\n", tmp.dimsizes[k], tmp.offsets[k]);
+        }
+        if (tmp.dims == 1)
+        {
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "global initializing array %s with total elements: %" PRIu64 " offset: %" PRIu64, bdata(data->name), getstreamelems(data), tmp.offsets[0]);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "dimsize: %" PRIu64, tmp.dimsizes[0]);
+            printf("global initializing Array %s Elements: %6" PRIu64 " Size: [%" PRIu64 "] Offset: [%-" PRIu64 "]\n", bdata(data->name), getstreamelems(data), tmp.dimsizes[0], tmp.offsets[0]);
+        }
+        else if (tmp.dims == 2)
+        {
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "global initializing array %s with total elements: %" PRIu64 " offset: [%" PRIu64 "][%" PRIu64 "]", bdata(data->name), getstreamelems(data), tmp.offsets[0], tmp.offsets[1]);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "dimsize: [%" PRIu64 "][%" PRIu64 "]", tmp.dimsizes[0], tmp.dimsizes[1]);
+            printf("global initializing Array %s Elements: %6" PRIu64 " Size: [%" PRIu64 "][%" PRIu64 "] Offset: [%-" PRIu64 "][%-" PRIu64 "]\n", bdata(data->name), getstreamelems(data), tmp.dimsizes[0], tmp.dimsizes[1], tmp.offsets[0], tmp.offsets[1]);
+        }
+        else if (tmp.dims == 3)
+        {
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "global initializing array %s with total elements: %" PRIu64 " offset: [%" PRIu64 "][%" PRIu64 "][%" PRIu64 "]", bdata(data->name), getstreamelems(data), tmp.offsets[0], tmp.offsets[1], tmp.offsets[2]);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "dimsize: [%" PRIu64 "][%" PRIu64 "][%" PRIu64 "]", tmp.dimsizes[0], tmp.dimsizes[1], tmp.dimsizes[2]);
+            printf("global initializing Array %s Elements: %6" PRIu64 " Size: [%" PRIu64 "][%" PRIu64 "][%" PRIu64 "] Offset: [%-" PRIu64 "][%-" PRIu64 "][%" PRIu64 "]\n", bdata(data->name), getstreamelems(data), tmp.dimsizes[0], tmp.dimsizes[1], tmp.dimsizes[2], tmp.offsets[0], tmp.offsets[1], tmp.offsets[2]);
         }
         tmp.type = data->type;
         tmp.init = init_function;
@@ -357,6 +367,7 @@ void* _func_t(void* arg)
             thread->command->tail = NULL;
         }
         free(q);
+        q = NULL;
         pthread_mutex_unlock(&thread->command->mutex);
 
         // DEBUG_PRINT(DEBUGLEV_DEVELOP, "thread %3d with global thread %3d received cmd %3d", thread->local_id, thread->global_id, c_cmd);
@@ -364,23 +375,27 @@ void* _func_t(void* arg)
         switch(c_cmd)
         {
             case LIKWID_THREAD_COMMAND_INITIALIZE:
-                if (thread->global_id == 0 && !thread->command->initialization)
+                for (int s = 0; s < thread->num_streams; s++)
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Global Initialization on thread %3d with global thread %3d", thread->local_id, thread->global_id);
-                    printf("Global Initialization on thread %3d with global thread %3d\n", thread->local_id, thread->global_id);
-                    int err = initialize_global(thread);
-                    if (err != 0)
+                    RuntimeStreamConfig* data = &thread->sdata[s];
+                    if (thread->global_id == 0 && !(data->initialization))
                     {
-                        ERROR_PRINT("Global Initialization failed for thread %3d with global thread %3d", thread->local_id, thread->global_id);
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Global Initialization on thread %3d with global thread %3d", thread->local_id, thread->global_id);
+                        printf("Global Initialization on %s thread %3d with global thread %3d\n", bdata(data->name), thread->local_id, thread->global_id);
+                        int err = initialize_global(thread, data, s);
+                        if (err != 0)
+                        {
+                            ERROR_PRINT("Global Initialization failed for thread %3d with global thread %3d", thread->local_id, thread->global_id);
+                        }
                     }
-                }
-                else if (thread->command->initialization)
-                {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Local Initialization on thread %3d with global thread %3d", thread->local_id, thread->global_id);
-                    int err = initialize_local(thread, thread->local_id);
-                    if (err != 0)
+                    else if (data->initialization)
                     {
-                        ERROR_PRINT("Local Initialization failed for thread %3d with global thread %3d", thread->local_id, thread->global_id);
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Local Initialization on thread %3d with global thread %3d", thread->local_id, thread->global_id);
+                        int err = initialize_local(thread, data, thread->local_id, s);
+                        if (err != 0)
+                        {
+                            ERROR_PRINT("Local Initialization failed for thread %3d with global thread %3d", thread->local_id, thread->global_id);
+                        }
                     }
                 }
                 break;
@@ -619,6 +634,7 @@ int update_threads(RuntimeConfig* runcfg)
                 err = -ENOMEM;
                 goto free;
             }
+            memset(thread->command, 0, sizeof(RuntimeThreadCommand));
             thread->testconfig = (RuntimeTestConfig*)malloc(sizeof(RuntimeTestConfig));
             if (!thread->testconfig)
             {
@@ -626,6 +642,7 @@ int update_threads(RuntimeConfig* runcfg)
                 err = -ENOMEM;
                 goto free;
             }
+            memset(thread->testconfig, 0, sizeof(RuntimeTestConfig));
 
             thread->command->head = thread->command->tail = NULL;
 
@@ -661,8 +678,6 @@ int update_threads(RuntimeConfig* runcfg)
              * for (int s = 0; s < thread->command->tstreams->dims; s++)
              *     printf("tstreams dimsizes: %d\n", thread->command->tstreams->dimsizes[s]);
              */
-            thread->command->initialization = runcfg->tcfg->initialization;
-            // printf("initialize bool: %d\n", runcfg->tcfg->initialization);
             thread->command->init_val = malloc(getsizeof(thread->sdata->type));
             switch(thread->sdata->type)
             {
@@ -706,9 +721,11 @@ int update_threads(RuntimeConfig* runcfg)
                     ERROR_PRINT("Unable initialize thread results");
                     return err;
                 }
+                thread->sdata[s].initialization = istream->initialization;
+                // printf("thread: %d, stream: %d, initialize bool: %d\n", i, s, thread->sdata->initialization);
                 for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
                 {
-                    uint64_t elems = thread->sdata[s].dimsizes[k] / getsizeof(thread->sdata[s].type); // the dim is converted to elements for calculations
+                    uint64_t elems = (double)thread->sdata[s].dimsizes[k] / getsizeof(thread->sdata[s].type); // the dim is converted to elements for calculations
                     // printf("elems: %" PRIu64 " \n", elems);
                     add_value(&t_results, istream->dims->entry[k], (double)elems);
                     add_variable(&t_results, &bnumthreads, bthreads);
@@ -716,7 +733,7 @@ int update_threads(RuntimeConfig* runcfg)
                 }
                 for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
                 {
-                    uint64_t elems = thread->sdata[s].dimsizes[k] / getsizeof(thread->sdata[s].type); // the dim is converted to elements for calculations
+                    uint64_t elems = (double)thread->sdata[s].dimsizes[k] / getsizeof(thread->sdata[s].type); // the dim is converted to elements for calculations
                     bstring bsizes = bstrcpy(istream->sizes->entry[k]);
                     bstring boffsets = bstrcpy(istream->offsets->entry[k]);
                     if (DEBUGLEV_DEVELOP == global_verbosity)
@@ -750,12 +767,18 @@ int update_threads(RuntimeConfig* runcfg)
                     }
                     str->tsizes[k] = (uint64_t)sizes_value;
                     str->toffsets[k] = (off_t)offsets_value;
-                    if ((thread->local_id % thread->num_threads) == thread->num_threads - 1)
+                    /*
+                    // * the below may be not necessary as no need take care due to a round down
+                    if (thread->sdata[s].dims == 1)
                     {
-                        str->tsizes[k] = (uint64_t)(elems - str->toffsets[k]);
+                        if ((thread->local_id % thread->num_threads) == thread->num_threads - 1)
+                        {
+                            str->tsizes[k] = (uint64_t)(getstreamelems(&thread->sdata[s]) - str->toffsets[k]);
+                        }
                     }
+                    */
                     DEBUG_PRINT(DEBUGLEV_INFO, "thread: %d stream: %d tsizes[%d]: %" PRIu64 " toffsets[%d]: %zu", i, s, k, str->tsizes[k], k, str->toffsets[k]);
-                    if (str->tsizes[k] % bytesperiter != 0 || str->toffsets[k] % bytesperiter != 0)
+                    if ((str->tsizes[k] % bytesperiter != 0) || (str->toffsets[k] % bytesperiter != 0))
                     {
                         if (thread->local_id == 0 && s == 0) WARN_PRINT("SANITIZING A rounddown is applied on each thread sizes and offsets as %s is set to %" PRIu64, bdata(&bbytesperiter), bytesperiter);
                         if (!is_multipleof_pow2(str->tsizes[k], bytesperiter))
@@ -774,12 +797,14 @@ int update_threads(RuntimeConfig* runcfg)
                     bdestroy(bsizes);
                     bdestroy(boffsets);
                 }
-                str->tstream_ptr = (void*)((char*) thread->sdata[s].ptr + (_linear_offset(thread->sdata[s].dims, str->toffsets, str->tsizes) * getsizeof(thread->sdata[s].type)));
+                str->tstream_ptr = (void*)((char*) thread->sdata[s].ptr + (_linear_offset(thread->sdata[s].dims, str->toffsets, str->tsizes, getsizeof(thread->sdata[s].type))));
                 DEBUG_PRINT(DEBUGLEV_DEVELOP, "Stream Ptr for wg%d thread%d-%s: %p and offset ptr: %p", w, i, bdata(thread->sdata[s].name), thread->sdata[s].ptr, (void*)str->tstream_ptr);
+                // printf("Stream Ptr for wg%d thread%d-%s: %p and offset ptr: %p\n", w, i, bdata(thread->sdata[s].name), thread->sdata[s].ptr, (void*)str->tstream_ptr);
                 destroy_result(&t_results);
             }
             bdestroy(bthreads);
             bdestroy(btid);
+            thread->codelines = NULL;
             thread->runtime = 0.0;
             thread->cycles = 0;
             thread->barrier = &wg->barrier;
@@ -804,6 +829,36 @@ int update_threads(RuntimeConfig* runcfg)
         total_threads += wg->num_threads;
     }
     bdestroy(brun_iters);
+    // Validate the sizes and offsets for each thread and its stream pointers before proceeding further
+    for (int w = 0; w < runcfg->num_wgroups; w++)
+    {
+        RuntimeWorkgroupConfig* wg = &runcfg->wgroups[w];
+        for (int i = 0; i < wg->num_threads; i++)
+        {
+            RuntimeThreadConfig* thread = &wg->threads[i];
+            for (int s = 0; s < wg->num_streams; s++)
+            {
+                RuntimeThreadStreamConfig* str = &thread->tstreams[s];
+                TestConfigStream *istream = &runcfg->tcfg->streams[s];
+                for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
+                {
+                    if (str->tsizes[k] == 0)
+                    {
+                        ERROR_PRINT("After round down of sizes: %" PRIu64 " is invalid. Increase the size of the array", str->tsizes[k]);
+                        err = -EINVAL;
+                        goto free;
+                    }
+                    if (!_ptr_in_range(thread->sdata[s].ptr, getstreambytes(&thread->sdata[s]), str->tstream_ptr, str->tsizes[k] * getsizeof(thread->sdata[s].type)))
+                    {
+                        // DEBUG_PRINT(DEBUGLEV_INFO, "Base Ptr: %p, Size: %" PRIu64 ", Access Size: %" PRIu64 ", Offset Ptr: %p", thread->sdata[s].ptr, getstreambytes(&thread->sdata[s]), str->tsizes[k] * getsizeof(thread->sdata[s].type), str->tstream_ptr);
+                        ERROR_PRINT("hwthread: %d , stream: %s - Out of Bounds for each threads sizes: %" PRIu64 " and offset ptr: %p. Try increasing the size of arrays!", i, bdata(thread->sdata[s].name), str->tsizes[k] * getsizeof(thread->sdata[s].type), str->tstream_ptr);
+                        err = -EINVAL;
+                        goto free;
+                    }
+                }
+            }
+        }
+    }
 
     return 0;
 

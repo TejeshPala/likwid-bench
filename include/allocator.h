@@ -23,6 +23,7 @@ static inline uint64_t get_cl_size()
 
 uint64_t getsizeof(TestConfigStreamType);
 uint64_t getstreamelems(RuntimeStreamConfig *sdata);
+uint64_t getstreambytes(RuntimeStreamConfig *sdata);
 
 int init_function(void* ptr, int state, TestConfigStreamType type, int dims, uint64_t* dimsizes, void* init_val, ...);
 

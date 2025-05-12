@@ -81,6 +81,7 @@ typedef struct {
     TestConfigStreamData    data;
     struct bstrList*        sizes;
     struct bstrList*        offsets;
+    bool                    initialization;
 } TestConfigStream;
 
 typedef struct {
@@ -105,7 +106,6 @@ typedef struct {
     TestConfigVariable *    metrics;
     struct bstrList*        flags;
     bool                    requirewg;
-    bool                    initialization;
 } TestConfig;
 typedef TestConfig* TestConfig_t;
 
@@ -128,6 +128,7 @@ typedef struct {
     TestConfigStreamType type;
     TestConfigStreamData data;
     void* init_val;
+    bool initialization;
 } RuntimeStreamConfig;
 
 typedef struct {
@@ -192,7 +193,6 @@ typedef struct {
     pthread_mutexattr_t m_attr;
     pthread_cond_t cond;
     pthread_condattr_t c_attr;
-    bool initialization;
     void* init_val;
 } RuntimeThreadCommand;
 
