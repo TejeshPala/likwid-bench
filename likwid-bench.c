@@ -250,7 +250,7 @@ int main(int argc, char** argv)
     LIKWID_MARKER_INIT;
 #endif
 
-    // sig_handlers();
+    sig_handlers();
 
     if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0)
     {
