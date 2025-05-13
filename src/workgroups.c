@@ -63,11 +63,6 @@ void release_streams(int num_wgroups, RuntimeWorkgroupConfig* wgroups)
                 {
                     DEBUG_PRINT(DEBUGLEV_DEVELOP, "Releasing workgroup %d %dd arrays for stream %s", w, wg->streams[s].dims, bdata(wg->streams[s].name));
                     release_arrays(&wg->streams[s]);
-                    if (wg->streams[s].ptr)
-                    {
-                        free(wg->streams[s].ptr);
-                        wg->streams[s].ptr = NULL;
-                    }
                     bdestroy(wg->streams[s].name);
                 }
                 free(wg->streams);

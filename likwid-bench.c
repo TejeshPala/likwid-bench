@@ -161,11 +161,7 @@ void free_runtime_config(RuntimeConfig* runcfg)
                 {
                     for (int w = 0; w < runcfg->wgroups[i].num_streams; w++)
                     {
-                        if (runcfg->wgroups[i].streams[w].ptr != NULL)
-                        {
-                            free(runcfg->wgroups[i].streams[w].ptr);
-                            runcfg->wgroups[i].streams[w].ptr = NULL;
-                        }
+                        release_arrays(&runcfg->wgroups[i].streams[w]);
                         bdestroy(runcfg->wgroups[i].streams[w].name);
                     }
                     free(runcfg->wgroups[i].streams);
