@@ -13,8 +13,13 @@
 int global_verbosity = DEBUGLEV_ONLY_ERROR;
 
 
-void myfunc(size_t size, void* ptr)
+static RuntimeThreadConfig* curr_config;
+
+void myfunc(void)
 {
+    RuntimeThreadConfig* cfg = (RuntimeThreadConfig*)curr_config;
+    size_t size = cfg->sdata[0].dimsizes[0];
+    void* ptr = cfg->sdata[0].ptr;
     int* iptr = (int*)ptr;
     for (int i = 0; i < size/sizeof(int); i++)
     {
@@ -30,6 +35,7 @@ int main(int argc, char* argv) {
     {
         return -ENOMEM;
     }
+    curr_config = tconfig;
     thread_data_t data = malloc(sizeof(_thread_data));
     if (!data)
     {
@@ -53,7 +59,16 @@ int main(int argc, char* argv) {
         free(tconfig);
         return -ENOMEM;
     }
+    memset(tconfig->sdata, 0, sizeof(RuntimeStreamConfig));
     tconfig->sdata[0].ptr = malloc(10000*sizeof(int));
+    if (!tconfig->sdata[0].ptr)
+    {
+        free(tconfig->sdata);
+        free(tconfig->command);
+        free(tconfig->data);
+        free(tconfig);
+        return -ENOMEM;
+    }
     tconfig->sdata[0].dimsizes[0] = 10000*sizeof(int);
     tconfig->sdata[0].dims = 1;
     tconfig->sdata[0].id = 0;
