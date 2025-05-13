@@ -85,6 +85,7 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->csv = 0;
     runcfg->json = 0;
     runcfg->output = bfromcstr("stdout");
+    runcfg->mkstempfiles = bstrListCreate();
     *config = runcfg;
     return 0;
 }
@@ -105,6 +106,11 @@ void free_runtime_config(RuntimeConfig* runcfg)
         bdestroy(runcfg->kernelfolder);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy arraysize in RuntimeConfig");
         bdestroy(runcfg->arraysize);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy mkstemp files in RuntimeConfig");
+        if (runcfg->mkstempfiles != NULL)
+        {
+            bstrListDestroy(runcfg->mkstempfiles);
+        }
         if (runcfg->wgroups)
         {
             DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy workgroups in RuntimeConfig");
@@ -209,7 +215,7 @@ void free_runtime_config(RuntimeConfig* runcfg)
     }
 }
 
-void sig_handler(int signum, siginfo_t *info, void *context)
+void _sig_handler(int signum, siginfo_t *info, void *context)
 {
     int err = errno;
     if (info && info->si_addr && (signum == SIGSEGV || signum == SIGBUS || signum == SIGILL || signum == SIGFPE))
@@ -223,13 +229,28 @@ void sig_handler(int signum, siginfo_t *info, void *context)
     _exit(EXIT_FAILURE);
 }
 
-void sig_handlers()
+void _rm_tmpfiles(RuntimeConfig* runcfg)
+{
+    for (int i = 0; i < runcfg->mkstempfiles->qty; i++)
+    {
+        const char* path = bdata(runcfg->mkstempfiles->entry[i]);
+        if (access(path, F_OK) == 0)
+        {
+            if (unlink(path) == -1)
+            {
+                WARN_PRINT("Failed to removed tmp file: %s. Please check and remove from /tmp folder", path);
+            }
+        }
+    }
+}
+
+void _sig_handlers(RuntimeConfig* runcfg)
 {
     int num_signals = 13;
     int signals[] = {SIGINT, SIGTERM, SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGBUS, SIGHUP, SIGQUIT, SIGTSTP, SIGXCPU, SIGXFSZ, SIGPIPE};
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
-    sa.sa_sigaction = sig_handler;
+    sa.sa_sigaction = _sig_handler;
     sa.sa_flags = SA_SIGINFO;
     for (int i = 0; i < num_signals; i++)
     {
@@ -238,6 +259,7 @@ void sig_handlers()
             WARN_PRINT("Issue while handling signal: %d - %s", signals[i], strsignal(signals[i]));
         }
     }
+    _rm_tmpfiles(runcfg);
 }
 
 int main(int argc, char** argv)
@@ -250,14 +272,11 @@ int main(int argc, char** argv)
     LIKWID_MARKER_INIT;
 #endif
 
-    sig_handlers();
-
     if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0)
     {
         ERROR_PRINT("mlockall failed!");
         goto main_out;
     }
-
 
     int c = 0, err = 0, print_help = 0;
     int option_index = -1;
@@ -615,6 +634,8 @@ int main(int argc, char** argv)
             }
         }
     }
+
+    _sig_handlers(runcfg);
 
     err = join_threads(runcfg->num_wgroups, runcfg->wgroups);
     if (err < 0)

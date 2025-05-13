@@ -276,6 +276,7 @@ typedef struct {
     bstring arraysize;
     TestConfig_t tcfg;
     RuntimeWorkgroupResult* global_results;
+    struct bstrList* mkstempfiles;
 } RuntimeConfig;
 
 

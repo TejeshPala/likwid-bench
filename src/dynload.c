@@ -194,6 +194,8 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
         objfile = bstrcpy(asmfile);
         bconchar(asmfile, 's');
         bconchar(objfile, 'o');
+        bstrListAdd(rcfg->mkstempfiles, asmfile);
+        bstrListAdd(rcfg->mkstempfiles, objfile);
 
         wcodelines = bstrListCopy(thread->codelines);
         struct bstrList *valkeys = bstrListCreate();
