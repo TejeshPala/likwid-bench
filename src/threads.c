@@ -844,7 +844,7 @@ int update_threads(RuntimeConfig* runcfg)
                 {
                     if (str->tsizes[k] == 0)
                     {
-                        ERROR_PRINT("After round down of sizes: %" PRIu64 " is invalid. Increase the size of the array", str->tsizes[k]);
+                        ERROR_PRINT("hwthread: %d , stream: %s - After round down of sizes: %" PRIu64 " is invalid. Increase the size of the array", i, bdata(thread->sdata[s].name), str->tsizes[k]);
                         err = -EINVAL;
                         goto free;
                     }
