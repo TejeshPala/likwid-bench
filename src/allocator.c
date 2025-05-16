@@ -288,7 +288,7 @@ int allocate_streams(RuntimeConfig* runcfg)
 
 void _release_arrays_1dim(RuntimeStreamConfig *sdata)
 {
-    if (sdata && sdata->base_ptr)
+    if (sdata && sdata->base_ptr != NULL)
     {
         DEBUG_PRINT(DEBUGLEV_DEVELOP, "release str %s, base ptr: %p", bdata(sdata->name), sdata->base_ptr);
         free(sdata->base_ptr);
@@ -299,7 +299,7 @@ void _release_arrays_1dim(RuntimeStreamConfig *sdata)
 
 #define DEFINE_2DIM_TYPE_CASE_RELEASE(streamtype, datatype) \
     case streamtype: \
-        if (sdata && sdata->base_ptr) {\
+        if (sdata && sdata->base_ptr != NULL) {\
             free(sdata->base_ptr);\
             sdata->base_ptr = NULL;\
             sdata->ptr = NULL; }\
@@ -310,7 +310,7 @@ void _release_arrays_1dim(RuntimeStreamConfig *sdata)
 void _release_arrays_2dim(RuntimeStreamConfig *sdata)
 {
     
-    if (sdata && sdata->base_ptr)
+    if (sdata && sdata->base_ptr != NULL)
     {
         uint64_t size1 = sdata->dimsizes[0];
         DEBUG_PRINT(DEBUGLEV_DEVELOP, "release str %s, base ptr: %p", bdata(sdata->name), sdata->base_ptr);
@@ -332,7 +332,7 @@ void _release_arrays_2dim(RuntimeStreamConfig *sdata)
 
 #define DEFINE_3DIM_TYPE_CASE_RELEASE(streamtype, datatype) \
     case streamtype: \
-        if (sdata && sdata->base_ptr) {\
+        if (sdata && sdata->base_ptr != NULL) {\
             free(sdata->base_ptr); \
             sdata->ptr = NULL; \
             sdata->base_ptr = NULL; }\
@@ -340,7 +340,7 @@ void _release_arrays_2dim(RuntimeStreamConfig *sdata)
 
 void _release_arrays_3dim(RuntimeStreamConfig *sdata)
 {
-    if (sdata && sdata->base_ptr)
+    if (sdata && sdata->base_ptr != NULL)
     {
         uint64_t size1 = sdata->dimsizes[0];
         uint64_t size2 = sdata->dimsizes[1];
