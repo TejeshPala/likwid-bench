@@ -49,6 +49,9 @@ static struct tagbstring bstats2[] =
 
 static int stats2_count = 1;
 
+static struct tagbstring bvc_switch = bsStatic("voluntary_ctxt_switches");
+static struct tagbstring bnvc_switch = bsStatic("nonvoluntary_ctxt_switches");
+
 #ifdef __cplusplus
 }
 #endif

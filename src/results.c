@@ -15,6 +15,7 @@
 #include "error.h"
 #include "helper.h"
 #include "test_strings.h"
+#include "bitmask.h"
 
 
 typedef struct {
@@ -872,6 +873,53 @@ int fill_results(RuntimeConfig* runcfg)
         add_variable(runcfg->global_results, &_SizeOfStreamType[i].key, &_SizeOfStreamType[i].value);
     }
 
+    for (int i = 0; i < runcfg->num_wgroups; i++)
+    {
+        RuntimeWorkgroupConfig *wgroup = &runcfg->wgroups[i];
+        uint64_t bytesperiter;
+        get_variable(&wgroup->results[0], &bbytesperiter, &bytesperiter);
+        // printf("bytesperiter: %" PRIu64 "\n", bytesperiter);
+        for (int s = 0; s < runcfg->tcfg->num_streams; s++)
+        {
+            TestConfigStream *istream = &runcfg->tcfg->streams[s];
+            for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
+            {
+                uint64_t rounddown_factor = bytesperiter * wgroup->num_threads * getsizeof(istream->type);
+                for (int j = 0; j < wgroup->num_threads; j++)
+                {
+                    uint64_t elems;
+                    bstring btmp = bstrcpy(istream->dims->entry[k]);
+                    get_variable(&wgroup->results[j], btmp, &elems);
+                    // printf("Stream: %d, thread: %d, btmp: %s, elems: %" PRIu64 "\n", s, j, bdata(btmp), elems);
+                    if (rounddown_factor > 0 && elems % rounddown_factor != 0)
+                    {
+                        if (k == 0 && s == 0 && j == 0) WARN_PRINT("SANITIZING A round down factor is applied on arrays to %" PRIu64, rounddown_factor);
+                        if (!is_multipleof_pow2(elems, rounddown_factor))
+                        {
+                            rounddown_nbits_pow2(&elems, elems, rounddown_factor);
+                        }
+                        else if (!is_multipleof_nbits(elems, rounddown_factor))
+                        {
+                            rounddown_nbits(&elems, elems, rounddown_factor);
+                        }
+                    }
+                    if (elems == 0)
+                    {
+                        ERROR_PRINT("Array size is adjusted to %" PRIu64 ". Increase the array size to a multiple of %" PRIu64 " Bytes", elems, rounddown_factor);
+                        bdestroy(btmp);
+                        return -1;
+                    }
+                    // DEBUG_PRINT(DEBUGLEV_DEVELOP, "After rounddown %s is %" PRIu64, bdata(btmp), elems);
+                    // printf("Stream: %d, thread: %d, After rounddown %s is %" PRIu64 "\n", s, j, bdata(btmp), elems);
+                    bstring belems = bformat("%" PRIu64, elems);
+                    update_variable(&wgroup->results[j], btmp, belems);
+                    update_variable(runcfg->global_results, btmp, belems);
+                    bdestroy(belems);
+                    bdestroy(btmp);
+                }
+            }
+        }
+    }
     return 0;
 }
 

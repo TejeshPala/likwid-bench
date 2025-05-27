@@ -5,6 +5,7 @@
 #include <libgen.h>
 #include <sys/utsname.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include <signal.h>
 
 #include "error.h"
@@ -22,6 +23,8 @@
 #include "thread_group.h"
 #include "dynload.h"
 #include "table.h"
+#include "test_strings.h"
+#include "path.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,6 +44,7 @@ int global_verbosity = DEBUGLEV_ONLY_ERROR;
 
 static struct tagbstring app_title = bsStatic("likwid-bench");
 
+static RuntimeConfig* global_runcfg = NULL;
 
 static bstring get_architecture()
 {
@@ -59,6 +63,63 @@ static bstring bhline()
     binsertch(bdash, 0, 80, '-');
     binsertch(bdash, 80, 1, '\n');
     return bdash;
+}
+
+void _read_proc_stat()
+{
+    bstring bcontent = read_file(bdata(&bproc_stat));
+    printf("Read file %s: \n", bdata(&bproc_stat));
+    if (blength(bcontent) !=0 )
+    {
+        struct bstrList* blist = bsplit(bcontent, ' ');
+        printf("\tMinor Page Faults: %s\n", bdata(blist->entry[10])); // status of minflt
+        printf("\tMajor Page Faults: %s\n", bdata(blist->entry[12])); // status of majflt
+        bstrListDestroy(blist);
+    }
+    bdestroy(bcontent);
+}
+
+void _read_proc_status()
+{
+    bstring bcontent = read_file(bdata(&bproc_status));
+    printf("Read file %s: \n", bdata(&bproc_status));
+    if (blength(bcontent) !=0 )
+    {
+        struct bstrList* blist = bsplit(bcontent, '\n');
+        for (int i = 0; i < blist->qty; i++)
+        {
+            struct bstrList* kv = bsplit(blist->entry[i], ':');
+            btrimws(kv->entry[0]);
+            btrimws(kv->entry[1]);
+            if (bstrncmp(kv->entry[0], &bvc_switch, blength(&bvc_switch)) == 0)
+            {
+                printf("\tNumber of voluntary context switches: %s\n", bdata(kv->entry[1]));
+            }
+            else if (bstrncmp(kv->entry[0], &bnvc_switch, blength(&bvc_switch)) == 0)
+            {
+                printf("\tNumber of involuntary context switches: %s\n", bdata(kv->entry[1]));
+            }
+            bstrListDestroy(kv);
+        }
+        bstrListDestroy(blist);
+    }
+    bdestroy(bcontent);
+}
+
+int _rsrc_usg()
+{
+    struct rusage usg;
+    if (getrusage(RUSAGE_SELF, &usg) != 0)
+    {
+        ERROR_PRINT("Failed to get rusage");
+        return -1;
+    }
+    printf("Resource Usage:\n");
+    printf("\tMinor Page Faults: %" PRIdMAX "\n", (intmax_t)usg.ru_minflt);
+    printf("\tMajor Page Faults: %" PRIdMAX "\n", (intmax_t)usg.ru_majflt);
+    printf("\tNumber of voluntary context switches: %" PRIdMAX "\n", (intmax_t)usg.ru_nvcsw);
+    printf("\tNumber of involuntary context switches: %" PRIdMAX "\n", (intmax_t)usg.ru_nivcsw);
+    return 0;
 }
 
 int allocate_runtime_config(RuntimeConfig** config)
@@ -215,20 +276,6 @@ void free_runtime_config(RuntimeConfig* runcfg)
     }
 }
 
-void _sig_handler(int signum, siginfo_t *info, void *context)
-{
-    int err = errno;
-    if (info && info->si_addr && (signum == SIGSEGV || signum == SIGBUS || signum == SIGILL || signum == SIGFPE))
-    {
-        ERROR_PRINT("Signal interrupted: %d - %s at: %p", signum, strsignal(signum), info->si_addr);
-    }
-    else
-    {
-        ERROR_PRINT("Signal interrupted: %d - %s", signum, strsignal(signum));
-    }
-    _exit(EXIT_FAILURE);
-}
-
 void _rm_tmpfiles(RuntimeConfig* runcfg)
 {
     for (int i = 0; i < runcfg->mkstempfiles->qty; i++)
@@ -244,7 +291,25 @@ void _rm_tmpfiles(RuntimeConfig* runcfg)
     }
 }
 
-void _sig_handlers(RuntimeConfig* runcfg)
+void _sig_handler(int signum, siginfo_t *info, void *context)
+{
+    int err = errno;
+    if (global_runcfg && global_runcfg->mkstempfiles)
+    {
+        _rm_tmpfiles(global_runcfg);
+    }
+    if (info && info->si_addr && (signum == SIGSEGV || signum == SIGBUS || signum == SIGILL || signum == SIGFPE))
+    {
+        ERROR_PRINT("Signal interrupted: %d - %s at: %p", signum, strsignal(signum), info->si_addr);
+    }
+    else
+    {
+        ERROR_PRINT("Signal interrupted: %d - %s", signum, strsignal(signum));
+    }
+    _exit(EXIT_FAILURE);
+}
+
+void _sig_handlers()
 {
     int num_signals = 13;
     int signals[] = {SIGINT, SIGTERM, SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGBUS, SIGHUP, SIGQUIT, SIGTSTP, SIGXCPU, SIGXFSZ, SIGPIPE};
@@ -259,7 +324,6 @@ void _sig_handlers(RuntimeConfig* runcfg)
             WARN_PRINT("Issue while handling signal: %d - %s", signals[i], strsignal(signals[i]));
         }
     }
-    _rm_tmpfiles(runcfg);
 }
 
 int main(int argc, char** argv)
@@ -272,15 +336,10 @@ int main(int argc, char** argv)
     LIKWID_MARKER_INIT;
 #endif
 
-    if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0)
-    {
-        ERROR_PRINT("mlockall failed!");
-        goto main_out;
-    }
-
     int c = 0, err = 0, print_help = 0;
     int option_index = -1;
     RuntimeConfig* runcfg = NULL;
+    global_runcfg = runcfg;
     Map_t useropts = NULL;
     struct bstrList* args = NULL;
     int got_testcase = 0;
@@ -293,6 +352,15 @@ int main(int argc, char** argv)
         .num_options = 0,
         .options = NULL,
     };
+
+    _sig_handlers();
+
+    if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0)
+    {
+        ERROR_PRINT("mlockall failed!");
+        goto main_out;
+    }
+
     addConstCliOptions(&baseopts, &basecliopts);
 /*    bstring bccflags = bfromcstr("-fPIC -shared");*/
 
@@ -635,7 +703,7 @@ int main(int argc, char** argv)
         }
     }
 
-    _sig_handlers(runcfg);
+    // _sig_handlers(runcfg);
 
     err = join_threads(runcfg->num_wgroups, runcfg->wgroups);
     if (err < 0)
@@ -748,6 +816,17 @@ int main(int argc, char** argv)
         fclose(output);
     }
 
+    _read_proc_status();
+
+    _read_proc_stat();
+
+    err = _rsrc_usg();
+    if (err != 0)
+    {
+        ERROR_PRINT("Error reading resource usage limits");
+        goto main_out;
+    }
+
 #ifdef LIKWID_PERFMON
     if (getenv("LIKWID_FILEPATH") != NULL)
     {
@@ -756,8 +835,6 @@ int main(int argc, char** argv)
     LIKWID_MARKER_CLOSE;
 #endif
     bdestroy(hline);
-
-    munlockall();
 
 main_out:
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "MAIN_OUT");
@@ -787,6 +864,9 @@ main_out:
     }
     */
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "MAIN_OUT DONE");
-    munlockall();
+    if (munlockall() != 0)
+    {
+        ERROR_PRINT("munlockall failed!");
+    }
     return 0;
 }

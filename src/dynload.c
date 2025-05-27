@@ -213,32 +213,38 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
         for (int i = 0; i < wcodelines->qty; i++)
         {
             if (bchar(wcodelines->entry[i], 0) == '#') continue;
-            for (int j = sorted_valkeys->qty - 1; j >= 0; j--)
+            struct bstrList* blist = bstrListCreate();
+            bstrtok_delimters(wcodelines->entry[i], blist);
+            for (int k = 0; k < blist->qty; k++)
             {
-                if (binstr(wcodelines->entry[i], 0, sorted_valkeys->entry[j]) != BSTR_ERR && bchar(wcodelines->entry[i], 0) != '.')
+                for (int j = sorted_valkeys->qty - 1; j >= 0; j--)
                 {
-                    bstring val = NULL;
-                    ret = get_bmap_by_key(wcfg->results[t].values, sorted_valkeys->entry[j], (void**)&val);
-                    if (ret == 0)
+                    if (binstr(blist->entry[k], 0, sorted_valkeys->entry[j]) != BSTR_ERR)
                     {
-                        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Replacing '%s' with '%s' in '%s'", bdata(sorted_valkeys->entry[j]), bdata(val), bdata(wcodelines->entry[i]));
-                        bfindreplace(wcodelines->entry[i], sorted_valkeys->entry[j], val, 0);
+                        bstring val = NULL;
+                        ret = get_bmap_by_key(wcfg->results[t].values, sorted_valkeys->entry[j], (void**)&val);
+                        if (ret == 0)
+                        {
+                            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Replacing '%s' with '%s' in '%s'", bdata(sorted_valkeys->entry[j]), bdata(val), bdata(wcodelines->entry[i]));
+                            bfindreplace(blist->entry[k], sorted_valkeys->entry[j], val, 0);
+                        }
+                    }
+                }
+                for (int j = sorted_varkeys->qty - 1; j >= 0; j--)
+                {
+                    if (binstr(blist->entry[k], 0, sorted_varkeys->entry[j]) != BSTR_ERR)
+                    {
+                        bstring val = NULL;
+                        ret = get_bmap_by_key(wcfg->results[t].variables, sorted_varkeys->entry[j], (void**)&val);
+                        if (ret == 0)
+                        {
+                            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Replacing '%s' with '%s' in '%s'", bdata(sorted_varkeys->entry[j]), bdata(val), bdata(wcodelines->entry[i]));
+                            bfindreplace(blist->entry[k], sorted_varkeys->entry[j], val, 0);
+                        }
                     }
                 }
             }
-            for (int j = sorted_varkeys->qty - 1; j >= 0; j--)
-            {
-                if (binstr(wcodelines->entry[i], 0, sorted_varkeys->entry[j]) != BSTR_ERR && bchar(wcodelines->entry[i], 0) != '.')
-                {
-                    bstring val = NULL;
-                    ret = get_bmap_by_key(wcfg->results[t].variables, sorted_varkeys->entry[j], (void**)&val);
-                    if (ret == 0)
-                    {
-                        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Replacing '%s' with '%s' in '%s'", bdata(sorted_varkeys->entry[j]), bdata(val), bdata(wcodelines->entry[i]));
-                        bfindreplace(wcodelines->entry[i], sorted_varkeys->entry[j], val, 0);
-                    }
-                }
-            }
+            bstrListDestroy(blist);
         }
 
         bstrListDestroy(sorted_valkeys);
