@@ -32,8 +32,8 @@
   INST_LOOP: 4
 
 - Metrics:
-  Read bandwidth [MByte/s]: (ITER*(N/NUM_THREADS))/time
-  Total bandwidth [MByte/s]: (ITER*(N/NUM_THREADS))/time
+  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS))/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS))/time
   Total instructions: ITER*((N/NUM_THREADS)/SIZEOF_DOUBLE)*(INST_LOOP/INST_PER_ITER)
 - Language: asm
 ...

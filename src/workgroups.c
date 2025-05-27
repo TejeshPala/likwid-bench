@@ -332,7 +332,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
 {
     int err = 0;
     int max_len = 0;
-    struct tagbstring mbytes = bsStatic("[MByte/s]");
+    // struct tagbstring mbytes = bsStatic("[MByte/s]");
     struct bstrList* tmp_tcfg_keys = bstrListCreate();
     struct bstrList* tmp_tcfg_values = bstrListCreate();
     TestConfig_t cfg = runcfg->tcfg;
@@ -481,6 +481,8 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
                         ERROR_PRINT("Error calculating formula: %s", bdata(btmp));
                     }
                     // printf("bcpy: %s, value: %lf\n", bdata(btmp), val);
+                    /*
+                     * the conversion has been removed as user should know when to convert them explicity based on units they needed/required
                     if (binstrcaseless(bcpy, 0, &mbytes) != BSTR_ERR)
                     {
                         val = val * 1.0E-06;
@@ -490,6 +492,8 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
                     {
                         add_value(result, bcpy, val);
                     }
+                    */
+                    add_value(result, bcpy, val);
                     bstring bval = bformat("%15lf", val);
                     bstrListAdd(bvalues[bkeys_sorted->qty + i - cfg->num_metrics], bval);
                     bstrListAdd(bgrp_values[bkeys_sorted->qty + i - cfg->num_metrics], bval);
