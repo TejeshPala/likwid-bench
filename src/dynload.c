@@ -143,7 +143,8 @@ int bmkstemp(bstring template)
 int bunlink(bstring filename)
 {
     int (*myunlink)(const char* fname) = unlink;
-    if (filename && bdata(filename) != NULL)
+    int (*ownaccess)(const char*, int) = access;
+    if (filename && bdata(filename) != NULL && ownaccess(bdata(filename), F_OK) == 0)
     {
         return myunlink(bdata(filename));
     }
@@ -185,6 +186,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
         if (bunlink(filetemplate) == -1)
         {
             ERROR_PRINT("Failed to unlink '%s'", bdata(filetemplate));
+            bdestroy(asmfile);
             bdestroy(compiler);
             bdestroy(filetemplate);
             return -1;

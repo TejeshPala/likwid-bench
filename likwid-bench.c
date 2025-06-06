@@ -151,6 +151,23 @@ int allocate_runtime_config(RuntimeConfig** config)
     return 0;
 }
 
+void _rm_tmpfiles(RuntimeConfig* runcfg)
+{
+    for (int i = 0; i < runcfg->mkstempfiles->qty; i++)
+    {
+        const char* path = bdata(runcfg->mkstempfiles->entry[i]);
+        int (*ownaccess)(const char*, int) = access;
+        int (*ownunlink)(const char* fname) = unlink;
+        if (ownaccess(path, F_OK) == 0)
+        {
+            if (ownunlink(path) == -1)
+            {
+                WARN_PRINT("Failed to removed tmp file: %s. Please check and remove from /tmp folder", path);
+            }
+        }
+    }
+}
+
 void free_runtime_config(RuntimeConfig* runcfg)
 {
     if (runcfg)
@@ -168,6 +185,8 @@ void free_runtime_config(RuntimeConfig* runcfg)
         DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy arraysize in RuntimeConfig");
         bdestroy(runcfg->arraysize);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy mkstemp files in RuntimeConfig");
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Remove /tmp files");
+        _rm_tmpfiles(runcfg);
         if (runcfg->mkstempfiles != NULL)
         {
             bstrListDestroy(runcfg->mkstempfiles);
@@ -273,21 +292,6 @@ void free_runtime_config(RuntimeConfig* runcfg)
 
         bdestroy(runcfg->output);
         free(runcfg);
-    }
-}
-
-void _rm_tmpfiles(RuntimeConfig* runcfg)
-{
-    for (int i = 0; i < runcfg->mkstempfiles->qty; i++)
-    {
-        const char* path = bdata(runcfg->mkstempfiles->entry[i]);
-        if (access(path, F_OK) == 0)
-        {
-            if (unlink(path) == -1)
-            {
-                WARN_PRINT("Failed to removed tmp file: %s. Please check and remove from /tmp folder", path);
-            }
-        }
     }
 }
 
