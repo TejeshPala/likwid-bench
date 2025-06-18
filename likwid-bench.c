@@ -69,12 +69,16 @@ void _read_proc_stat()
 {
     bstring bcontent = read_file(bdata(&bproc_stat));
     printf("Read file %s: \n", bdata(&bproc_stat));
-    if (blength(bcontent) !=0 )
+    if (bcontent != NULL && blength(bcontent) !=0 )
     {
-        struct bstrList* blist = bsplit(bcontent, ' ');
-        printf("\tMinor Page Faults: %s\n", bdata(blist->entry[10])); // status of minflt
-        printf("\tMajor Page Faults: %s\n", bdata(blist->entry[12])); // status of majflt
-        bstrListDestroy(blist);
+        btrimws(bcontent);
+        if (blength(bcontent) != 0)
+        {
+            struct bstrList* blist = bsplit(bcontent, ' ');
+            printf("\tMinor Page Faults: %s\n", bdata(blist->entry[10])); // status of minflt
+            printf("\tMajor Page Faults: %s\n", bdata(blist->entry[12])); // status of majflt
+            bstrListDestroy(blist);
+        }
     }
     bdestroy(bcontent);
 }
@@ -83,25 +87,29 @@ void _read_proc_status()
 {
     bstring bcontent = read_file(bdata(&bproc_status));
     printf("Read file %s: \n", bdata(&bproc_status));
-    if (blength(bcontent) !=0 )
+    if (bcontent != NULL && blength(bcontent) != 0)
     {
-        struct bstrList* blist = bsplit(bcontent, '\n');
-        for (int i = 0; i < blist->qty; i++)
+        btrimws(bcontent);
+        if (blength(bcontent) != 0)
         {
-            struct bstrList* kv = bsplit(blist->entry[i], ':');
-            btrimws(kv->entry[0]);
-            btrimws(kv->entry[1]);
-            if (bstrncmp(kv->entry[0], &bvc_switch, blength(&bvc_switch)) == 0)
+            struct bstrList* blist = bsplit(bcontent, '\n');
+            for (int i = 0; i < blist->qty; i++)
             {
-                printf("\tNumber of voluntary context switches: %s\n", bdata(kv->entry[1]));
+                struct bstrList* kv = bsplit(blist->entry[i], ':');
+                btrimws(kv->entry[0]);
+                btrimws(kv->entry[1]);
+                if (bstrncmp(kv->entry[0], &bvc_switch, blength(&bvc_switch)) == 0)
+                {
+                    printf("\tNumber of voluntary context switches: %s\n", bdata(kv->entry[1]));
+                }
+                else if (bstrncmp(kv->entry[0], &bnvc_switch, blength(&bvc_switch)) == 0)
+                {
+                    printf("\tNumber of involuntary context switches: %s\n", bdata(kv->entry[1]));
+                }
+                bstrListDestroy(kv);
             }
-            else if (bstrncmp(kv->entry[0], &bnvc_switch, blength(&bvc_switch)) == 0)
-            {
-                printf("\tNumber of involuntary context switches: %s\n", bdata(kv->entry[1]));
-            }
-            bstrListDestroy(kv);
+            bstrListDestroy(blist);
         }
-        bstrListDestroy(blist);
     }
     bdestroy(bcontent);
 }
