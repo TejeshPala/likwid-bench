@@ -69,7 +69,7 @@ void _read_proc_stat()
 {
     bstring bcontent = read_file(bdata(&bproc_stat));
     printf("Read file %s: \n", bdata(&bproc_stat));
-    if (bcontent != NULL && blength(bcontent) !=0 )
+    if (bcontent != NULL && blength(bcontent) != 0)
     {
         btrimws(bcontent);
         if (blength(bcontent) != 0)
