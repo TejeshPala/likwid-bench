@@ -777,6 +777,8 @@ int update_threads(RuntimeConfig* runcfg)
                         }
                     }
                     */
+                    /*
+                    // the below is also not neccessary as round down is already made
                     DEBUG_PRINT(DEBUGLEV_INFO, "thread: %d stream: %d tsizes[%d]: %" PRIu64 " toffsets[%d]: %zu", i, s, k, str->tsizes[k], k, str->toffsets[k]);
                     if ((str->tsizes[k] % bytesperiter != 0) || (str->toffsets[k] % bytesperiter != 0))
                     {
@@ -794,6 +796,7 @@ int update_threads(RuntimeConfig* runcfg)
                         }
                     }
                     DEBUG_PRINT(DEBUGLEV_INFO, "After rounddown - thread: %d stream: %d tsizes[%d]: %" PRIu64 " toffsets[%d]: %zu", i, s, k, str->tsizes[k], k, str->toffsets[k]);
+                    */
                     bdestroy(bsizes);
                     bdestroy(boffsets);
                 }

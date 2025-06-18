@@ -893,7 +893,7 @@ int fill_results(RuntimeConfig* runcfg)
                     // printf("Stream: %d, thread: %d, btmp: %s, elems: %" PRIu64 "\n", s, j, bdata(btmp), elems);
                     if (rounddown_factor > 0 && elems % rounddown_factor != 0)
                     {
-                        if (k == 0 && s == 0 && j == 0) WARN_PRINT("SANITIZING A round down factor is applied on arrays to %" PRIu64, rounddown_factor);
+                        if (k == 0 && s == 0 && j == 0) WARN_PRINT("SANITIZING A round down factor of %" PRIu64 " is applied on arrays", rounddown_factor);
                         if (!is_multipleof_pow2(elems, rounddown_factor))
                         {
                             rounddown_nbits_pow2(&elems, elems, rounddown_factor);
