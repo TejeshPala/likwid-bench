@@ -81,6 +81,7 @@ typedef struct {
     TestConfigStreamData    data;
     struct bstrList*        sizes;
     struct bstrList*        offsets;
+    bool                    initialization;
 } TestConfigStream;
 
 typedef struct {
@@ -105,7 +106,6 @@ typedef struct {
     TestConfigVariable *    metrics;
     struct bstrList*        flags;
     bool                    requirewg;
-    bool                    initialization;
 } TestConfig;
 typedef TestConfig* TestConfig_t;
 
@@ -128,6 +128,7 @@ typedef struct {
     TestConfigStreamType type;
     TestConfigStreamData data;
     void* init_val;
+    bool initialization;
 } RuntimeStreamConfig;
 
 typedef struct {
@@ -192,7 +193,6 @@ typedef struct {
     pthread_mutexattr_t m_attr;
     pthread_cond_t cond;
     pthread_condattr_t c_attr;
-    bool initialization;
     void* init_val;
 } RuntimeThreadCommand;
 
@@ -221,9 +221,9 @@ typedef struct {
 typedef _thread_data* thread_data_t;
 
 typedef struct {
-    uint64_t tsizes;
-    off_t   toffsets;
-    void*   tstream_ptr;
+    uint64_t    tsizes[3];
+    off_t       toffsets[3];
+    void*       tstream_ptr;
 } RuntimeThreadStreamConfig;
 
 typedef struct {
@@ -258,7 +258,7 @@ typedef struct {
 typedef struct {
     int help;
     int verbosity;
-    int iterations;
+    uint64_t iterations;
     double runtime;
     int csv;
     int json;
@@ -276,6 +276,7 @@ typedef struct {
     bstring arraysize;
     TestConfig_t tcfg;
     RuntimeWorkgroupResult* global_results;
+    struct bstrList* mkstempfiles;
 } RuntimeConfig;
 
 

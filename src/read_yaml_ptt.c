@@ -271,7 +271,6 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
     conf->code = NULL;
     conf->flags = bstrListCreate();
     conf->requirewg = false;
-    conf->initialization = false;
     read_obj(bptt, &objs);
     for (i = 0; i < objs->qty; i++)
     {
@@ -294,6 +293,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                         s->dims = bstrListCreate();
                         s->offsets = bstrListCreate();
                         s->sizes = bstrListCreate();
+                        s->initialization = false;
                         bstring sv;
                         ret = read_keyvalue(streams->entry[j], &s->name, &sv);
                         if (ret == 0)
@@ -416,7 +416,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                                         // bstrListPrint(tmpl);
                                         if (bstrnicmp(tmpl->entry[0], &bperthread, blength(&bperthread)) == BSTR_OK && blength(&bperthread) == blength(tmpl->entry[0]))
                                         {
-                                            conf->initialization = true;
+                                            s->initialization = true;
                                         }
                                         bstrListDestroy(tmpl);
                                     }

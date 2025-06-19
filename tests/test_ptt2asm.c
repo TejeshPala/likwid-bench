@@ -57,8 +57,8 @@ int main(int argc, char* argv[])
     thread.tstreams = (RuntimeThreadStreamConfig*)malloc(sizeof(RuntimeThreadStreamConfig) * tcfg.num_streams);
     for (int i = 0; i < thread.num_streams; i++)
     {
-        thread.tstreams[i].tsizes      = 100;
-        thread.tstreams[i].toffsets    = 0;
+        thread.tstreams[i].tsizes[0]      = 100;
+        thread.tstreams[i].toffsets[0]    = 0;
         thread.tstreams[i].tstream_ptr    = 0x00000000;
     }
     

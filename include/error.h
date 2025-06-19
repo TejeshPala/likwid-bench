@@ -36,11 +36,11 @@ extern int global_verbosity;
 #define INFO_PRINT(fmt, ...) \
     if (global_verbosity >= DEBUGLEV_INFO) \
     { \
-        fprintf(stdout, "INFO - " STRINGIFY(fmt) "\n", ##__VA_ARGS__); \
+        fprintf(stdout, "INFO - " fmt "\n", ##__VA_ARGS__); \
     }
 
 #define TODO_PRINT(fmt, ...)  \
-    fprintf(stdout, "TODO - " STRINGIFY(fmt) "\n", ##__VA_ARGS__);
+    fprintf(stdout, "TODO - " fmt "\n", ##__VA_ARGS__);
 
 
 #endif /*ERROR_H*/

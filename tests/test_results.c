@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <allocator.h>
 #include <results.h>
 #include <test_types.h>
 #include <helper.h>

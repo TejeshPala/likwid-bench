@@ -10,6 +10,8 @@
 extern "C" {
 #endif
 
+static struct tagbstring bstrptr = bsStatic("#STREAMPTRFORREPLACMENT");
+
 static struct tagbstring biterations = bsStatic("ITER");
 static struct tagbstring bnumthreads = bsStatic("NUM_THREADS");
 static struct tagbstring bgroupid = bsStatic("GROUP_ID");
@@ -32,7 +34,7 @@ static struct tagbstring bempty = bsStatic("");
 static struct tagbstring bstats1[] =
 {
     bsStatic("cycles"),
-    bsStatic("freq"),
+    bsStatic("freq [Hz]"),
 //    bsStatic("iters"),
     bsStatic("time"),
 };
@@ -46,6 +48,9 @@ static struct tagbstring bstats2[] =
 };
 
 static int stats2_count = 1;
+
+static struct tagbstring bvc_switch = bsStatic("voluntary_ctxt_switches");
+static struct tagbstring bnvc_switch = bsStatic("nonvoluntary_ctxt_switches");
 
 #ifdef __cplusplus
 }

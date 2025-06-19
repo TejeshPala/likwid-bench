@@ -15,6 +15,8 @@
 #include <errno.h>
 
 
+#define DELIMITERS ",*+[] "
+
 int bstrListAdd(struct bstrList * sl, bstring str)
 {
 	if (sl->qty >= sl->mlen) {
@@ -403,4 +405,32 @@ int batod(bstring b, double* value)
 
     *value = result;
     return BSTR_OK;
+}
+
+void bstrtok_delimters(bstring input, struct bstrList* blist)
+{
+    const char* delimiters = DELIMITERS;
+    char* str = bstr2cstr(input, ' ');
+    int start = 0;
+    int len = strlen(str);
+    for (int i = 0; i <= len; i++)
+    {
+        if (strchr(delimiters, str[i]) || str[i] == '\0')
+        {
+            if (i > start)
+            {
+                bstring btok1 = blk2bstr(str + start, i - start);
+                bstrListAdd(blist, btok1);
+                bdestroy(btok1);
+            }
+            if (str[i] != '\0')
+            {
+                bstring btok2 = blk2bstr(str + i, 1);
+                bstrListAdd(blist, btok2);
+                bdestroy(btok2);
+            }
+            start = i + 1;
+        }
+    }
+    bcstrfree(str);
 }

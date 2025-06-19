@@ -4,6 +4,9 @@
 #include <unistd.h>
 #include <libgen.h>
 #include <sys/utsname.h>
+#include <sys/mman.h>
+#include <sys/resource.h>
+#include <signal.h>
 
 #include "error.h"
 #include "bstrlib.h"
@@ -20,6 +23,8 @@
 #include "thread_group.h"
 #include "dynload.h"
 #include "table.h"
+#include "test_strings.h"
+#include "path.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,6 +44,7 @@ int global_verbosity = DEBUGLEV_ONLY_ERROR;
 
 static struct tagbstring app_title = bsStatic("likwid-bench");
 
+static RuntimeConfig* global_runcfg = NULL;
 
 static bstring get_architecture()
 {
@@ -57,6 +63,71 @@ static bstring bhline()
     binsertch(bdash, 0, 80, '-');
     binsertch(bdash, 80, 1, '\n');
     return bdash;
+}
+
+void _read_proc_stat()
+{
+    bstring bcontent = read_file(bdata(&bproc_stat));
+    printf("Read file %s: \n", bdata(&bproc_stat));
+    if (bcontent != NULL && blength(bcontent) != 0)
+    {
+        btrimws(bcontent);
+        if (blength(bcontent) != 0)
+        {
+            struct bstrList* blist = bsplit(bcontent, ' ');
+            printf("\tMinor Page Faults: %s\n", bdata(blist->entry[10])); // status of minflt
+            printf("\tMajor Page Faults: %s\n", bdata(blist->entry[12])); // status of majflt
+            bstrListDestroy(blist);
+        }
+    }
+    bdestroy(bcontent);
+}
+
+void _read_proc_status()
+{
+    bstring bcontent = read_file(bdata(&bproc_status));
+    printf("Read file %s: \n", bdata(&bproc_status));
+    if (bcontent != NULL && blength(bcontent) != 0)
+    {
+        btrimws(bcontent);
+        if (blength(bcontent) != 0)
+        {
+            struct bstrList* blist = bsplit(bcontent, '\n');
+            for (int i = 0; i < blist->qty; i++)
+            {
+                struct bstrList* kv = bsplit(blist->entry[i], ':');
+                btrimws(kv->entry[0]);
+                btrimws(kv->entry[1]);
+                if (bstrncmp(kv->entry[0], &bvc_switch, blength(&bvc_switch)) == 0)
+                {
+                    printf("\tNumber of voluntary context switches: %s\n", bdata(kv->entry[1]));
+                }
+                else if (bstrncmp(kv->entry[0], &bnvc_switch, blength(&bvc_switch)) == 0)
+                {
+                    printf("\tNumber of involuntary context switches: %s\n", bdata(kv->entry[1]));
+                }
+                bstrListDestroy(kv);
+            }
+            bstrListDestroy(blist);
+        }
+    }
+    bdestroy(bcontent);
+}
+
+int _rsrc_usg()
+{
+    struct rusage usg;
+    if (getrusage(RUSAGE_SELF, &usg) != 0)
+    {
+        ERROR_PRINT("Failed to get rusage");
+        return -1;
+    }
+    printf("Resource Usage:\n");
+    printf("\tMinor Page Faults: %" PRIdMAX "\n", (intmax_t)usg.ru_minflt);
+    printf("\tMajor Page Faults: %" PRIdMAX "\n", (intmax_t)usg.ru_majflt);
+    printf("\tNumber of voluntary context switches: %" PRIdMAX "\n", (intmax_t)usg.ru_nvcsw);
+    printf("\tNumber of involuntary context switches: %" PRIdMAX "\n", (intmax_t)usg.ru_nivcsw);
+    return 0;
 }
 
 int allocate_runtime_config(RuntimeConfig** config)
@@ -83,8 +154,26 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->csv = 0;
     runcfg->json = 0;
     runcfg->output = bfromcstr("stdout");
+    runcfg->mkstempfiles = bstrListCreate();
     *config = runcfg;
     return 0;
+}
+
+void _rm_tmpfiles(RuntimeConfig* runcfg)
+{
+    for (int i = 0; i < runcfg->mkstempfiles->qty; i++)
+    {
+        const char* path = bdata(runcfg->mkstempfiles->entry[i]);
+        int (*ownaccess)(const char*, int) = access;
+        int (*ownunlink)(const char* fname) = unlink;
+        if (ownaccess(path, F_OK) == 0)
+        {
+            if (ownunlink(path) == -1)
+            {
+                WARN_PRINT("Failed to removed tmp file: %s. Please check and remove from /tmp folder", path);
+            }
+        }
+    }
 }
 
 void free_runtime_config(RuntimeConfig* runcfg)
@@ -103,6 +192,13 @@ void free_runtime_config(RuntimeConfig* runcfg)
         bdestroy(runcfg->kernelfolder);
         DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy arraysize in RuntimeConfig");
         bdestroy(runcfg->arraysize);
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy mkstemp files in RuntimeConfig");
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Remove /tmp files");
+        _rm_tmpfiles(runcfg);
+        if (runcfg->mkstempfiles != NULL)
+        {
+            bstrListDestroy(runcfg->mkstempfiles);
+        }
         if (runcfg->wgroups)
         {
             DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy workgroups in RuntimeConfig");
@@ -135,7 +231,7 @@ void free_runtime_config(RuntimeConfig* runcfg)
                                 free(runcfg->wgroups[i].threads[j].command);
                                 runcfg->wgroups[i].threads[j].command = NULL;
                             }
-                            if (runcfg->wgroups[i].threads[j].codelines)
+                            if (runcfg->wgroups[i].threads[j].codelines != NULL)
                             {
                                 bstrListDestroy(runcfg->wgroups[i].threads[j].codelines);
                                 runcfg->wgroups[i].threads[j].codelines = NULL;
@@ -159,10 +255,7 @@ void free_runtime_config(RuntimeConfig* runcfg)
                 {
                     for (int w = 0; w < runcfg->wgroups[i].num_streams; w++)
                     {
-                        if (runcfg->wgroups[i].streams[w].ptr)
-                        {
-                            free(runcfg->wgroups[i].streams[w].ptr);
-                        }
+                        release_arrays(&runcfg->wgroups[i].streams[w]);
                         bdestroy(runcfg->wgroups[i].streams[w].name);
                     }
                     free(runcfg->wgroups[i].streams);
@@ -210,6 +303,41 @@ void free_runtime_config(RuntimeConfig* runcfg)
     }
 }
 
+void _sig_handler(int signum, siginfo_t *info, void *context)
+{
+    int err = errno;
+    if (global_runcfg && global_runcfg->mkstempfiles)
+    {
+        _rm_tmpfiles(global_runcfg);
+    }
+    if (info && info->si_addr && (signum == SIGSEGV || signum == SIGBUS || signum == SIGILL || signum == SIGFPE))
+    {
+        ERROR_PRINT("Signal interrupted: %d - %s at: %p", signum, strsignal(signum), info->si_addr);
+    }
+    else
+    {
+        ERROR_PRINT("Signal interrupted: %d - %s", signum, strsignal(signum));
+    }
+    _exit(EXIT_FAILURE);
+}
+
+void _sig_handlers()
+{
+    int num_signals = 13;
+    int signals[] = {SIGINT, SIGTERM, SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGBUS, SIGHUP, SIGQUIT, SIGTSTP, SIGXCPU, SIGXFSZ, SIGPIPE};
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_sigaction = _sig_handler;
+    sa.sa_flags = SA_SIGINFO;
+    for (int i = 0; i < num_signals; i++)
+    {
+        if (sigaction(signals[i], &sa, NULL) == -1)
+        {
+            WARN_PRINT("Issue while handling signal: %d - %s", signals[i], strsignal(signals[i]));
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
 #ifdef LIKWID_PERFMON
@@ -219,9 +347,11 @@ int main(int argc, char** argv)
     }
     LIKWID_MARKER_INIT;
 #endif
+
     int c = 0, err = 0, print_help = 0;
     int option_index = -1;
     RuntimeConfig* runcfg = NULL;
+    global_runcfg = runcfg;
     Map_t useropts = NULL;
     struct bstrList* args = NULL;
     int got_testcase = 0;
@@ -234,6 +364,15 @@ int main(int argc, char** argv)
         .num_options = 0,
         .options = NULL,
     };
+
+    _sig_handlers();
+
+    if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0)
+    {
+        ERROR_PRINT("mlockall failed!");
+        goto main_out;
+    }
+
     addConstCliOptions(&baseopts, &basecliopts);
 /*    bstring bccflags = bfromcstr("-fPIC -shared");*/
 
@@ -576,6 +715,8 @@ int main(int argc, char** argv)
         }
     }
 
+    // _sig_handlers(runcfg);
+
     err = join_threads(runcfg->num_wgroups, runcfg->wgroups);
     if (err < 0)
     {
@@ -687,6 +828,17 @@ int main(int argc, char** argv)
         fclose(output);
     }
 
+    _read_proc_status();
+
+    _read_proc_stat();
+
+    err = _rsrc_usg();
+    if (err != 0)
+    {
+        ERROR_PRINT("Error reading resource usage limits");
+        goto main_out;
+    }
+
 #ifdef LIKWID_PERFMON
     if (getenv("LIKWID_FILEPATH") != NULL)
     {
@@ -717,6 +869,16 @@ main_out:
     {
         bstrListDestroy(args);
     }
+    /*
+    if (hline)
+    {
+        bdestroy(hline);
+    }
+    */
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "MAIN_OUT DONE");
+    if (munlockall() != 0)
+    {
+        ERROR_PRINT("munlockall failed!");
+    }
     return 0;
 }

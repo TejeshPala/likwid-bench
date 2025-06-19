@@ -285,9 +285,16 @@ void collect_keys(RuntimeWorkgroupResult* result, struct bstrList* sl)
 
 int _aggregate_results(struct bstrList* bkeys, struct bstrList** bvalues, RuntimeWorkgroupResult* res)
 {
+    /*
+    for (int i = 0; i < bkeys->qty; i++)
+    {
+        printf("%s", bdata(bkeys->entry[i]));
+        bstrListPrint(bvalues[i]);
+    }
+    printf("\n");
+    */
     int err = 0;
     static struct tagbstring bcomma = bsStatic(",");
-    // printf("key: %s\n", bdata(bkey));
     for (int id = 0; id < bkeys->qty; id++)
     {
         bstring key = bstrcpy(bkeys->entry[id]);
@@ -324,6 +331,20 @@ int _aggregate_results(struct bstrList* bkeys, struct bstrList** bvalues, Runtim
 int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfig* wgroups)
 {
     int err = 0;
+    int max_len = 0;
+    // struct tagbstring mbytes = bsStatic("[MByte/s]");
+    struct bstrList* tmp_tcfg_keys = bstrListCreate();
+    struct bstrList* tmp_tcfg_values = bstrListCreate();
+    TestConfig_t cfg = runcfg->tcfg;
+    for (int i = 0; i < cfg->num_vars; i++)
+    {
+        TestConfigVariable* v = &cfg->vars[i];
+        bstrListAdd(tmp_tcfg_keys, v->name);
+        bstrListAdd(tmp_tcfg_values, v->value);
+        int l = blength(v->name);
+        if (l > max_len) max_len = l;
+    }
+
     struct bstrList* bkeys = bstrListCreate();
     struct bstrList* bkeys_sorted = NULL;
     struct bstrList** bgrp_values = NULL;
@@ -345,6 +366,11 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
     }
     bstrListSort(bkeys, &bkeys_sorted);
     bstrListDestroy(bkeys);
+    for (int i = 0; i < cfg->num_metrics; i++)
+    {
+        TestConfigVariable* m = &cfg->metrics[i];
+        bstrListAdd(bkeys_sorted, m->name);
+    }
     bgrp_values = calloc(bkeys_sorted->qty, sizeof(struct bstrList*));
     if (!bgrp_values)
     {
@@ -414,12 +440,11 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
                     // values[0] = (double)thread->data->iters;
                     values[0] = thread->runtime;
                 }
-                for (int id = 0; id < bkeys_sorted->qty; id ++)
+                for (int id = 0; id < bkeys_sorted->qty - cfg->num_metrics; id ++)
                 {
                     double value = values[id];
                     bstring t_value = bformat("%.15lf", value);
                     // printf("t_value: %s\n", bdata(t_value));
-                    // if (update_bmap(result->values, bkeys->entry[id], &value, NULL) != 0)
                     err = update_value(result, bkeys_sorted->entry[id], value);
                     if (err == 0)
                     {
@@ -428,6 +453,53 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
                     bstrListAdd(bvalues[id], t_value);
                     bstrListAdd(bgrp_values[id], t_value);
                     bdestroy(t_value);
+                }
+                for (int i = 0; i < cfg->num_metrics; i++)
+                {
+                    TestConfigVariable* m = &cfg->metrics[i];
+                    double val;
+                    bstring bcpy = bstrcpy(m->name);
+                    bstring btmp = bstrcpy(m->value);
+                    // For replacing values from longest variables
+                    for (int l = max_len; l >= 1; l--)
+                    {
+                        for (int k = 0; k < tmp_tcfg_keys->qty; k++)
+                        {
+                            if (blength(tmp_tcfg_keys->entry[k]) == l && binstr(btmp, 0, tmp_tcfg_keys->entry[k]) != BSTR_ERR)
+                            {
+                                DEBUG_PRINT(DEBUGLEV_DEVELOP, "Replacing '%s' with '%s' in '%s'", bdata(tmp_tcfg_keys->entry[k]), bdata(tmp_tcfg_values->entry[k]), bdata(btmp));
+                                bfindreplace(btmp, tmp_tcfg_keys->entry[k], tmp_tcfg_values->entry[k], 0);
+                            }
+                        }
+                    }
+                    // printf("bcpy: %s\n", bdata(btmp));
+                    replace_all(runcfg->global_results, btmp, NULL);
+                    replace_all(result, btmp, NULL);
+                    err = calculator_calc(bdata(btmp), &val);
+                    if (err != 0)
+                    {
+                        ERROR_PRINT("Error calculating formula: %s", bdata(btmp));
+                    }
+                    // printf("bcpy: %s, value: %lf\n", bdata(btmp), val);
+                    /*
+                     * the conversion has been removed as user should know when to convert them explicity based on units they needed/required
+                    if (binstrcaseless(bcpy, 0, &mbytes) != BSTR_ERR)
+                    {
+                        val = val * 1.0E-06;
+                        add_value(result, bcpy, val);
+                    }
+                    else
+                    {
+                        add_value(result, bcpy, val);
+                    }
+                    */
+                    add_value(result, bcpy, val);
+                    bstring bval = bformat("%15lf", val);
+                    bstrListAdd(bvalues[bkeys_sorted->qty + i - cfg->num_metrics], bval);
+                    bstrListAdd(bgrp_values[bkeys_sorted->qty + i - cfg->num_metrics], bval);
+                    bdestroy(bval);
+                    bdestroy(bcpy);
+                    bdestroy(btmp);
                 }
             }
         }
@@ -459,6 +531,8 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
     }
     free(bgrp_values);
     bstrListDestroy(bkeys_sorted);
+    bstrListDestroy(tmp_tcfg_keys);
+    bstrListDestroy(tmp_tcfg_values);
     return err;
 }
 

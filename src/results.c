@@ -6,6 +6,7 @@
 #ifndef WITH_BSTRING
 #define WITH_BSTRING
 #endif
+#include "allocator.h"
 #include "map.h"
 #include "results.h"
 #include "calculator.h"
@@ -14,7 +15,21 @@
 #include "error.h"
 #include "helper.h"
 #include "test_strings.h"
+#include "bitmask.h"
 
+
+typedef struct {
+    struct tagbstring key;
+    struct tagbstring value;
+} KeyValuePair;
+
+KeyValuePair _SizeOfStreamType[] = {
+    {bsStatic("SIZEOF_SINGLE"), bsStatic("4")},
+    {bsStatic("SIZEOF_DOUBLE"), bsStatic("8")},
+    {bsStatic("SIZEOF_INT"), bsStatic("4")},
+    {bsStatic("SIZEOF_HALF"), bsStatic("2")},
+    {bsStatic("SIZEOF_INT64"), bsStatic("8")},
+};
 
 static BenchResults* bench_results = NULL;
 
@@ -669,7 +684,7 @@ static void replace_all_cb(mpointer key, mpointer value, mpointer user_data)
         }
     }
 
-    if (binstr(data->formula, 0, bkey) != BSTR_ERR)
+    if (binstrcaseless(data->formula, 0, bkey) != BSTR_ERR)
     {
         DEBUG_PRINT(DEBUGLEV_DEVELOP, "Replacing '%s' with '%s' in '%s'", bdata(bkey), bdata(bval), bdata(data->formula));
         err = bfindreplace(data->formula, bkey, bval, 0);
@@ -756,7 +771,7 @@ int fill_results(RuntimeConfig* runcfg)
                 if (biseq(p->name, btmp) && blength(p->value) > 0)
                 {
                     DEBUG_PRINT(DEBUGLEV_DEVELOP, "Add runtime parameter %s", bdata(p->name));
-                    bstring barraysize = bformat("%lld", convertToBytes(p->value));
+                    bstring barraysize = bformat("%" PRIu64, convertToBytes(p->value)); // array in Bytes
                     add_variable(runcfg->global_results, btmp, barraysize);
                     for (int w = 0; w < runcfg->num_wgroups; w++)
                     {
@@ -776,11 +791,11 @@ int fill_results(RuntimeConfig* runcfg)
     bstring biter;
     if (runcfg->iterations >= 0)
     {
-	    biter = bformat("%d", runcfg->iterations);
+	    biter = bformat("%" PRIu64, runcfg->iterations);
     }
     else
     {
-	    biter = bformat("%d", 0);
+	    biter = bformat("%" PRIu64, 0);
     }
     add_variable(runcfg->global_results, &biterations, biter);
     for (int i = 0; i < runcfg->num_wgroups; i++)
@@ -851,6 +866,60 @@ int fill_results(RuntimeConfig* runcfg)
     bstring x = bformat("%d", total_threads);
     add_variable(runcfg->global_results, &bnumthreads, x);
     bdestroy(x);
+
+    // The kv pairs is set to 5. If added any new to _SizeOfStreamType, increment the counter
+    for (int i = 0; i < 5; i++)
+    {
+        add_variable(runcfg->global_results, &_SizeOfStreamType[i].key, &_SizeOfStreamType[i].value);
+    }
+
+    for (int i = 0; i < runcfg->num_wgroups; i++)
+    {
+        RuntimeWorkgroupConfig *wgroup = &runcfg->wgroups[i];
+        uint64_t bytesperiter;
+        get_variable(&wgroup->results[0], &bbytesperiter, &bytesperiter);
+        // printf("bytesperiter: %" PRIu64 "\n", bytesperiter);
+        for (int s = 0; s < runcfg->tcfg->num_streams; s++)
+        {
+            TestConfigStream *istream = &runcfg->tcfg->streams[s];
+            for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
+            {
+                uint64_t rounddown_factor = bytesperiter * wgroup->num_threads * getsizeof(istream->type);
+                for (int j = 0; j < wgroup->num_threads; j++)
+                {
+                    uint64_t elems;
+                    bstring btmp = bstrcpy(istream->dims->entry[k]);
+                    get_variable(&wgroup->results[j], btmp, &elems);
+                    // printf("Stream: %d, thread: %d, btmp: %s, elems: %" PRIu64 "\n", s, j, bdata(btmp), elems);
+                    if (rounddown_factor > 0 && elems % rounddown_factor != 0)
+                    {
+                        if (k == 0 && s == 0 && j == 0) WARN_PRINT("SANITIZING A round down factor of %" PRIu64 " is applied on arrays", rounddown_factor);
+                        if (!is_multipleof_pow2(elems, rounddown_factor))
+                        {
+                            rounddown_nbits_pow2(&elems, elems, rounddown_factor);
+                        }
+                        else if (!is_multipleof_nbits(elems, rounddown_factor))
+                        {
+                            rounddown_nbits(&elems, elems, rounddown_factor);
+                        }
+                    }
+                    if (elems == 0)
+                    {
+                        ERROR_PRINT("Array size is adjusted to %" PRIu64 ". Increase the array size to a multiple of %" PRIu64 " Bytes", elems, rounddown_factor);
+                        bdestroy(btmp);
+                        return -1;
+                    }
+                    // DEBUG_PRINT(DEBUGLEV_DEVELOP, "After rounddown %s is %" PRIu64, bdata(btmp), elems);
+                    // printf("Stream: %d, thread: %d, After rounddown %s is %" PRIu64 "\n", s, j, bdata(btmp), elems);
+                    bstring belems = bformat("%" PRIu64, elems);
+                    update_variable(&wgroup->results[j], btmp, belems);
+                    update_variable(runcfg->global_results, btmp, belems);
+                    bdestroy(belems);
+                    bdestroy(btmp);
+                }
+            }
+        }
+    }
     return 0;
 }
 

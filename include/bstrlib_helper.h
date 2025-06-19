@@ -37,6 +37,8 @@ int batod(bstring b, double* value);
 bstring read_file(char *filename);
 int write_bstrList_to_file(struct bstrList* list, char* filename);
 
+void bstrtok_delimters(bstring input, struct bstrList* blist);
+
 #ifdef __cplusplus
 }
 #endif

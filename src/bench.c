@@ -102,8 +102,10 @@ int run_benchmark(RuntimeThreadConfig* data)
     clock_gettime(CLOCK_REALTIME, &ts);
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "Thread %3d starts benchmark execution: %s", data->local_id, ctime(&ts.tv_sec));
 
+    EXECUTE(func());
     // not sure whether we need to give the sizes here. Since we compile the code, we could add the sizes there directly
     // as constants
+    /*
     switch (data->num_streams)
     {
         case 1:
@@ -118,6 +120,7 @@ int run_benchmark(RuntimeThreadConfig* data)
         case 4:
             EXECUTE(func(data->sdata[0].dimsizes[0], data->sdata[0].ptr, data->sdata[1].ptr, data->sdata[2].ptr, data->sdata[3].ptr));
             break;
+            */
 /*        case STREAM_5:*/
 /*            EXECUTE(func(size,myData->streams[0],myData->streams[1],myData->streams[2],myData->streams[3],*/
 /*                        myData->streams[4]));*/
@@ -382,9 +385,11 @@ int run_benchmark(RuntimeThreadConfig* data)
 /*                        myData->streams[32],myData->streams[33],myData->streams[34],myData->streams[35],*/
 /*                        myData->streams[36],myData->streams[37]));*/
 /*            break;*/
+    /*
         default:
             break;
     }
+    */
 
     data->runtime = (double)myData->min_runtime / NANOS_PER_SEC;
     data->cycles = myData->cycles;

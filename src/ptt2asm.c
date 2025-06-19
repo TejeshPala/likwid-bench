@@ -28,10 +28,11 @@
  * =======================================================================================
  */
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <ctype.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "map.h"
 #include "bstrlib.h"
@@ -40,6 +41,7 @@
 #include "allocator.h"
 
 #include "ptt2asm.h"
+#include "test_strings.h"
 
 
 
@@ -58,7 +60,6 @@
 #ifdef _ARCH_PPC
 #include "isa_ppc64.h"
 #endif
-
 
 
 static struct bstrList* bsplittrim(bstring str, const char c)
@@ -523,7 +524,7 @@ static int _generate_replacement_lists(RuntimeConfig* runcfg, RuntimeThreadConfi
     TestConfig_t config = runcfg->tcfg;
     int maxs = 0;
     struct bstrList* regsavail = bstrListCreate();
-    struct tagbstring bstrptr = bsStatic("# STREAMPTRFORREPLACMENT");
+    struct tagbstring bstrptr = bsStatic("#STREAMPTRFORREPLACMENT");
     struct tagbstring bnewline = bsStatic("\n");
     bstrListAddChar(keys, "NAME");
     bstrListAdd(values, config->name);
@@ -593,7 +594,7 @@ static int _generate_replacement_lists(RuntimeConfig* runcfg, RuntimeThreadConfi
         for (int d = 0; d < data->dims; d++)
         {
             bstring k = bformat("#%s", bdata(tstr->dims->entry[d]));
-            bstring v = bformat("%d", str->tsizes);
+            bstring v = bformat("%" PRIu64, str->tsizes[d]);
             bstrListAdd(keys, k);
             bstrListAdd(values, v);
             bdestroy(k);
@@ -655,17 +656,26 @@ int generate_code(RuntimeConfig* runcfg, RuntimeThreadConfig* thread, struct bst
     
     for (int i = 0; i < tmp->qty; i++)
     {
-        for (int l = maxLength; l >= 1; l--)
+        struct bstrList* blist = bstrListCreate();
+        bstrtok_delimters(tmp->entry[i], blist);
+        for (int k = 0; k < blist->qty; k++)
         {
-            for (int j = 0; j < keys->qty; j++)
+            for (int l = maxLength; l >= 1; l--)
             {
-                if (blength(keys->entry[j]) == l && binstr(tmp->entry[i], 0, keys->entry[j]) != BSTR_ERR)
+                for (int j = 0; j < keys->qty; j++)
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Replacing '%s' with '%s' in '%s'", bdata(keys->entry[j]), bdata(values->entry[j]), bdata(tmp->entry[i]));
-                    bfindreplace(tmp->entry[i], keys->entry[j], values->entry[j], 0);
+                    if (blength(keys->entry[j]) == l && binstr(blist->entry[k], 0, keys->entry[j]) != BSTR_ERR)
+                    {
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Replacing '%s' with '%s' in '%s'", bdata(keys->entry[j]), bdata(values->entry[j]), bdata(tmp->entry[i]));
+                        bfindreplace(blist->entry[k], keys->entry[j], values->entry[j], 0);
+                    }
                 }
             }
         }
+        bstring btmp = bjoin(blist, &bempty);
+        bassign(tmp->entry[i], btmp);
+        bdestroy(btmp);
+        bstrListDestroy(blist);
     }
     bstrListDestroy(keys);
     bstrListDestroy(values);

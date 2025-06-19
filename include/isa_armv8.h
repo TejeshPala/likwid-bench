@@ -31,6 +31,7 @@
 
 #include "bstrlib.h"
 #include "bstrlib_helper.h"
+#include "test_strings.h"
 
 #define ARCHNAME "armv8"
 #define WORDLENGTH 4
@@ -59,7 +60,6 @@ static int is_sve(char* string)
 
 int header(struct bstrList* code, bstring funcname)
 {
-    struct tagbstring bstrptr = bsStatic("# STREAMPTRFORREPLACMENT");
     int sve = is_sve_bstr(funcname);
     bstring glline = bformat(".global %s", bdata(funcname));
     bstring typeline = bformat(".type %s, @function", bdata(funcname));
