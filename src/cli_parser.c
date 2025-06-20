@@ -411,6 +411,7 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
         return -EINVAL;
     }
     struct tagbstring bhelp = bsStatic("--help");
+    struct tagbstring ball = bsStatic("--all");
     struct tagbstring bverbose = bsStatic("--verbose");
     struct tagbstring btest = bsStatic("--test");
     struct tagbstring bfile = bsStatic("--file");
@@ -441,6 +442,10 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
         if (bstrcmp(opt->name, &bhelp) == BSTR_OK && bstrcmp(opt->value, &btrue) == BSTR_OK)
         {
             runcfg->help = 1;
+        }
+        else if (bstrcmp(opt->name, &ball) == BSTR_OK && blength(opt->value) > 0)
+        {
+            runcfg->all = 1;
         }
         else if (bstrcmp(opt->name, &bverbose) == BSTR_OK && blength(opt->value) > 0)
         {

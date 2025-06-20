@@ -257,6 +257,7 @@ typedef struct {
 
 typedef struct {
     int help;
+    int all;
     int verbosity;
     uint64_t iterations;
     double runtime;
@@ -277,6 +278,7 @@ typedef struct {
     TestConfig_t tcfg;
     RuntimeWorkgroupResult* global_results;
     struct bstrList* mkstempfiles;
+    struct bstrList* benchfiles;
 } RuntimeConfig;
 
 

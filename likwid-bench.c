@@ -1,3 +1,4 @@
+#include <dirent.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -153,8 +154,10 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->runtime = -1.0;
     runcfg->csv = 0;
     runcfg->json = 0;
+    runcfg->all = 0;
     runcfg->output = bfromcstr("stdout");
     runcfg->mkstempfiles = bstrListCreate();
+    runcfg->benchfiles = NULL;
     *config = runcfg;
     return 0;
 }
@@ -198,6 +201,11 @@ void free_runtime_config(RuntimeConfig* runcfg)
         if (runcfg->mkstempfiles != NULL)
         {
             bstrListDestroy(runcfg->mkstempfiles);
+        }
+        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Destroy bench files in RuntimeConfig");
+        if (runcfg->benchfiles != NULL)
+        {
+            bstrListDestroy(runcfg->benchfiles);
         }
         if (runcfg->wgroups)
         {
@@ -338,6 +346,59 @@ void _sig_handlers()
     }
 }
 
+static int _get_benchmarks(const char *path, struct bstrList** blist)
+{
+    struct bstrList* in = bstrListCreate();
+    struct bstrList* out = NULL;
+    int files = 0;
+    DIR * (*ownopendir)(const char* folder) = &opendir;
+    int (*ownaccess)(const char*, int) = &access;
+    DIR *dp;
+    struct dirent *ep;
+    if (!ownaccess(path, R_OK | X_OK))
+    {
+        dp = ownopendir(path);
+        if (dp != NULL)
+        {
+            while ((ep = readdir(dp)))
+            {
+                const char *name = ep->d_name;
+                size_t len = strlen(name);
+                if (len > 5 && strcmp(name + len - 5, ".yaml") == 0)
+                {
+                    bstring fpath = bformat("%s%s", path, name);
+                    TestConfig_t config = NULL;
+                    if (read_yaml_ptt(bdata(fpath), &config) == 0)
+                    {
+                        // printf("%.*s\n", (int)(len - 5), name);
+                        btrimws(config->description);
+                        bstring bname = bformat("%.*s\t\t\t:%s", (int)(len - 5), name, bdata(config->description));
+                        bstrListAdd(in, bname);
+                        bdestroy(bname);
+                        files++;
+                    }
+                    bdestroy(fpath);
+                    close_yaml_ptt(config);
+                }
+            }
+            closedir(dp);
+        }
+    }
+    bstrListSort(in, &out);
+    *blist = bstrListCopy(out);
+    bstrListDestroy(in);
+    bstrListDestroy(out);
+    return files;
+}
+
+static void _print_benchinfo(struct bstrList* blist)
+{
+    for (int i = 0; i < blist->qty; i++)
+    {
+        printf("%s\n", bdata(blist->entry[i]));
+    }
+}
+
 int main(int argc, char** argv)
 {
 #ifdef LIKWID_PERFMON
@@ -407,6 +468,7 @@ int main(int argc, char** argv)
     bconcat(runcfg->kernelfolder, kernelfolder);
     bconcat(runcfg->tmpfolder, tmpfolder);
     bconcat(runcfg->compiler, compiler);
+    _get_benchmarks(bdata(kernelfolder), &runcfg->benchfiles);
 
     /*
      * Get command line arguments
@@ -425,6 +487,11 @@ int main(int argc, char** argv)
     {
         ERROR_PRINT("Error parsing base options");
         printCliOptions(&baseopts);
+        goto main_out;
+    }
+    if (runcfg->all)
+    {
+        _print_benchinfo(runcfg->benchfiles);
         goto main_out;
     }
     if (runcfg->help && (blength(runcfg->testname) + blength(runcfg->pttfile)) == 0)
