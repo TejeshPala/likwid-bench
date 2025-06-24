@@ -828,9 +828,9 @@ int main(int argc, char** argv)
         fclose(output);
     }
 
-    _read_proc_status();
+    // _read_proc_status();
 
-    _read_proc_stat();
+    // _read_proc_stat();
 
     err = _rsrc_usg();
     if (err != 0)
