@@ -133,8 +133,15 @@ int _set_t_aff(pthread_t thread, int cpuid)
 {
     int err = 0;
     cpu_set_t cpuset;
+    cpu_set_t allowed;
     CPU_ZERO(&cpuset);
     CPU_SET(cpuid, &cpuset);
+    sched_getaffinity(0, sizeof(cpu_set_t), &allowed);
+    if (!CPU_ISSET(cpuid, &allowed))
+    {
+        ERROR_PRINT("CPU %d is not allowed by affinity mask", cpuid);
+        return -EINVAL;
+    }
     if (cpuid < 0 || cpuid >= CPU_SETSIZE)
     {
         ERROR_PRINT("Invalid cpu id: %d", cpuid);
@@ -701,7 +708,7 @@ int update_threads(RuntimeConfig* runcfg)
             }
 
             thread->num_threads = wg->num_threads;
-            thread->local_id = wg->hwthreads[i];
+            thread->local_id = i;
             thread->global_id = total_threads + i;
 
             bstring btid = bformat("%d", (thread->local_id % thread->num_threads));
@@ -821,7 +828,7 @@ int update_threads(RuntimeConfig* runcfg)
             }
             memset(thread->data, 0, sizeof(_thread_data));
             // printf("Threadid: %d\n", thread->local_id);
-            thread->data->hwthread = thread->local_id;
+            thread->data->hwthread = wg->hwthreads[i];
             thread->data->flags = THREAD_DATA_THREADINIT_FLAG;
             thread->data->iters = iter;
             thread->data->cycles = 0;
