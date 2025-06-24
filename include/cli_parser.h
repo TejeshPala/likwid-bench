@@ -57,6 +57,7 @@ void destroyCliOptions(CliOptions* options);
 
 static ConstCliOption _basecliopts[] = {
     {"help", 'h', no_argument, "Help text and usage"},
+    {"all", 'a', no_argument, "List available benchmarks"},
     {"verbose", 'V', required_argument, "Verbosity level (0 - 3)"},
     {"test", 't', required_argument, "Test name"},
     {"file", 'f', required_argument, "Test file"},
@@ -72,7 +73,7 @@ static ConstCliOption _basecliopts[] = {
 };
 
 static ConstCliOptions basecliopts = {
-    .num_options = 13,
+    .num_options = 14,
     .options = _basecliopts,
 };
 
