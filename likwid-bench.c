@@ -372,7 +372,7 @@ static int _get_benchmarks(const char *path, struct bstrList** blist)
                     {
                         // printf("%.*s\n", (int)(len - 5), name);
                         btrimws(config->description);
-                        bstring bname = bformat("%.*s\t\t\t:%s", (int)(len - 5), name, bdata(config->description));
+                        bstring bname = bformat("%.*s\t\t\t: %s", (int)(len - 5), name, bdata(config->description));
                         bstrListAdd(in, bname);
                         bdestroy(bname);
                         files++;
