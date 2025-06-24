@@ -893,7 +893,7 @@ int fill_results(RuntimeConfig* runcfg)
                     // printf("Stream: %d, thread: %d, btmp: %s, elems: %" PRIu64 "\n", s, j, bdata(btmp), elems);
                     if (rounddown_factor > 0 && elems % rounddown_factor != 0)
                     {
-                        if (k == 0 && s == 0 && j == 0) WARN_PRINT("SANITIZING A round down factor of %" PRIu64 " Bytes is applied on arrays", rounddown_factor);
+                        if (k == 0 && s == 0 && j == 0) WARN_PRINT("Adjusting array size for %" PRIu64 "-byte alignment: rounding down %" PRIu64 " Bytes", rounddown_factor, elems);
                         if (!is_multipleof_pow2(elems, rounddown_factor))
                         {
                             rounddown_nbits_pow2(&elems, elems, rounddown_factor);
@@ -902,6 +902,7 @@ int fill_results(RuntimeConfig* runcfg)
                         {
                             rounddown_nbits(&elems, elems, rounddown_factor);
                         }
+                        if (k == 0 && s == 0 && j == 0) WARN_PRINT("Aligned size after rounding: %" PRIu64 " Bytes", elems);
                     }
                     if (elems == 0)
                     {
