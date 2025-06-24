@@ -491,6 +491,7 @@ int main(int argc, char** argv)
     }
     if (runcfg->all)
     {
+        printf("The available benchmarks for the architecture are: \n\n");
         _print_benchinfo(runcfg->benchfiles);
         goto main_out;
     }
