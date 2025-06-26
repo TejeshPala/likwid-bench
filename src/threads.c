@@ -237,6 +237,7 @@ double get_time_s()
 
 int initialize_local(RuntimeThreadConfig* thread, RuntimeStreamConfig* data, int thread_id, int s)
 {
+    uint64_t elems_per_t = (double)getstreamelems(data) / thread->num_threads;
     int err = 0;
     {
         RuntimeThreadStreamConfig* str = &thread->tstreams[s];
@@ -254,21 +255,21 @@ int initialize_local(RuntimeThreadConfig* thread, RuntimeStreamConfig* data, int
         }
         if (tmp.dims == 1)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, "thread %3d initializing array %s with total elements: %" PRIu64 " offset: %" PRIu64, thread_id, bdata(data->name), getstreamelems(data), tmp.offsets[0]);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "thread %3d initializing array %s with elements: %" PRIu64 " offset: %" PRIu64, thread_id, bdata(data->name), elems_per_t, tmp.offsets[0]);
             DEBUG_PRINT(DEBUGLEV_DEVELOP, "dimsize: %" PRIu64, tmp.dimsizes[0]);
-            printf("hwthread %3d initializing Array %s Elements: %6" PRIu64 " Size: [%" PRIu64 "] Offset: [%-" PRIu64 "]\n", thread_id, bdata(data->name), getstreamelems(data), tmp.dimsizes[0], tmp.offsets[0]);
+            printf("hwthread %3d initializing Array %s Elements: %6" PRIu64 " Size: [%6" PRIu64 "] Offset: [%15" PRIu64 "]\n", thread_id, bdata(data->name), elems_per_t, tmp.dimsizes[0], tmp.offsets[0]);
         }
         else if (tmp.dims == 2)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, "thread %3d initializing array %s with total elements: %" PRIu64 " offset: [%" PRIu64 "][%" PRIu64 "]", thread_id, bdata(data->name), getstreamelems(data), tmp.offsets[0], tmp.offsets[1]);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "thread %3d initializing array %s with elements: %" PRIu64 " offset: [%" PRIu64 "][%" PRIu64 "]", thread_id, bdata(data->name), elems_per_t, tmp.offsets[0], tmp.offsets[1]);
             DEBUG_PRINT(DEBUGLEV_DEVELOP, "dimsize: [%" PRIu64 "][%" PRIu64 "]", tmp.dimsizes[0], tmp.dimsizes[1]);
-            printf("hwthread %3d initializing Array %s Elements: %6" PRIu64 " Size: [%" PRIu64 "][%" PRIu64 "] Offset: [%-" PRIu64 "][%-" PRIu64 "]\n", thread_id, bdata(data->name), getstreamelems(data), tmp.dimsizes[0], tmp.dimsizes[1], tmp.offsets[0], tmp.offsets[1]);
+            printf("hwthread %3d initializing Array %s Elements: %6" PRIu64 " Size: [%6" PRIu64 "][%6" PRIu64 "] Offset: [%15" PRIu64 "][%15" PRIu64 "]\n", thread_id, bdata(data->name), elems_per_t, tmp.dimsizes[0], tmp.dimsizes[1], tmp.offsets[0], tmp.offsets[1]);
         }
         else if (tmp.dims == 3)
         {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, "thread %3d initializing array %s with total elements: %" PRIu64 " offset: [%" PRIu64 "][%" PRIu64 "][%" PRIu64 "]", thread_id, bdata(data->name), getstreamelems(data), tmp.offsets[0], tmp.offsets[1], tmp.offsets[2]);
+            DEBUG_PRINT(DEBUGLEV_DEVELOP, "thread %3d initializing array %s with elements: %" PRIu64 " offset: [%" PRIu64 "][%" PRIu64 "][%" PRIu64 "]", thread_id, bdata(data->name), elems_per_t, tmp.offsets[0], tmp.offsets[1], tmp.offsets[2]);
             DEBUG_PRINT(DEBUGLEV_DEVELOP, "dimsize: [%" PRIu64 "][%" PRIu64 "][%" PRIu64 "]", tmp.dimsizes[0], tmp.dimsizes[1], tmp.dimsizes[2]);
-            printf("hwthread %3d initializing Array %s Elements: %6" PRIu64 " Size: [%" PRIu64 "][%" PRIu64 "][%" PRIu64 "] Offset: [%-" PRIu64 "][%-" PRIu64 "][%" PRIu64 "]\n", thread_id, bdata(data->name), getstreamelems(data), tmp.dimsizes[0], tmp.dimsizes[1], tmp.dimsizes[2], tmp.offsets[0], tmp.offsets[1], tmp.offsets[2]);
+            printf("hwthread %3d initializing Array %s Elements: %6" PRIu64 " Size: [%6" PRIu64 "][%6" PRIu64 "][%6" PRIu64 "] Offset: [%15" PRIu64 "][%15" PRIu64 "][%15" PRIu64 "]\n", thread_id, bdata(data->name), elems_per_t, tmp.dimsizes[0], tmp.dimsizes[1], tmp.dimsizes[2], tmp.offsets[0], tmp.offsets[1], tmp.offsets[2]);
         }
         tmp.type = data->type;
         tmp.init = init_function;
