@@ -14,6 +14,7 @@ int bstrListAddChar(struct bstrList * sl, char* str);
 int bstrListDel(struct bstrList * sl, int idx);
 
 bstring bstrListGet(struct bstrList * sl, int idx);
+int bstrListFindandCopy(struct bstrList* sl, bstring in, bstring out);
 
 struct bstrList* bstrListCopy(struct bstrList * sl);
 int bstrListRemove(struct bstrList * sl, bstring str);
