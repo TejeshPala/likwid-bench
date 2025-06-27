@@ -342,7 +342,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                                     {
                                         btrimws(vv);
                                         srand(time(NULL));
-                                        if (s->type = TEST_STREAM_TYPE_SINGLE)
+                                        if (s->type == TEST_STREAM_TYPE_SINGLE)
                                         {
                                             if (bstrnicmp(vv, &brand, blength(&brand)) == BSTR_OK && blength(vv) == blength(&brand))
                                             {
@@ -353,7 +353,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                                                 batof(vv, &s->data.fval);
                                             }
                                         }
-                                        else if (s->type = TEST_STREAM_TYPE_DOUBLE)
+                                        else if (s->type == TEST_STREAM_TYPE_DOUBLE)
                                         {
                                             if (bstrnicmp(vv, &brand, blength(&brand)) == BSTR_OK && blength(vv) == blength(&brand))
                                             {
@@ -364,7 +364,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                                                 batod(vv, &s->data.dval);
                                             }
                                         }
-                                        else if (s->type = TEST_STREAM_TYPE_INT)
+                                        else if (s->type == TEST_STREAM_TYPE_INT)
                                         {
                                             if (bstrnicmp(vv, &brand, blength(&brand)) == BSTR_OK && blength(vv) == blength(&brand))
                                             {
@@ -376,7 +376,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                                             }
                                         }
 #ifdef WITH_HALF_PRECISION
-                                        else if (s->type = TEST_STREAM_TYPE_HALF)
+                                        else if (s->type == TEST_STREAM_TYPE_HALF)
                                         {
                                             if (bstrnicmp(vv, &brand, blength(&brand)) == BSTR_OK && blength(vv) == blength(&brand))
                                             {
@@ -392,7 +392,7 @@ int read_yaml_ptt(char* filename, TestConfig_t* config)
                                             }
                                         }
 #endif
-                                        else if (s->type = TEST_STREAM_TYPE_INT64)
+                                        else if (s->type == TEST_STREAM_TYPE_INT64)
                                         {
                                             if (bstrnicmp(vv, &brand, blength(&brand)) == BSTR_OK && blength(vv) == blength(&brand))
                                             {
