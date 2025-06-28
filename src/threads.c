@@ -136,12 +136,15 @@ int _set_t_aff(pthread_t thread, int cpuid)
     cpu_set_t allowed;
     CPU_ZERO(&cpuset);
     CPU_SET(cpuid, &cpuset);
+    /*
+    // at the moment this is creating a disturbance for pinning
     sched_getaffinity(0, sizeof(cpu_set_t), &allowed);
     if (!CPU_ISSET(cpuid, &allowed))
     {
         ERROR_PRINT("CPU %d is not allowed by affinity mask", cpuid);
         return -EINVAL;
     }
+    */
     if (cpuid < 0 || cpuid >= CPU_SETSIZE)
     {
         ERROR_PRINT("Invalid cpu id: %d", cpuid);

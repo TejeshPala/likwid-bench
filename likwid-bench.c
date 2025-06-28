@@ -428,11 +428,13 @@ int main(int argc, char** argv)
 
     _sig_handlers();
 
+    /*
     if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0)
     {
         ERROR_PRINT("mlockall failed!");
         goto main_out;
     }
+    */
 
     addConstCliOptions(&baseopts, &basecliopts);
 /*    bstring bccflags = bfromcstr("-fPIC -shared");*/
@@ -944,9 +946,11 @@ main_out:
     }
     */
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "MAIN_OUT DONE");
+    /*
     if (munlockall() != 0)
     {
         ERROR_PRINT("munlockall failed!");
     }
+    */
     return 0;
 }
