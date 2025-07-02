@@ -103,8 +103,24 @@ int bstrListRemove(struct bstrList * sl, bstring str)
 
 bstring bstrListGet(struct bstrList * sl, int idx)
 {
-	if (!sl || idx < 0 || idx >= sl->qty) return NULL;
-	return sl->entry[idx];
+    if (!sl || idx < 0 || idx >= sl->qty) return NULL;
+    return sl->entry[idx];
+}
+
+int bstrListFindandCopy(struct bstrList* sl, bstring in, bstring* out)
+{
+    if (!sl || !in || !out) return BSTR_ERR;
+    for (int i = 0; i < sl->qty; i++)
+    {
+        if (biseq(sl->entry[i], in))
+        {
+            bstring copy = bstrcpy(sl->entry[i]);
+            btrimws(copy);
+            *out = copy;
+            return BSTR_OK;
+        }
+    }
+    return BSTR_ERR;
 }
 
 int bstrListRemoveDup(struct bstrList * sl)

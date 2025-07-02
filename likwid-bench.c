@@ -428,11 +428,13 @@ int main(int argc, char** argv)
 
     _sig_handlers();
 
+    /*
     if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0)
     {
         ERROR_PRINT("mlockall failed!");
         goto main_out;
     }
+    */
 
     addConstCliOptions(&baseopts, &basecliopts);
 /*    bstring bccflags = bfromcstr("-fPIC -shared");*/
@@ -491,6 +493,7 @@ int main(int argc, char** argv)
     }
     if (runcfg->all)
     {
+        printf("The available benchmarks for the architecture are: \n\n");
         _print_benchinfo(runcfg->benchfiles);
         goto main_out;
     }
@@ -648,6 +651,14 @@ int main(int argc, char** argv)
      */
         RuntimeWorkgroupConfig* wg = &runcfg->wgroups[i];
         // move allocate stream per wg
+        printf("Work group %d, ", i + 1);
+        printf("list of hwthread ids: ");
+        printf("[%d", wg->hwthreads[0]);
+        for (int t = 1; t < wg->num_threads; t++)
+        {
+            printf(", %d", wg->hwthreads[t]);
+        }
+        printf("]\n");
         err = manage_streams(wg, runcfg);
         if (err < 0)
         {
@@ -684,7 +695,7 @@ int main(int argc, char** argv)
             }
             for (int i = 0; i < thread->codelines->qty; i++)
             {
-                DEBUG_PRINT(DEBUGLEV_DETAIL, "HWTHREAD %d CODE: %s", t, bdata(thread->codelines->entry[i]));
+                DEBUG_PRINT(DEBUGLEV_DETAIL, "HWTHREAD %d CODE: %s", thread->data->hwthread, bdata(thread->codelines->entry[i]));
             }
         }
     }
@@ -895,9 +906,9 @@ int main(int argc, char** argv)
         fclose(output);
     }
 
-    _read_proc_status();
+    // _read_proc_status();
 
-    _read_proc_stat();
+    // _read_proc_stat();
 
     err = _rsrc_usg();
     if (err != 0)
@@ -943,9 +954,11 @@ main_out:
     }
     */
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "MAIN_OUT DONE");
+    /*
     if (munlockall() != 0)
     {
         ERROR_PRINT("munlockall failed!");
     }
+    */
     return 0;
 }

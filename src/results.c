@@ -888,12 +888,13 @@ int fill_results(RuntimeConfig* runcfg)
                 for (int j = 0; j < wgroup->num_threads; j++)
                 {
                     uint64_t elems;
+                    uint64_t elems_old;
                     bstring btmp = bstrcpy(istream->dims->entry[k]);
                     get_variable(&wgroup->results[j], btmp, &elems);
+                    get_variable(&wgroup->results[j], btmp, &elems_old);
                     // printf("Stream: %d, thread: %d, btmp: %s, elems: %" PRIu64 "\n", s, j, bdata(btmp), elems);
                     if (rounddown_factor > 0 && elems % rounddown_factor != 0)
                     {
-                        if (k == 0 && s == 0 && j == 0) WARN_PRINT("SANITIZING A round down factor of %" PRIu64 " is applied on arrays", rounddown_factor);
                         if (!is_multipleof_pow2(elems, rounddown_factor))
                         {
                             rounddown_nbits_pow2(&elems, elems, rounddown_factor);
@@ -902,6 +903,7 @@ int fill_results(RuntimeConfig* runcfg)
                         {
                             rounddown_nbits(&elems, elems, rounddown_factor);
                         }
+                        if (k == 0 && s == 0 && j == 0) WARN_PRINT("Work group %d. Adjusting array size for %" PRIu64 "-byte alignment: rounding down %" PRIu64 " Bytes to %" PRIu64 " Bytes.", i, rounddown_factor, elems_old, elems);
                     }
                     if (elems == 0)
                     {

@@ -17,7 +17,7 @@
   - op5:
       description: Fifth operand type (fourth source)
   - dependency_reg:
-      description: Register which will be included in a dependency chain with the target (destination) register (possible values: \{2, 3, 4, 5 \})
+      description: Register which will be included in a dependency chain with the target (destination) register (possible values - \{2, 3, 4, 5 \})
       options:
         - required
       default: 2
