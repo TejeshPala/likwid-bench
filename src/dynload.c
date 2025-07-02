@@ -170,7 +170,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
             return -ENOENT;
         }
 
-        filetemplate = bformat("/tmp/likwid-bench-t%d-XXXXXX", t);
+        filetemplate = bformat("/tmp/likwid-bench-hwtid%d-XXXXXX", thread->data->hwthread);
         fd = bmkstemp(filetemplate);
         if (fd == -1)
         {
@@ -295,7 +295,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
                 btrimws(wcodelines->entry[i]);
                 if (blength(wcodelines->entry[i]) > 0)
                 {
-                    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Code(hwthread %d): %s", t, bdata(wcodelines->entry[i]));
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Code(hwthread %d): %s", thread->data->hwthread, bdata(wcodelines->entry[i]));
                 }
             }
         }

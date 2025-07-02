@@ -903,7 +903,7 @@ int fill_results(RuntimeConfig* runcfg)
                         {
                             rounddown_nbits(&elems, elems, rounddown_factor);
                         }
-                        if (k == 0 && s == 0 && j == 0) WARN_PRINT("Adjusting array size for %" PRIu64 "-byte alignment: rounding down %" PRIu64 " Bytes to %" PRIu64 " Bytes.", rounddown_factor, elems_old, elems);
+                        if (k == 0 && s == 0 && j == 0) WARN_PRINT("Work group %d. Adjusting array size for %" PRIu64 "-byte alignment: rounding down %" PRIu64 " Bytes to %" PRIu64 " Bytes.", i, rounddown_factor, elems_old, elems);
                     }
                     if (elems == 0)
                     {
