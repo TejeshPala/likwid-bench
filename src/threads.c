@@ -145,11 +145,6 @@ int _set_t_aff(pthread_t thread, int cpuid)
         return -EINVAL;
     }
     */
-    if (cpuid < 0 || cpuid >= CPU_SETSIZE)
-    {
-        ERROR_PRINT("Invalid cpu id: %d", cpuid);
-        return -EINVAL;
-    }
 
     if (USE_PTHREAD_AFFINITY)
     {
@@ -180,8 +175,11 @@ int _set_t_aff(pthread_t thread, int cpuid)
 void _print_aff(pthread_t thread)
 {
     int err = 0;
+    uint64_t max_cpus = (uint64_t)sysconf(_SC_NPROCESSORS_ONLN);
     cpu_set_t cpuset;
+    cpu_set_t allowed;
     CPU_ZERO(&cpuset);
+    sched_getaffinity(0, sizeof(cpu_set_t), &allowed);
 
     if (USE_PTHREAD_AFFINITY)
     {
@@ -205,8 +203,8 @@ void _print_aff(pthread_t thread)
         }
     }
 
-    printf("Threadid %16lu -> hwthread/affinity: ", thread);
-    for (uint64_t t = 0; t < CPU_SETSIZE; t++)
+    printf("Threadid %16zu -> hwthread/affinity: ", thread);
+    for (uint64_t t = 0; t < max_cpus; t++)
     {
         if (CPU_ISSET(t, &cpuset))
         {
@@ -217,9 +215,9 @@ void _print_aff(pthread_t thread)
 
     if (DEBUGLEV_DEVELOP == global_verbosity)
     {
-        printf("Threadid %16lu, Calling from CPU %d with PID %d, KTID %d, PPID %d-> hwthread/affinity: ", thread, sched_getcpu(), getpid(), (int)syscall(SYS_gettid), getppid());
+        printf("Threadid %16zu, Calling from CPU %d with PID %d, KTID %d, PPID %d-> hwthread/affinity: ", thread, sched_getcpu(), getpid(), (int)syscall(SYS_gettid), getppid());
 
-        for (uint64_t t = 0; t < CPU_SETSIZE; t++)
+        for (uint64_t t = 0; t < max_cpus; t++)
         {
             if (CPU_ISSET(t, &cpuset))
             {
@@ -228,7 +226,7 @@ void _print_aff(pthread_t thread)
         }
         printf("\n");
     }
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, "The CPU´s in the set are: %d", CPU_COUNT(&cpuset));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "The CPU´s in the set are: %d and allowed CPU´s are: %d. Max CPU´s: %" PRIu64, CPU_COUNT(&cpuset), CPU_COUNT(&allowed), max_cpus);
 }
 
 double get_time_s()
@@ -391,21 +389,21 @@ void* _func_t(void* arg)
                     RuntimeStreamConfig* data = &thread->sdata[s];
                     if (thread->global_id == 0 && !(data->initialization))
                     {
-                        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Global Initialization on thread %3d with global thread %3d", thread->local_id, thread->global_id);
-                        printf("Global Initialization on %s thread %3d with global thread %3d\n", bdata(data->name), thread->local_id, thread->global_id);
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Global Initialization on thread %3d with global thread %3d", thread->data->hwthread, thread->global_id);
+                        printf("Global Initialization on %s thread %3d with global thread %3d\n", bdata(data->name), thread->data->hwthread, thread->global_id);
                         int err = initialize_global(thread, data, s);
                         if (err != 0)
                         {
-                            ERROR_PRINT("Global Initialization failed for thread %3d with global thread %3d", thread->local_id, thread->global_id);
+                            ERROR_PRINT("Global Initialization failed for thread %3d with global thread %3d", thread->data->hwthread, thread->global_id);
                         }
                     }
                     else if (data->initialization)
                     {
-                        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Local Initialization on thread %3d with global thread %3d", thread->local_id, thread->global_id);
-                        int err = initialize_local(thread, data, thread->local_id, s);
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Local Initialization on thread %3d with global thread %3d", thread->data->hwthread, thread->global_id);
+                        int err = initialize_local(thread, data, thread->data->hwthread, s);
                         if (err != 0)
                         {
-                            ERROR_PRINT("Local Initialization failed for thread %3d with global thread %3d", thread->local_id, thread->global_id);
+                            ERROR_PRINT("Local Initialization failed for thread %3d with global thread %3d", thread->data->hwthread, thread->global_id);
                         }
                     }
                 }
