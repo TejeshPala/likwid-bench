@@ -233,19 +233,19 @@ int manage_streams(RuntimeWorkgroupConfig* wg, RuntimeConfig* runcfg)
                 bstring t = bstrcpy(istream->dims->entry[k]);
                 DEBUG_PRINT(DEBUGLEV_DEVELOP, "Stream %d: dimsize before %s", j, bdata(t));
                 replace_all(runcfg->global_results, t, NULL);
-                uint64_t res = 0;
-                int c = sscanf(bdata(t), "%" SCNu64, &res);
+                size_t res = 0;
+                int c = sscanf(bdata(t), "%zu", &res);
                 if (c == 1)
                 {
                     ostream->dimsizes[k] = res;
                 }
                 if (res == 0)
                 {
-                    ERROR_PRINT("Invalid dimension size %s -> %" PRIu64 "after conversion", bdata(istream->dims->entry[k]), res);
+                    ERROR_PRINT("Invalid dimension size %s -> %zu after conversion", bdata(istream->dims->entry[k]), res);
                     bdestroy(t);
                     return -EINVAL;
                 }
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, "Stream %d: dimsize after %" PRIu64, j, ostream->dimsizes[k]);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, "Stream %d: dimsize after %zu", j, ostream->dimsizes[k]);
                 ostream->dims++;
                 bdestroy(t);
             }
@@ -448,7 +448,7 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
                     err = update_value(result, bkeys_sorted->entry[id], value);
                     if (err == 0)
                     {
-                        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Value updated for thread %d for key %s with value %.15lf", thread->data->hwthread, bdata(bkeys_sorted->entry[id]), value);
+                        DEBUG_PRINT(DEBUGLEV_DEVELOP, "Value updated for hwthread %d for key %s with value %.15lf", thread->data->hwthread, bdata(bkeys_sorted->entry[id]), value);
                     }
                     bstrListAdd(bvalues[id], t_value);
                     bstrListAdd(bgrp_values[id], t_value);
@@ -615,10 +615,10 @@ int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** 
             {
                 if (biseq(bthread_keys_sorted->entry[k], &bthreadid) || biseq(bthread_keys_sorted->entry[k], &bthreadcpu) || biseq(bthread_keys_sorted->entry[k], &bgroupid) || biseq(bthread_keys_sorted->entry[k], &bglobalid) || biseq(bthread_keys_sorted->entry[k], &bnumthreads))
                 {
-                    uint64_t val;
+                    size_t val;
                     if (get_variable(result, bthread_keys_sorted->entry[k], &val) == 0)
                     {
-                        bstring bval = bformat("%ld", val);
+                        bstring bval = bformat("%zu", val);
                         bstrListAdd(btmp1, bval);
                         bdestroy(bval);
                     }
@@ -643,10 +643,10 @@ int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** 
         {
             if (biseq(bwgroup_keys_sorted->entry[k], &bgroupid) || biseq(bwgroup_keys_sorted->entry[k], &bnumthreads))
             {
-                uint64_t val;
+                size_t val;
                 if (get_variable(wg->group_results, bwgroup_keys_sorted->entry[k], &val) == 0)
                 {
-                    bstring bval = bformat("%ld", val);
+                    bstring bval = bformat("%zu", val);
                     bstrListAdd(btmp2, bval);
                     bdestroy(bval);
                 }
@@ -671,10 +671,10 @@ int update_table(RuntimeConfig* runcfg, Table** thread, Table** wgroup, Table** 
     {
         if (biseq(bglobal_keys_sorted->entry[k], &bnumthreads))
         {
-            uint64_t val;
+            size_t val;
             if (get_variable(runcfg->global_results, bglobal_keys_sorted->entry[k], &val) == 0)
             {
-                bstring bval = bformat("%ld", val);
+                bstring bval = bformat("%zu", val);
                 bstrListAdd(btmp3, bval);
                 bdestroy(bval);
             }

@@ -630,11 +630,11 @@ int get_value(RuntimeWorkgroupResult* result, bstring name, double* value)
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "Retrived value for %s is %s", bdata(name), bdata(v));
     char* endptr;
     const char* cval = bdata(v);
-    *value = strtod(cval, &endptr);
+    *value = (double)strtold(cval, &endptr);
     return 0;
 }
 
-int get_variable(RuntimeWorkgroupResult* result, bstring name, uint64_t* value)
+int get_variable(RuntimeWorkgroupResult* result, bstring name, size_t* value)
 {
     int err = 0;
     bstring v = NULL;
@@ -652,7 +652,7 @@ int get_variable(RuntimeWorkgroupResult* result, bstring name, uint64_t* value)
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "Retrived variable for %s is %s", bdata(name), bdata(v));
     char* endptr;
     const char* cval = bdata(v);
-    *value = strtol(cval, &endptr, 10);
+    *value = (size_t)strtoumax(cval, &endptr, 10);
     return 0;
 }
 
@@ -771,7 +771,7 @@ int fill_results(RuntimeConfig* runcfg)
                 if (biseq(p->name, btmp) && blength(p->value) > 0)
                 {
                     DEBUG_PRINT(DEBUGLEV_DEVELOP, "Add runtime parameter %s", bdata(p->name));
-                    bstring barraysize = bformat("%" PRIu64, convertToBytes(p->value)); // array in Bytes
+                    bstring barraysize = bformat("%zu", convertToBytes(p->value)); // array in Bytes
                     add_variable(runcfg->global_results, btmp, barraysize);
                     for (int w = 0; w < runcfg->num_wgroups; w++)
                     {
@@ -791,11 +791,11 @@ int fill_results(RuntimeConfig* runcfg)
     bstring biter;
     if (runcfg->iterations >= 0)
     {
-	    biter = bformat("%" PRIu64, runcfg->iterations);
+	    biter = bformat("%zu", runcfg->iterations);
     }
     else
     {
-	    biter = bformat("%" PRIu64, 0);
+	    biter = bformat("%zu", 0);
     }
     add_variable(runcfg->global_results, &biterations, biter);
     for (int i = 0; i < runcfg->num_wgroups; i++)
@@ -876,23 +876,23 @@ int fill_results(RuntimeConfig* runcfg)
     for (int i = 0; i < runcfg->num_wgroups; i++)
     {
         RuntimeWorkgroupConfig *wgroup = &runcfg->wgroups[i];
-        uint64_t bytesperiter;
+        size_t bytesperiter;
         get_variable(&wgroup->results[0], &bbytesperiter, &bytesperiter);
-        // printf("bytesperiter: %" PRIu64 "\n", bytesperiter);
+        // printf("bytesperiter: %zu\n", bytesperiter);
         for (int s = 0; s < runcfg->tcfg->num_streams; s++)
         {
             TestConfigStream *istream = &runcfg->tcfg->streams[s];
             for (int k = 0; k < istream->num_dims && k < istream->dims->qty; k++)
             {
-                uint64_t rounddown_factor = bytesperiter * wgroup->num_threads * getsizeof(istream->type);
+                size_t rounddown_factor = bytesperiter * wgroup->num_threads * getsizeof(istream->type);
                 for (int j = 0; j < wgroup->num_threads; j++)
                 {
-                    uint64_t elems;
-                    uint64_t elems_old;
+                    size_t elems;
+                    size_t elems_old;
                     bstring btmp = bstrcpy(istream->dims->entry[k]);
                     get_variable(&wgroup->results[j], btmp, &elems);
                     get_variable(&wgroup->results[j], btmp, &elems_old);
-                    // printf("Stream: %d, thread: %d, btmp: %s, elems: %" PRIu64 "\n", s, j, bdata(btmp), elems);
+                    // printf("Stream: %d, thread: %d, btmp: %s, elems: %zu\n", s, j, bdata(btmp), elems);
                     if (rounddown_factor > 0 && elems % rounddown_factor != 0)
                     {
                         if (!is_multipleof_pow2(elems, rounddown_factor))
@@ -903,17 +903,17 @@ int fill_results(RuntimeConfig* runcfg)
                         {
                             rounddown_nbits(&elems, elems, rounddown_factor);
                         }
-                        if (k == 0 && s == 0 && j == 0) WARN_PRINT("Work group %d. Adjusting array size for %" PRIu64 "-byte alignment: rounding down %" PRIu64 " Bytes to %" PRIu64 " Bytes.", i, rounddown_factor, elems_old, elems);
+                        if (k == 0 && s == 0 && j == 0) WARN_PRINT("Work group %d. Adjusting array size for %zu-byte alignment: rounding down %zu Bytes to %zu Bytes.", i, rounddown_factor, elems_old, elems);
                     }
                     if (elems == 0)
                     {
-                        ERROR_PRINT("Array size is adjusted to %" PRIu64 ". Increase the array size to a multiple of %" PRIu64 " Bytes", elems, rounddown_factor);
+                        ERROR_PRINT("Array size is adjusted to %zu. Increase the array size to a multiple of %zu Bytes", elems, rounddown_factor);
                         bdestroy(btmp);
                         return -1;
                     }
-                    // DEBUG_PRINT(DEBUGLEV_DEVELOP, "After rounddown %s is %" PRIu64, bdata(btmp), elems);
-                    // printf("Stream: %d, thread: %d, After rounddown %s is %" PRIu64 "\n", s, j, bdata(btmp), elems);
-                    bstring belems = bformat("%" PRIu64, elems);
+                    // DEBUG_PRINT(DEBUGLEV_DEVELOP, "After rounddown %s is %zu", bdata(btmp), elems);
+                    // printf("Stream: %d, thread: %d, After rounddown %s is %zu\n", s, j, bdata(btmp), elems);
+                    bstring belems = bformat("%zu", elems);
                     update_variable(&wgroup->results[j], btmp, belems);
                     update_variable(runcfg->global_results, btmp, belems);
                     bdestroy(belems);

@@ -119,12 +119,12 @@ typedef struct {
     bstring name;
     void* ptr;
     void* base_ptr;
-    uint64_t dimsizes[3];
+    size_t dimsizes[3];
     off_t offsets[3];
     int dims;
     Bitmap flags;
     int id;
-    int (*init)(void* ptr, int state, TestConfigStreamType type, int dims, uint64_t* dimsizes, void* init_val, ...);
+    int (*init)(void* ptr, int state, TestConfigStreamType type, int dims, size_t* dimsizes, void* init_val, ...);
     TestConfigStreamType type;
     TestConfigStreamData data;
     void* init_val;
@@ -221,7 +221,7 @@ typedef struct {
 typedef _thread_data* thread_data_t;
 
 typedef struct {
-    uint64_t    tsizes[3];
+    size_t    tsizes[3];
     off_t       toffsets[3];
     void*       tstream_ptr;
 } RuntimeThreadStreamConfig;
@@ -259,7 +259,7 @@ typedef struct {
     int help;
     int all;
     int verbosity;
-    uint64_t iterations;
+    size_t iterations;
     double runtime;
     int csv;
     int json;

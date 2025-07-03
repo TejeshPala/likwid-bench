@@ -7,7 +7,7 @@
 #include "bitmap.h"
 #include <error.h>
 
-int create_bitmap(uint64_t size, uint64_t alignment, Bitmap* bitmap)
+int create_bitmap(size_t size, size_t alignment, Bitmap* bitmap)
 {
     if (bitmap == NULL || size == 0) return -EINVAL;
 
@@ -15,7 +15,7 @@ int create_bitmap(uint64_t size, uint64_t alignment, Bitmap* bitmap)
     
     if (alignment == 0 || (alignment & (alignment - 1)) != 0) return -EINVAL;
     
-    uint64_t data_size = (size + BITS_PER_ELEMENT - 1)/ BITS_PER_ELEMENT;
+    size_t data_size = (size + BITS_PER_ELEMENT - 1)/ BITS_PER_ELEMENT;
     BitmapDataType* data = (BitmapDataType *)aligned_alloc(alignment, data_size * sizeof(BitmapDataType));
     if (data == NULL) return -ENOMEM;
 
@@ -38,7 +38,7 @@ void destroy_bitmap(Bitmap *bitmap)
     }
 }
 
-int set_bit(Bitmap *bitmap, uint64_t index)
+int set_bit(Bitmap *bitmap, size_t index)
 {
     if (bitmap == NULL || bitmap->data == NULL || index >= bitmap->size) return -EINVAL;
 
@@ -47,7 +47,7 @@ int set_bit(Bitmap *bitmap, uint64_t index)
    return 0;
 }
 
-int clear_bit(Bitmap *bitmap, uint64_t index)
+int clear_bit(Bitmap *bitmap, size_t index)
 {
     if (bitmap == NULL || bitmap->data == NULL || index >= bitmap->size) return -EINVAL;
 
@@ -56,7 +56,7 @@ int clear_bit(Bitmap *bitmap, uint64_t index)
     return 0;
 }
 
-int is_bit_set(Bitmap *bitmap, uint64_t index)
+int is_bit_set(Bitmap *bitmap, size_t index)
 {
     if (bitmap == NULL || bitmap->data == NULL || index >= bitmap->size) return 0;
 
@@ -73,12 +73,12 @@ void print_set_bits(const Bitmap *bitmap)
 
     int found = 0;
     printf("[");
-    for (uint64_t i = 0; i < bitmap->size; ++i)
+    for (size_t i = 0; i < bitmap->size; ++i)
     {
         if (is_bit_set((Bitmap*) bitmap, i))
         {
-            if (!found) printf("%" PRIu64 " ", i);
-            else printf(",%" PRIu64 , i);
+            if (!found) printf("%zu ", i);
+            else printf(",%zu", i);
             found = 1;
         }
     }

@@ -354,7 +354,7 @@ int check_hwthreads_count(int* numHWThreads, int *maxHWThreadId)
 
 static void print_hwthread_data(LikwidBenchHwthread* cur)
 {
-    DEBUG_PRINT(DEBUGLEV_DETAIL, "OSIDX %d SMT %d CORE %d DIE %d SOCKET %d NUMA %d %s",
+    DEBUG_PRINT(DEBUGLEV_DETAIL, "OSIDX %3d SMT %3d CORE %3d DIE %3d SOCKET %3d NUMA %3d %s",
                 cur->os_id, cur->smt_id, cur->core_id, cur->die_id, cur->socket_id, cur->numa_id,
                 (cur->usable == 0 ? "NOTUSABLE" : ""));
 }

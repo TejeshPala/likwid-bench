@@ -52,11 +52,11 @@ double convertToSeconds(const_bstring input)
     return result;
 }
 
-uint64_t convertToBytes(const_bstring input)
+size_t convertToBytes(const_bstring input)
 {
     char* endptr = NULL;
-    uint64_t result = 0;
-    unsigned long long value = strtoull((char *)input->data, &endptr, 10);
+    size_t result = 0;
+    size_t value = (size_t)strtoumax((char *)input->data, &endptr, 10);
     if (endptr == (char *)input->data || value > SIZE_MAX)
     {
         fprintf(stderr, "Invalid input. No valid number found in %s\n", (char *)input->data);
@@ -78,51 +78,51 @@ uint64_t convertToBytes(const_bstring input)
 
     if (biseq(unit, &bb))
     {
-	    result = (uint64_t)value;
+	    result = (size_t)value;
     }
     else if (biseq(unit, &bkb))
     {
-	    result = (uint64_t)value * 1000ULL;
+	    result = (size_t)value * (size_t)1000;
     }
     else if (biseq(unit, &bmb))
     {
-        result = (uint64_t)value * 1000ULL * 1000ULL;
+        result = (size_t)value * (size_t)1000 * (size_t)1000;
     }
     else if (biseq(unit, &bgb))
     {
-        result = (uint64_t)value * 1000ULL * 1000ULL * 1000ULL;
+        result = (size_t)value * (size_t)1000 * (size_t)1000 * (size_t)1000;
     }
     else if (biseq(unit, &btb))
     {
-        result = (uint64_t)value * 1000ULL * 1000ULL * 1000ULL * 1000ULL;
+        result = (size_t)value * (size_t)1000 * (size_t)1000 * (size_t)1000 * (size_t)1000;
     }
     else if (biseq(unit, &bkib))
     {
-	    result = (uint64_t)value * 1024ULL;
+	    result = (size_t)value * (size_t)1024;
     }
     else if (biseq(unit, &bmib))
     {
-        result = (uint64_t)value * 1024ULL * 1024ULL;
+        result = (size_t)value * (size_t)1024 * (size_t)1024;
     }
     else if (biseq(unit, &bgib))
     {
-        result = (uint64_t)value * 1024ULL * 1024ULL * 1024ULL;
+        result = (size_t)value * (size_t)1024 * (size_t)1024 * (size_t)1024;
     }
     else if (biseq(unit, &btib))
     {
-        result = (uint64_t)value * 1024ULL * 1024ULL * 1024ULL * 1024ULL;
+        result = (size_t)value * (size_t)1024 * (size_t)1024 * (size_t)1024 * (size_t)1024;
     }
     else
     {
-	    result = (uint64_t)value;
-        fprintf(stdout, "No unit mentioned for array size. It uses %" PRIu64 "B\n", result);
+	    result = (size_t)value;
+        fprintf(stdout, "No unit mentioned for array size. It uses %zu B\n", result);
     }
 
     bdestroy(unit);
 
-    if (result < value && result > UINT64_MAX)
+    if (result < value && result > SIZE_MAX)
     {
-        fprintf(stderr, "Size converted is too large for uint64_t\n");
+        fprintf(stderr, "Size converted is too large for size_t\n");
         return 0ULL;
     }
 
