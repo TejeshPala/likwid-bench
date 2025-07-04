@@ -100,7 +100,7 @@ int run_benchmark(RuntimeThreadConfig* data)
 
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Thread %3d starts benchmark execution: %s", data->local_id, ctime(&ts.tv_sec));
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "hwthread %3d starts benchmark execution: %s", myData->hwthread, ctime(&ts.tv_sec));
 
     EXECUTE(func());
     // not sure whether we need to give the sizes here. Since we compile the code, we could add the sizes there directly
@@ -393,7 +393,7 @@ int run_benchmark(RuntimeThreadConfig* data)
 
     data->runtime = (double)myData->min_runtime / NANOS_PER_SEC;
     data->cycles = myData->cycles;
-    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Thread %3d execution took %.15f seconds", data->local_id, data->runtime);
+    DEBUG_PRINT(DEBUGLEV_DEVELOP, "hwthread %3d execution took %.15f seconds", myData->hwthread, data->runtime);
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier);
 
     if (CPU_COUNT(&runset) > 0)

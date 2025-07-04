@@ -14,9 +14,9 @@
 #include "error.h"
 #include "helper.h"
 
-static uint64_t _strtou64(const char *nptr)
+static size_t _strtosizet(const char *nptr)
 {
-    return (uint64_t)strtoumax(nptr, NULL, 10);
+    return (size_t)strtoumax(nptr, NULL, 10);
 }
 
 static int copy_cli(int argc, char** argv, char*** copy)
@@ -500,7 +500,7 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
         }
         else if (bstrcmp(opt->name, &biterations) == BSTR_OK && blength(opt->value) > 0)
         {
-            uint64_t (*myatou64)(const char *nptr) = _strtou64;
+            size_t (*myatou64)(const char *nptr) = _strtosizet;
             runcfg->iterations = myatou64(bdata(opt->value));
         }
         else if (bstrcmp(opt->name, &bruntime) == BSTR_OK && blength(opt->value) > 0)

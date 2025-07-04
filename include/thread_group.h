@@ -41,7 +41,7 @@
 
 #include "test_types.h"
 
-#define MIN_ITERATIONS ((uint64_t)10)
+#define MIN_ITERATIONS ((size_t)10)
 #define MIN_RUNTIME 1.0
 #define TIMEOUT_SECONDS 60
 
