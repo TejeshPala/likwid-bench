@@ -620,8 +620,8 @@ int update_threads(RuntimeConfig* runcfg)
             goto free;
         }
 
-        size_t bytesperiter;
-        get_variable(&wg->results[0], &bbytesperiter, &bytesperiter);
+        // size_t bytesperiter;
+        // get_variable(&wg->results[0], &bbytesperiter, &bytesperiter);
         // printf("bytesperiter: %zu\n", bytesperiter);
         for (int i = 0; i < wg->num_threads; i++)
         {
