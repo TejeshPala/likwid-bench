@@ -104,7 +104,6 @@ size_t getstreamdimbytes(RuntimeStreamConfig *sdata, int dim)
         if (msize_##datatype <= 0) return -EINVAL; \
         datatype * p_##datatype = NULL; \
         if (posix_memalign((void**)&p_##datatype, CL_SIZE, msize_##datatype) != 0) return -ENOMEM; \
-        memset(p_##datatype, 0, msize_##datatype); \
         sdata->base_ptr = p_##datatype; \
         sdata->ptr = (char*)(p_##datatype + offset); \
         DEBUG_PRINT(DEBUGLEV_DEVELOP, "1dim: base - %p, ptr - %p", sdata->base_ptr, sdata->ptr); \
@@ -142,7 +141,6 @@ int _allocate_arrays_1dim(RuntimeStreamConfig *sdata)
         if (msize1_##datatype <= 0 || msize2_##datatype <= 0) return -EINVAL; \
         datatype * p_##datatype = NULL; \
         if (posix_memalign((void**)&p_##datatype, CL_SIZE, msize2_##datatype) != 0) return -ENOMEM; \
-        memset(p_##datatype, 0, msize2_##datatype); \
         sdata->base_ptr = p_##datatype; \
         sdata->ptr = (char*)(p_##datatype + (offset1 * (size2 + offset2) + offset2)); \
         DEBUG_PRINT(DEBUGLEV_DEVELOP, "2dim: base - %p, ptr - %p", sdata->base_ptr, sdata->ptr); \
@@ -186,7 +184,6 @@ static int _allocate_arrays_2dim(RuntimeStreamConfig *sdata)
         if (msize1_##datatype <= 0 || msize2_##datatype <= 0 || msize3_##datatype <= 0) return -EINVAL; \
         datatype * p_##datatype = NULL; \
         if (posix_memalign((void**)&p_##datatype, CL_SIZE, msize3_##datatype) != 0) return -ENOMEM; \
-        memset(p_##datatype, 0, msize3_##datatype); \
         sdata->base_ptr = p_##datatype; \
         sdata->ptr = (char*)(p_##datatype + (offset1 * (size2 + offset2) * (size3 + offset3) + offset2 * (size3 + offset3) + offset3)); \
         DEBUG_PRINT(DEBUGLEV_DEVELOP, "3dim: base - %p, ptr - %p", sdata->base_ptr, sdata->ptr); \
