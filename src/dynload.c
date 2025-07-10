@@ -215,6 +215,7 @@ int dynload_create_runtime_test_config(RuntimeConfig* rcfg, RuntimeWorkgroupConf
         for (int i = 0; i < wcodelines->qty; i++)
         {
             if (bchar(wcodelines->entry[i], 0) == '#') continue;
+            if (bchar(wcodelines->entry[i], 0) == '.') continue;
             struct bstrList* blist = bstrListCreate();
             bstrtok_delimters(wcodelines->entry[i], blist);
             for (int k = 0; k < blist->qty; k++)
