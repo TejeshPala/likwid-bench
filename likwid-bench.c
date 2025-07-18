@@ -652,11 +652,11 @@ int main(int argc, char** argv)
         RuntimeWorkgroupConfig* wg = &runcfg->wgroups[i];
         // move allocate stream per wg
         printf("Work group %d, ", i + 1);
-        printf("list of hwthread ids: ");
+        printf("Pinning the following HWThread IDs: ");
         printf("[%d", wg->hwthreads[0]);
         for (int t = 1; t < wg->num_threads; t++)
         {
-            printf(", %d", wg->hwthreads[t]);
+            printf(",%d", wg->hwthreads[t]);
         }
         printf("]\n");
         err = manage_streams(wg, runcfg);
