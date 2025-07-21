@@ -257,6 +257,7 @@ typedef struct {
 
 typedef struct {
     int help;
+    int printdomains;
     int all;
     int verbosity;
     size_t iterations;

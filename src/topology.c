@@ -510,6 +510,131 @@ int check_hwthreads()
     return 0;
 }
 
+int print_hwthreads()
+{
+    if (_hwthreads == NULL)
+    {
+        int ret = check_hwthreads();
+        if (ret != 0)
+        {
+            return ret;
+        }
+    }
+    int maxSocketId = 0;
+    int maxDieId = 0;
+    int maxCoreId = 0;
+    int maxNumaId = 0;
+    int maxSmtId = 0;
+    int maxOsId = 0;
+    for (int i = 0; i < _num_hwthreads; i++)
+    {
+        LikwidBenchHwthread* cur = &_hwthreads[i];
+        print_hwthread_data(cur);
+        if (cur->socket_id > maxSocketId) maxSocketId = cur->socket_id;
+        if (cur->die_id > maxDieId) maxDieId = cur->die_id;
+        if (cur->core_id > maxCoreId) maxCoreId = cur->core_id;
+        if (cur->smt_id > maxSmtId) maxSmtId = cur->smt_id;
+        if (cur->numa_id > maxNumaId) maxNumaId = cur->numa_id;
+        if (cur->os_id > maxOsId) maxOsId = cur->os_id;
+    }
+    LikwidBenchHwthread* tmpList = malloc(_num_hwthreads * sizeof(LikwidBenchHwthread));
+    if (!tmpList)
+    {
+        ERROR_PRINT("Failed to allocate tmpList");
+        return -ENOMEM;
+    }
+
+    printf("List of available hardware thread domains:\n");
+    printf("Domain: [HW Threads]\n");
+    memset(tmpList, 0, _num_hwthreads * sizeof(LikwidBenchHwthread));
+    int idx = 0;
+    // Sort socket -> die -> numa -> smt -> core -> os id's
+    for (int s = 0; s < maxSocketId + 1; s++)
+    {
+        for (int d = 0; d < maxDieId + 1; d++)
+        {
+            for (int n = 0; n < maxNumaId + 1; n++)
+            {
+                for (int c = 0; c < maxCoreId + 1; c++)
+                {
+                    for (int t = 0; t < maxSmtId + 1; t++)
+                    {
+                        for (int i = 0; i < _num_hwthreads; i++)
+                        {
+                            LikwidBenchHwthread* test = &_hwthreads[i];
+                            if (test->usable == 1 && test->socket_id == s && test->die_id == d && test->numa_id == n && test->core_id == c && test->smt_id == t && idx < _num_hwthreads)
+                            {
+                                // printf("S%d D%d N%d C%d T%d -> OS %d\n", test->socket_id, test->die_id, test->numa_id, test->core_id, test->smt_id, test->os_id);
+                                memcpy(&tmpList[idx], test, sizeof(LikwidBenchHwthread));
+                                idx++;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    printf("N:\t[");
+    for (int i = 0; i < idx; i++)
+    {
+        if (i != 0) printf(",");
+        printf("%d", tmpList[i].os_id);
+    }
+    printf("]\n\n");
+    for (int s = 0; s <= maxSocketId; s++)
+    {
+        printf("S%d:\t[", s);
+        int first = 1;
+        for (int i = 0; i < idx; i++)
+        {
+            if (tmpList[i].socket_id == s)
+            {
+                if (!first) printf(",");
+                printf("%d", tmpList[i].os_id);
+                first = 0;
+            }
+        }
+        printf("]\n");
+    }
+    printf("\n");
+    for (int d = 0; d <= maxDieId; d++)
+    {
+        printf("D%d:\t[", d);
+        int first = 1;
+        for (int i = 0; i < idx; i++)
+        {
+            if (tmpList[i].die_id == d)
+            {
+                if (!first) printf(",");
+                printf("%d", tmpList[i].os_id);
+                first = 0;
+            }
+        }
+        printf("]\n");
+    }
+    printf("\n");
+    for (int n = 0; n <= maxNumaId; n++)
+    {
+        printf("M%d:\t[", n);
+        int first = 1;
+        for (int i = 0; i < idx; i++)
+        {
+            if (tmpList[i].numa_id == n)
+            {
+                if (!first) printf(",");
+                printf("%d", tmpList[i].os_id);
+                first = 0;
+            }
+        }
+        printf("]\n");
+    }
+    printf("\n");
+    free(tmpList);
+
+    return 0;
+}
+
 void destroy_hwthreads()
 {
     if (_hwthreads)

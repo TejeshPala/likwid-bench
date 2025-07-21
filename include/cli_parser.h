@@ -69,11 +69,12 @@ static ConstCliOption _basecliopts[] = {
     {"output", 'o', required_argument, "Set output: 'stdout', 'stderr' or a filename"},
     {"csv", 'O', no_argument, "Output results in CSV format"},
     {"json", 'J', no_argument, "Output results in JSON format"},
-    {"detailed", 'd', no_argument, "Output detailed results (cycles and frequency will be printed)"}
+    {"detailed", 'd', no_argument, "Output detailed results (cycles and frequency will be printed)"},
+    {"printdomains", 'p', no_argument, "List available domains available on the architecture"},
 };
 
 static ConstCliOptions basecliopts = {
-    .num_options = 14,
+    .num_options = 15,
     .options = _basecliopts,
 };
 

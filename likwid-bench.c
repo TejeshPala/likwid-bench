@@ -155,6 +155,7 @@ int allocate_runtime_config(RuntimeConfig** config)
     runcfg->csv = 0;
     runcfg->json = 0;
     runcfg->all = 0;
+    runcfg->printdomains = 0;
     runcfg->output = bfromcstr("stdout");
     runcfg->mkstempfiles = bstrListCreate();
     runcfg->benchfiles = NULL;
@@ -489,6 +490,11 @@ int main(int argc, char** argv)
     {
         ERROR_PRINT("Error parsing base options");
         printCliOptions(&baseopts);
+        goto main_out;
+    }
+    if (runcfg->printdomains)
+    {
+        print_hwthreads();
         goto main_out;
     }
     if (runcfg->all)
