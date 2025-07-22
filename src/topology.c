@@ -192,12 +192,114 @@ typedef struct {
     int die_id;
     int socket_id;
     int numa_id;
+    int l1_id;
+    int l2_id;
+    int llc_id;
     int usable;
 } LikwidBenchHwthread;
 
 static LikwidBenchHwthread* _hwthreads = NULL;
 static int _num_hwthreads = 0;
 static int _active_hwthreads = 0;
+
+typedef struct {
+    LikwidBenchHwthread data;
+    int sort_key[9]; // Number of key sortings to be made
+} SortableHWThread;
+
+static int _hwthreads_sort(LikwidBenchHwthread* inlist, LikwidBenchHwthread* outlist, int num_threads, int closed)
+{
+    if (!inlist || !outlist || num_threads <= 0) return -1;
+
+    SortableHWThread* buffA = malloc(num_threads * sizeof(SortableHWThread));
+    SortableHWThread* buffB = malloc(num_threads * sizeof(SortableHWThread));
+    if (!buffA || !buffB) return -ENOMEM;
+
+    if (closed == 0)
+    {
+        // Canonical closed pinning -> sys topology
+        for (int i = 0; i < num_threads; i++)
+        {
+            buffA[i].data = inlist[i];
+            buffA[i].sort_key[0] = inlist[i].socket_id;
+            buffA[i].sort_key[1] = inlist[i].die_id;
+            buffA[i].sort_key[2] = inlist[i].numa_id;
+            buffA[i].sort_key[3] = inlist[i].llc_id;
+            buffA[i].sort_key[4] = inlist[i].l2_id;
+            buffA[i].sort_key[5] = inlist[i].l1_id;
+            buffA[i].sort_key[6] = inlist[i].core_id;
+            buffA[i].sort_key[7] = inlist[i].smt_id;
+            buffA[i].sort_key[8] = inlist[i].os_id;
+        }
+    }
+    else if (closed == 1)
+    {
+        // SMT Priority -> Closed Pinning, for max throughput
+        for (int i = 0; i < num_threads; i++)
+        {
+            buffA[i].data = inlist[i];
+            buffA[i].sort_key[0] = inlist[i].smt_id;
+            buffA[i].sort_key[1] = inlist[i].socket_id;
+            buffA[i].sort_key[2] = inlist[i].die_id;
+            buffA[i].sort_key[3] = inlist[i].numa_id;
+            buffA[i].sort_key[4] = inlist[i].llc_id;
+            buffA[i].sort_key[5] = inlist[i].l2_id;
+            buffA[i].sort_key[6] = inlist[i].l1_id;
+            buffA[i].sort_key[7] = inlist[i].core_id;
+            buffA[i].sort_key[8] = inlist[i].os_id;
+        }
+    }
+
+    SortableHWThread* in = buffA;
+    SortableHWThread* out = buffB;
+
+    for (int lvl = 8; lvl >= 0; lvl--)
+    {
+        int max_val = INT_MIN;
+        int min_val = INT_MAX;
+        for (int i = 0; i < num_threads; i++)
+        {
+            int val = in[i].sort_key[lvl];
+            if (val < min_val) min_val = val;
+            if (val > max_val) max_val = val;
+        }
+
+        int* count = calloc((max_val - min_val + 1), sizeof(int));
+        if (!count)
+        {
+            free(buffA);
+            free(buffB);
+            return -ENOMEM;
+        }
+
+        for (int i = 0; i < num_threads; i++)
+        {
+            count[in[i].sort_key[lvl] - min_val]++;
+        }
+        for (int i = 1; i < (max_val - min_val + 1); i++)
+        {
+            count[i] += count[i - 1];
+        }
+        for (int i = num_threads - 1; i >= 0; i--)
+        {
+            out[--count[in[i].sort_key[lvl] - min_val]] = in[i];
+        }
+
+        free(count);
+        SortableHWThread* tmp = in;
+        in = out;
+        out = tmp;
+    }
+
+    for (int i = 0; i < num_threads; i++)
+    {
+        outlist[i] = in[i].data;
+    }
+
+    free(buffA);
+    free(buffB);
+    return num_threads;
+}
 
 static int file_to_int(bstring filename, int *value)
 {
@@ -289,6 +391,48 @@ static int hwthread_smt_id(int os_id)
     return smt_id;
 }
 
+static int hwthread_cache_id(int os_id, int level)
+{
+    bstring cachefolder = bformat("/sys/devices/system/cpu/cpu%d/cache", os_id);
+    DIR *dp = NULL;
+    struct dirent *ep = NULL;
+    int max_idx = 0;
+    const char* fname = bdata(cachefolder);
+    dp = opendir(fname);
+    if (dp != NULL)
+    {
+        while ((ep = readdir(dp)))
+        {
+            int idx_id = 0;
+            int ret = sscanf(ep->d_name, "index%d", &idx_id);
+            if (ret == 1 && idx_id > max_idx)
+            {
+                max_idx = idx_id;
+            }
+        }
+        closedir(dp);
+    }
+
+    int cacheid = 0;
+    for (int i = 0; i < max_idx + 1; i++)
+    {
+        int tmpid = 0;
+        bstring lvl_path = bformat("%s/index%d/level", bdata(cachefolder), i);
+        bstring id_path = bformat("%s/index%d/id", bdata(cachefolder), i);
+        int ret = file_to_int(lvl_path, &tmpid);
+        bdestroy(lvl_path);
+        if (ret == 0 && tmpid == level)
+        {
+            ret = file_to_int(id_path, &cacheid);
+            bdestroy(id_path);
+            break;
+        }
+        bdestroy(id_path);
+    }
+    bdestroy(cachefolder);
+    return cacheid;
+}
+
 int check_hwthreads_numa_count(int* numNumaNodes, int* maxNumaNodeId)
 {
     int count = 0;
@@ -359,13 +503,16 @@ static void print_hwthread_data(LikwidBenchHwthread* cur)
                 (cur->usable == 0 ? "NOTUSABLE" : ""));
 }
 
-static int read_hwthread_data(int os_id, int maxNumaNodeId, int* smt_id, int* core_id, int* die_id, int* socket_id, int* numa_id)
+static int read_hwthread_data(int os_id, int maxNumaNodeId, int* smt_id, int* core_id, int* die_id, int* socket_id, int* numa_id, int* l1_id, int* l2_id, int* llc_id)
 {
     int core = 0;
     int die = 0;
     int socket = 0;
     int numa = 0;
     int smt = 0;
+    int l1 = 0;
+    int l2 = 0;
+    int llc = 0;
     bstring cpufolder = bformat("/sys/devices/system/cpu/cpu%d", os_id);
     const char* tmpstr = bdata(cpufolder);
     if (!access(tmpstr, R_OK|X_OK))
@@ -413,6 +560,9 @@ static int read_hwthread_data(int os_id, int maxNumaNodeId, int* smt_id, int* co
             bdestroy(nodefolder);
         }
         smt = hwthread_smt_id(os_id);
+        l1 = hwthread_cache_id(os_id, 1);
+        l2 = hwthread_cache_id(os_id, 2);
+        llc = hwthread_cache_id(os_id, 3);
     }
     bdestroy(cpufolder);
     *core_id = core;
@@ -420,6 +570,9 @@ static int read_hwthread_data(int os_id, int maxNumaNodeId, int* smt_id, int* co
     *socket_id = socket;
     *numa_id = numa;
     *smt_id = smt;
+    *l1_id = l1;
+    *l2_id = l2;
+    *llc_id = llc;
     return 0;
 }
 
@@ -466,7 +619,7 @@ int check_hwthreads()
         {
             LikwidBenchHwthread* cur = &tmpList[i];
             cur->os_id = i;
-            read_hwthread_data(i, maxNumaNodeId, &cur->smt_id, &cur->core_id, &cur->die_id, &cur->socket_id, &cur->numa_id);
+            read_hwthread_data(i, maxNumaNodeId, &cur->smt_id, &cur->core_id, &cur->die_id, &cur->socket_id, &cur->numa_id, &cur->l1_id, &cur->l2_id, &cur->llc_id);
             if (CPU_ISSET(i, &cpu_set) && hwthread_online(i))
             {
                 cur->usable = 1;
@@ -475,18 +628,10 @@ int check_hwthreads()
             tmpCount++;
         }
         //DEBUG_PRINT(DEBUGLEV_DETAIL, "List filled with %d HW threads %d active", tmpCount, tmpCountActive);
-        int maxCoreId = 0;
-        int maxSocketId = 0;
-        int maxDieId = 0;
-        int maxSmtId = 0;
         for (int i = 0; i < tmpCount; i++)
         {
             LikwidBenchHwthread* cur = &tmpList[i];
             print_hwthread_data(cur);
-            if (cur->core_id > maxCoreId) maxCoreId = cur->core_id;
-            if (cur->socket_id > maxSocketId) maxSocketId = cur->socket_id;
-            if (cur->smt_id > maxSmtId) maxSmtId = cur->smt_id;
-            if (cur->die_id > maxDieId) maxDieId = cur->die_id;
         }
         _num_hwthreads = 0;
         _active_hwthreads = 0;
@@ -498,34 +643,138 @@ int check_hwthreads()
         }
         memset(_hwthreads, 0, tmpCount * sizeof(LikwidBenchHwthread));
         int idx = 0;
-        for (int s = 0; s < maxSocketId + 1; s++)
+        // copy the topology to global struct as it is in sysfs dirs, sort based on user required
+        // sort -> always smt id's to achieve close pinning followed by socket or die or numa
+        for (int i = 0; i < tmpCount; i++)
         {
-            for (int d = 0; d < maxDieId + 1; d++)
+            LikwidBenchHwthread* test = &tmpList[i];
+            if (test)
             {
-                for (int c = 0; c < maxCoreId + 1; c++)
-                {
-                    for (int t = 0; t < maxSmtId + 1; t++)
-                    {
-                        for (int i = 0; i < tmpCount; i++)
-                        {
-                            LikwidBenchHwthread* test = &tmpList[i];
-                            if (test && test->socket_id == s && test->die_id == d && test->core_id == c && test->smt_id == t)
-                            {
-                                memcpy(&_hwthreads[idx], test, sizeof(LikwidBenchHwthread));
-                                _num_hwthreads++;
-                                if (test->usable == 1) _active_hwthreads++;
-                                //DEBUG_PRINT(DEBUGLEV_DETAIL, "Move %d to %d", test->os_id, idx);
-                                idx++;
-                                break;
-                            }
-                        }
-                    }
-                }
+                memcpy(&_hwthreads[idx], test, sizeof(LikwidBenchHwthread));
+                _num_hwthreads++;
+                if (test->usable == 1) _active_hwthreads++;
+                //DEBUG_PRINT(DEBUGLEV_DETAIL, "Move %d to %d", test->os_id, idx);
+                idx++;
             }
         }
         free(tmpList);
         //DEBUG_PRINT(DEBUGLEV_DETAIL, "Final List filled with %d HW threads %d active", _num_hwthreads, _active_hwthreads);
     }
+    return 0;
+}
+
+int print_hwthreads()
+{
+    if (_hwthreads == NULL)
+    {
+        int ret = check_hwthreads();
+        if (ret != 0)
+        {
+            return ret;
+        }
+    }
+    int maxSocketId = 0;
+    int maxDieId = 0;
+    int maxCoreId = 0;
+    int maxNumaId = 0;
+    int maxSmtId = 0;
+    int maxOsId = 0;
+    int maxL1Id = 0;
+    int maxL2Id = 0;
+    int maxLlcId = 0;
+    for (int i = 0; i < _num_hwthreads; i++)
+    {
+        LikwidBenchHwthread* cur = &_hwthreads[i];
+        print_hwthread_data(cur);
+        if (cur->socket_id > maxSocketId) maxSocketId = cur->socket_id;
+        if (cur->die_id > maxDieId) maxDieId = cur->die_id;
+        if (cur->core_id > maxCoreId) maxCoreId = cur->core_id;
+        if (cur->smt_id > maxSmtId) maxSmtId = cur->smt_id;
+        if (cur->numa_id > maxNumaId) maxNumaId = cur->numa_id;
+        if (cur->os_id > maxOsId) maxOsId = cur->os_id;
+        if (cur->l1_id > maxL1Id) maxL1Id = cur->l1_id;
+        if (cur->l2_id > maxL2Id) maxL2Id = cur->l2_id;
+        if (cur->llc_id > maxLlcId) maxLlcId = cur->llc_id;
+    }
+    LikwidBenchHwthread* tmpList = malloc(_num_hwthreads * sizeof(LikwidBenchHwthread));
+    if (!tmpList)
+    {
+        ERROR_PRINT("Failed to allocate tmpList");
+        return -ENOMEM;
+    }
+
+    printf("List of available hardware thread domains:\n");
+    printf("Domain: [HW Threads]\n");
+    memset(tmpList, 0, _num_hwthreads * sizeof(LikwidBenchHwthread));
+    _hwthreads_sort(_hwthreads, tmpList, _num_hwthreads, 0);
+
+    /*
+    for (int i = 0; i < _num_hwthreads; i++)
+    {
+        LikwidBenchHwthread* test = &_hwthreads[i];
+        if (test->usable == 1 && i < _num_hwthreads)
+        {
+            printf("S%3d D%3d N%3d %3dLLC %3dL2 %3dL1 C%4d T%3d -> OS %3d\n", test->socket_id, test->die_id, test->numa_id, test->llc_id, test->l2_id, test->l1_id, test->core_id, test->smt_id, test->os_id);
+        }
+    }
+    */
+
+    printf("N:\t[");
+    for (int i = 0; i < _num_hwthreads; i++)
+    {
+        if (i != 0) printf(",");
+        printf("%d", tmpList[i].os_id);
+    }
+    printf("]\n\n");
+    for (int s = 0; s <= maxSocketId; s++)
+    {
+        printf("S%d:\t[", s);
+        int first = 1;
+        for (int i = 0; i < _num_hwthreads; i++)
+        {
+            if (tmpList[i].socket_id == s)
+            {
+                if (!first) printf(",");
+                printf("%d", tmpList[i].os_id);
+                first = 0;
+            }
+        }
+        printf("]\n");
+    }
+    printf("\n");
+    for (int d = 0; d <= maxDieId; d++)
+    {
+        printf("D%d:\t[", d);
+        int first = 1;
+        for (int i = 0; i < _num_hwthreads; i++)
+        {
+            if (tmpList[i].die_id == d)
+            {
+                if (!first) printf(",");
+                printf("%d", tmpList[i].os_id);
+                first = 0;
+            }
+        }
+        printf("]\n");
+    }
+    printf("\n");
+    for (int n = 0; n <= maxNumaId; n++)
+    {
+        printf("M%d:\t[", n);
+        int first = 1;
+        for (int i = 0; i < _num_hwthreads; i++)
+        {
+            if (tmpList[i].numa_id == n)
+            {
+                if (!first) printf(",");
+                printf("%d", tmpList[i].os_id);
+                first = 0;
+            }
+        }
+        printf("]\n");
+    }
+    printf("\n");
+    free(tmpList);
     return 0;
 }
 
@@ -540,7 +789,7 @@ void destroy_hwthreads()
     }
 }
 
-int _hwthread_list_for_socket(int socket, int* numEntries, int** hwthreadList)
+int _hwthread_list_for_socket(int socket, int* numEntries, int** hwthreadList, int closed)
 {
     int avail_hwthreads = 0;
     int ret = check_hwthreads();
@@ -569,9 +818,26 @@ int _hwthread_list_for_socket(int socket, int* numEntries, int** hwthreadList)
     }
     memset(list, 0, _num_hwthreads * sizeof(int));
 
+    LikwidBenchHwthread* tmpList = malloc(_num_hwthreads * sizeof(LikwidBenchHwthread));
+    if (!tmpList)
+    {
+        ERROR_PRINT("Failed to allocate tmpList");
+        free(list);
+        return -ENOMEM;
+    }
+
+    memset(tmpList, 0, _num_hwthreads * sizeof(LikwidBenchHwthread));
+    if (closed == 1)
+    {
+        _hwthreads_sort(_hwthreads, tmpList, _num_hwthreads, closed);
+    }
+    else if (closed == 0)
+    {
+        _hwthreads_sort(_hwthreads, tmpList, _num_hwthreads, closed);
+    }
     for (int i = 0; i < _num_hwthreads; i++)
     {
-        LikwidBenchHwthread* cur = &_hwthreads[i];
+        LikwidBenchHwthread* cur = &tmpList[i];
         if (cur->socket_id == socket && cur->usable == 1 && count < _num_hwthreads)
         {
             list[count++] = cur->os_id;
@@ -579,10 +845,11 @@ int _hwthread_list_for_socket(int socket, int* numEntries, int** hwthreadList)
     }
     *numEntries = count;
     *hwthreadList = list;
+    free(tmpList);
     return 0;
 }
 
-int _hwthread_list_for_numa_domain(int numa_id, int* numEntries, int** hwthreadList)
+int _hwthread_list_for_numa_domain(int numa_id, int* numEntries, int** hwthreadList, int closed)
 {
     int avail_hwthreads = 0;
     int ret = check_hwthreads();
@@ -611,9 +878,26 @@ int _hwthread_list_for_numa_domain(int numa_id, int* numEntries, int** hwthreadL
     }
     memset(list, 0, _num_hwthreads * sizeof(int));
 
+    LikwidBenchHwthread* tmpList = malloc(_num_hwthreads * sizeof(LikwidBenchHwthread));
+    if (!tmpList)
+    {
+        ERROR_PRINT("Failed to allocate tmpList");
+        free(list);
+        return -ENOMEM;
+    }
+
+    memset(tmpList, 0, _num_hwthreads * sizeof(LikwidBenchHwthread));
+    if (closed == 1)
+    {
+        _hwthreads_sort(_hwthreads, tmpList, _num_hwthreads, closed);
+    }
+    else if (closed == 0)
+    {
+        _hwthreads_sort(_hwthreads, tmpList, _num_hwthreads, closed);
+    }
     for (int i = 0; i < _num_hwthreads; i++)
     {
-        LikwidBenchHwthread* cur = &_hwthreads[i];
+        LikwidBenchHwthread* cur = &tmpList[i];
         if (cur->numa_id == numa_id && cur->usable == 1 && count < _num_hwthreads)
         {
             list[count++] = cur->os_id;
@@ -621,10 +905,11 @@ int _hwthread_list_for_numa_domain(int numa_id, int* numEntries, int** hwthreadL
     }
     *numEntries = count;
     *hwthreadList = list;
+    free(tmpList);
     return 0;
 }
 
-int _hwthread_list_for_cpu_die(int die_id, int* numEntries, int** hwthreadList)
+int _hwthread_list_for_cpu_die(int die_id, int* numEntries, int** hwthreadList, int closed)
 {
     int avail_hwthreads = 0;
     int ret = check_hwthreads();
@@ -653,9 +938,26 @@ int _hwthread_list_for_cpu_die(int die_id, int* numEntries, int** hwthreadList)
     }
     memset(list, 0, _num_hwthreads * sizeof(int));
 
+    LikwidBenchHwthread* tmpList = malloc(_num_hwthreads * sizeof(LikwidBenchHwthread));
+    if (!tmpList)
+    {
+        ERROR_PRINT("Failed to allocate tmpList");
+        free(list);
+        return -ENOMEM;
+    }
+
+    memset(tmpList, 0, _num_hwthreads * sizeof(LikwidBenchHwthread));
+    if (closed == 1)
+    {
+        _hwthreads_sort(_hwthreads, tmpList, _num_hwthreads, closed);
+    }
+    else if (closed == 0)
+    {
+        _hwthreads_sort(_hwthreads, tmpList, _num_hwthreads, closed);
+    }
     for (int i = 0; i < _num_hwthreads; i++)
     {
-        LikwidBenchHwthread* cur = &_hwthreads[i];
+        LikwidBenchHwthread* cur = &tmpList[i];
         if (cur->die_id == die_id && cur->usable == 1 && count < _num_hwthreads)
         {
             list[count++] = cur->os_id;
@@ -663,6 +965,7 @@ int _hwthread_list_for_cpu_die(int die_id, int* numEntries, int** hwthreadList)
     }
     *numEntries = count;
     *hwthreadList = list;
+    free(tmpList);
     return 0;
 }
 
@@ -842,6 +1145,12 @@ int lb_cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
     {
         return ret;
     }
+    int maxSmtId = 0;
+    for (int i = 0; i < _num_hwthreads; i++)
+    {
+        LikwidBenchHwthread* cur = &_hwthreads[i];
+        if (cur->smt_id > maxSmtId) maxSmtId = cur->smt_id;
+    }
     int colon = binchr(cpustr, 0, &bcolon);
     bstring bdomain = bmidstr(cpustr, 0, colon);
     bstring blist = bmidstr(cpustr, colon+1, blength(cpustr) - colon);
@@ -878,6 +1187,15 @@ int lb_cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
     int* tmpList = NULL;
     int tmpCount = 0;
     
+    LikwidBenchHwthread* tmpListLB = malloc(_num_hwthreads * sizeof(LikwidBenchHwthread));
+    if (!tmpListLB)
+    {
+        ERROR_PRINT("Failed to allocate tmpListLB");
+        return -ENOMEM;
+    }
+
+    memset(tmpListLB, 0, _num_hwthreads * sizeof(LikwidBenchHwthread));
+    _hwthreads_sort(_hwthreads, tmpListLB, _num_hwthreads, 1);
     switch (domain)
     {
         case 'N':
@@ -886,26 +1204,31 @@ int lb_cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
             {
                 if (idxList)
                 {
+                    free(tmpListLB);
                     free(idxList);
                     idxList = NULL;
                 }
                 return -ENOMEM;
             }
-            for (int i = 0; i < _num_hwthreads; i++)
+            for (int t = 0; t <= maxSmtId; t++)
             {
-                LikwidBenchHwthread* cur = &_hwthreads[i];
-                tmpList[tmpCount++] = cur->os_id;
+                for (int i = 0; i < _num_hwthreads; i++)
+                {
+                    LikwidBenchHwthread* cur = &tmpListLB[i];
+                    if (cur->smt_id == t) tmpList[tmpCount++] = cur->os_id;
+                }
             }
             break;
         case 'S':
             if (domIdx >= 0)
             {
-                ret = _hwthread_list_for_socket(domIdx, &tmpCount, &tmpList);
+                ret = _hwthread_list_for_socket(domIdx, &tmpCount, &tmpList, 1);
                 if (ret != 0)
                 {
                     if (idxList)
                     {
                         free(idxList);
+                        free(tmpListLB);
                         idxList = NULL;
                         idxLen = 0;
                     }
@@ -916,12 +1239,13 @@ int lb_cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
         case 'M':
             if (domIdx >= 0)
             {
-                ret = _hwthread_list_for_numa_domain(domIdx, &tmpCount, &tmpList);
+                ret = _hwthread_list_for_numa_domain(domIdx, &tmpCount, &tmpList, 1);
                 if (ret != 0)
                 {
                     if (idxList)
                     {
                         free(idxList);
+                        free(tmpListLB);
                         idxList = NULL;
                         idxLen = 0;
                     }
@@ -932,12 +1256,13 @@ int lb_cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
         case 'D':
             if (domIdx >= 0)
             {
-                ret = _hwthread_list_for_cpu_die(domIdx, &tmpCount, &tmpList);
+                ret = _hwthread_list_for_cpu_die(domIdx, &tmpCount, &tmpList, 1);
                 if (ret != 0)
                 {
                     if (idxList)
                     {
                         free(idxList);
+                        free(tmpListLB);
                         idxList = NULL;
                         idxLen = 0;
                     }
@@ -959,6 +1284,7 @@ int lb_cpustr_to_cpulist_logical(bstring cpustr, int* list, int length)
     }
     free(idxList);
     free(tmpList);
+    free(tmpListLB);
     return outcount;
 }
 
@@ -989,17 +1315,27 @@ int lb_cpustr_to_cpulist_expression(bstring cpustr, int* list, int length)
     int* tmpList = NULL;
     int tmpCount = 0;
     
+    LikwidBenchHwthread* tmpListLB = malloc(_num_hwthreads * sizeof(LikwidBenchHwthread));
+    if (!tmpListLB)
+    {
+        ERROR_PRINT("Failed to allocate tmpListLB");
+        return -ENOMEM;
+    }
+
+    memset(tmpListLB, 0, _num_hwthreads * sizeof(LikwidBenchHwthread));
+    _hwthreads_sort(_hwthreads, tmpListLB, _num_hwthreads, 0);
     switch (domain)
     {
         case 'N':
             tmpList = malloc(_num_hwthreads * sizeof(int));
             if (!tmpList)
             {
+                free(tmpListLB);
                 return -ENOMEM;
             }
             for (int i = 0; i < _num_hwthreads; i++)
             {
-                LikwidBenchHwthread* cur = &_hwthreads[i];
+                LikwidBenchHwthread* cur = &tmpListLB[i];
                 tmpList[tmpCount++] = cur->os_id;
             }
             
@@ -1007,9 +1343,10 @@ int lb_cpustr_to_cpulist_expression(bstring cpustr, int* list, int length)
         case 'S':
             if (domIdx >= 0)
             {
-                ret = _hwthread_list_for_socket(domIdx, &tmpCount, &tmpList);
+                ret = _hwthread_list_for_socket(domIdx, &tmpCount, &tmpList, 0);
                 if (ret != 0)
                 {
+                    free(tmpListLB);
                     return ret;
                 }
             }
@@ -1017,9 +1354,10 @@ int lb_cpustr_to_cpulist_expression(bstring cpustr, int* list, int length)
         case 'M':
             if (domIdx >= 0)
             {
-                ret = _hwthread_list_for_numa_domain(domIdx, &tmpCount, &tmpList);
+                ret = _hwthread_list_for_numa_domain(domIdx, &tmpCount, &tmpList, 0);
                 if (ret != 0)
                 {
+                    free(tmpListLB);
                     return ret;
                 }
             }
@@ -1027,14 +1365,16 @@ int lb_cpustr_to_cpulist_expression(bstring cpustr, int* list, int length)
         case 'D':
             if (domIdx >= 0)
             {
-                ret = _hwthread_list_for_cpu_die(domIdx, &tmpCount, &tmpList);
+                ret = _hwthread_list_for_cpu_die(domIdx, &tmpCount, &tmpList, 0);
                 if (ret != 0)
                 {
+                    free(tmpListLB);
                     return ret;
                 }
             }
             break;
     }
+    /*
     int* tmpList2;
     ret = _hwthread_list_sort_by_core(tmpCount, tmpList, &tmpList2);
     if (ret < 0)
@@ -1044,6 +1384,7 @@ int lb_cpustr_to_cpulist_expression(bstring cpustr, int* list, int length)
     }
     free(tmpList);
     tmpList = tmpList2;
+    */
     int looplength = TOPO_MIN(length, TOPO_MIN(tmpCount, _num_hwthreads));
     if (count > 0)
     {
@@ -1077,6 +1418,7 @@ int lb_cpustr_to_cpulist_expression(bstring cpustr, int* list, int length)
         }
     }
     free(tmpList);
+    free(tmpListLB);
     return outcount;
 }
 

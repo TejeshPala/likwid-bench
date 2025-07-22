@@ -426,6 +426,7 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
     struct tagbstring bdetailed = bsStatic("--detailed");
     struct tagbstring btrue = bsStatic("1");
     struct tagbstring bcompiler = bsStatic("--compiler");
+    struct tagbstring bprintdomains = bsStatic("--printdomains");
     for (int i = 0; i < options->num_options; i++)
     {
         CliOption* opt = &options->options[i];
@@ -442,6 +443,10 @@ int assignBaseCliOptions(CliOptions* options, RuntimeConfig* runcfg)
         if (bstrcmp(opt->name, &bhelp) == BSTR_OK && bstrcmp(opt->value, &btrue) == BSTR_OK)
         {
             runcfg->help = 1;
+        }
+        if (bstrcmp(opt->name, &bprintdomains) == BSTR_OK && bstrcmp(opt->value, &btrue) == BSTR_OK)
+        {
+            runcfg->printdomains = 1;
         }
         else if (bstrcmp(opt->name, &ball) == BSTR_OK && blength(opt->value) > 0)
         {
