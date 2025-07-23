@@ -42,7 +42,7 @@
 #include "test_types.h"
 
 #define MIN_ITERATIONS ((size_t)10)
-#define MIN_RUNTIME 1.0
+#define MIN_RUNTIME ((double)1.0)
 #define TIMEOUT_SECONDS 60
 
 int send_cmd(LikwidThreadCommand cmd, RuntimeThreadConfig* thread);

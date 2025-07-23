@@ -797,7 +797,7 @@ int fill_results(RuntimeConfig* runcfg)
     {
 	    biter = bformat("%zu", 0);
     }
-    add_variable(runcfg->global_results, &biterations, biter);
+    // add_variable(runcfg->global_results, &biterations, biter);
     for (int i = 0; i < runcfg->num_wgroups; i++)
     {
         RuntimeWorkgroupConfig *wgroup = &runcfg->wgroups[i];

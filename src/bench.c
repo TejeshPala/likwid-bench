@@ -13,6 +13,7 @@
 #include "error.h"
 #include "timer.h"
 #include "test_types.h"
+#include "thread_group.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,6 +29,53 @@ extern "C" }
 
 #define DECLARE_TIMER TimerDataLB timedata
 
+#define MEASURE(func) \
+    do { \
+        if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
+        size_t iter = MIN_ITERATIONS; \
+        uint64_t runtime = 0; \
+        do { \
+            if (lb_timer_init(TIMER_RDTSC, &timedata) != 0) fprintf(stderr, "Timer initialization failed!\n"); \
+            if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
+            lb_timer_start(&timedata); \
+            for (size_t i = 0; i < iter; i++) \
+            {   \
+                func; \
+            } \
+            if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
+            lb_timer_stop(&timedata); \
+            lb_timer_as_ns(&timedata, &runtime); \
+            lb_timer_close(&timedata); \
+            if (((double)runtime / NANOS_PER_SEC ) < MIN_RUNTIME) iter <<= 1; \
+        } while (((double)runtime / NANOS_PER_SEC ) < MIN_RUNTIME); \
+        iter >>= 1; \
+        myData->iters = iter; \
+        if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
+    } while (0)
+
+#define WARMUP(func) \
+    do { \
+        if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
+        size_t iter = MIN_ITERATIONS; \
+        uint64_t runtime = 0; \
+        do { \
+            if (lb_timer_init(TIMER_RDTSC, &timedata) != 0) fprintf(stderr, "Timer initialization failed!\n"); \
+            if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
+            lb_timer_start(&timedata); \
+            for (size_t i = 0; i < iter; i++) \
+            {   \
+                func; \
+            } \
+            if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
+            lb_timer_stop(&timedata); \
+            lb_timer_as_ns(&timedata, &runtime); \
+            lb_timer_close(&timedata); \
+            if (((double)runtime / NANOS_PER_SEC ) < MIN_RUNTIME) iter <<= 1; \
+        } while (((double)runtime / NANOS_PER_SEC ) < MIN_RUNTIME); \
+        iter >>= 1; \
+        if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
+    } while (0)
+
 // todo markers
 // todo timer library with rdtsc? or perf?
 #ifdef LIKWID_PERFMON
@@ -37,7 +85,7 @@ extern "C" }
     if (lb_timer_init(TIMER_RDTSC, &timedata) != 0) fprintf(stderr, "Timer initialization failed!\n"); \
     LIKWID_MARKER_START("LIKWID-BENCH"); \
     lb_timer_start(&timedata); \
-    for (int i = 0; i < myData->iters; i++) \
+    for (size_t i = 0; i < myData->iters; i++) \
     {   \
         func; \
     } \
@@ -54,7 +102,7 @@ extern "C" }
     if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
     if (lb_timer_init(TIMER_RDTSC, &timedata) != 0) fprintf(stderr, "Timer initialization failed!\n"); \
     lb_timer_start(&timedata); \
-    for (int i = 0; i < myData->iters; i++) \
+    for (size_t i = 0; i < myData->iters; i++) \
     {   \
         func; \
     } \
@@ -102,6 +150,9 @@ int run_benchmark(RuntimeThreadConfig* data)
     clock_gettime(CLOCK_REALTIME, &ts);
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "hwthread %3d starts benchmark execution: %s", myData->hwthread, ctime(&ts.tv_sec));
 
+    WARMUP(func());
+    if (myData->iters == 0) MEASURE(func());
+    // printf("Iters: %" PRIu64 "\n", myData->iters);
     EXECUTE(func());
     // not sure whether we need to give the sizes here. Since we compile the code, we could add the sizes there directly
     // as constants

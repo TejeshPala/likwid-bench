@@ -575,16 +575,6 @@ int update_threads(RuntimeConfig* runcfg)
     int total_threads = 0;
     TestConfigStream* t = runcfg->tcfg->streams;
 
-    if (runcfg->iterations >= 0)
-    {
-        iter = (runcfg->iterations > MIN_ITERATIONS) ? runcfg->iterations : MIN_ITERATIONS;
-        if (runcfg->iterations < MIN_ITERATIONS)
-        {
-            DEBUG_PRINT(DEBUGLEV_DEVELOP, "Overwriting iterations to %zu", MIN_ITERATIONS);
-        }
-        runcfg->iterations = iter;
-        printf("The iterations updated per hwthread are: %zu\n", runcfg->iterations);
-    }
     bstring brun_iters = bformat("%ld", runcfg->iterations);
     // printf("Num Workgroups: %d\n", runcfg->num_wgroups);
     for (int w = 0; w < runcfg->num_wgroups; w++)
@@ -628,12 +618,7 @@ int update_threads(RuntimeConfig* runcfg)
             err = update_variable(&wg->results[i], &biterations, brun_iters);
             if (err == 0)
             {
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, "Variable updated for hwthread %d for key %s with value %lf", wg->hwthreads[i], bdata(&biterations), (double)runcfg->iterations);
-            }
-            err = update_variable(runcfg->global_results, &biterations, brun_iters);
-            if (err == 0)
-            {
-                DEBUG_PRINT(DEBUGLEV_DEVELOP, "Variable updated in global results for key %s with value %lf", bdata(&biterations), (double)runcfg->iterations);
+                DEBUG_PRINT(DEBUGLEV_DEVELOP, "Variable updated for hwthread %d for key %s with value %s", wg->hwthreads[i], bdata(&biterations), bdata(brun_iters));
             }
             RuntimeThreadConfig* thread = &wg->threads[i];
             thread->command = (RuntimeThreadCommand*)malloc(sizeof(RuntimeThreadCommand));
@@ -832,7 +817,7 @@ int update_threads(RuntimeConfig* runcfg)
             // printf("Threadid: %d\n", thread->data->hwthread);
             thread->data->hwthread = wg->hwthreads[i];
             thread->data->flags = THREAD_DATA_THREADINIT_FLAG;
-            thread->data->iters = iter;
+            thread->data->iters = runcfg->iterations;
             thread->data->cycles = 0;
             thread->data->min_runtime = 0;
             // printf("Threadid: %d\n", thread->data->hwthread);
