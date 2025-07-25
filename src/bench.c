@@ -34,6 +34,7 @@ extern "C" }
         if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
         size_t iter = MIN_ITERATIONS; \
         uint64_t runtime = 0; \
+        int doubled = 0; \
         do { \
             if (lb_timer_init(TIMER_RDTSC, &timedata) != 0) fprintf(stderr, "Timer initialization failed!\n"); \
             if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
@@ -46,9 +47,10 @@ extern "C" }
             lb_timer_stop(&timedata); \
             lb_timer_as_ns(&timedata, &runtime); \
             lb_timer_close(&timedata); \
-            if (((double)runtime / NANOS_PER_SEC ) < MIN_RUNTIME) iter <<= 1; \
+            if (((double)runtime / NANOS_PER_SEC ) < MIN_RUNTIME) { iter <<= 1; doubled = 1; }\
+            else { doubled = 0; } \
         } while (((double)runtime / NANOS_PER_SEC ) < MIN_RUNTIME); \
-        iter >>= 1; \
+        if (doubled) iter >>= 1; \
         myData->iters = iter; \
         if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
     } while (0)
@@ -58,6 +60,7 @@ extern "C" }
         if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
         size_t iter = MIN_ITERATIONS; \
         uint64_t runtime = 0; \
+        int doubled = 0; \
         do { \
             if (lb_timer_init(TIMER_RDTSC, &timedata) != 0) fprintf(stderr, "Timer initialization failed!\n"); \
             if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
@@ -70,9 +73,10 @@ extern "C" }
             lb_timer_stop(&timedata); \
             lb_timer_as_ns(&timedata, &runtime); \
             lb_timer_close(&timedata); \
-            if (((double)runtime / NANOS_PER_SEC ) < MIN_RUNTIME) iter <<= 1; \
+            if (((double)runtime / NANOS_PER_SEC ) < MIN_RUNTIME) { iter <<= 1; doubled = 1; }\
+            else { doubled = 0; } \
         } while (((double)runtime / NANOS_PER_SEC ) < MIN_RUNTIME); \
-        iter >>= 1; \
+        if (doubled) iter >>= 1; \
         if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
     } while (0)
 
@@ -150,8 +154,15 @@ int run_benchmark(RuntimeThreadConfig* data)
     clock_gettime(CLOCK_REALTIME, &ts);
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "hwthread %3d starts benchmark execution: %s", myData->hwthread, ctime(&ts.tv_sec));
 
-    WARMUP(func());
-    if (myData->iters == 0) MEASURE(func());
+    if (myData->iters == 0)
+    {
+        MEASURE(func());
+    }
+    else
+    {
+        WARMUP(func());
+    }
+
     // printf("Iters: %" PRIu64 "\n", myData->iters);
     EXECUTE(func());
     // not sure whether we need to give the sizes here. Since we compile the code, we could add the sizes there directly
