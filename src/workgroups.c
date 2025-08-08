@@ -394,6 +394,46 @@ int update_results(RuntimeConfig* runcfg, int num_wgroups, RuntimeWorkgroupConfi
         }
     }
 
+    /*
+     * The below loops are just to update the iteration for each thread results
+     * and as they were not necessary for stats reporting
+     */
+    struct bstrList* blist1 = bstrListCreate();
+    struct bstrList* blist2 = bstrListCreate();
+    for (int w = 0; w < num_wgroups; w++)
+    {
+        RuntimeWorkgroupConfig* wg = &wgroups[w];
+        for (int t = 0; t < wg->num_threads; t++)
+        {
+            RuntimeThreadConfig* thread = &wg->threads[t];
+            RuntimeWorkgroupResult* result = &wg->results[t];
+            if (wg->hwthreads[t] == thread->data->hwthread)
+            {
+                bstring val = bformat("%zu", thread->data->iters);
+                err = update_variable(result, &biterations, val);
+                if (err == 0)
+                {
+                    bstrListAdd(blist1, val);
+                    bstrListAdd(blist2, val);
+                    DEBUG_PRINT(DEBUGLEV_DEVELOP, "Variable updated for hwthread %d for key %s with value %s", thread->data->hwthread, bdata(&biterations), bdata(val));
+                }
+                bdestroy(val);
+            }
+        }
+    }
+    bstrListRemoveDup(blist1);
+    if (blist1->qty == 1 && biseq(blist1->entry[0], blist2->entry[0]))
+    {
+        printf("Iterations per thread: %s\n", bdata(blist1->entry[0]));
+    }
+    else
+    {
+        printf("Iterations per thread:");
+        bstrListPrint(blist2);
+    }
+    bstrListDestroy(blist1);
+    bstrListDestroy(blist2);
+
     for (int w = 0; w < num_wgroups; w++)
     {
         RuntimeWorkgroupConfig* wg = &wgroups[w];
