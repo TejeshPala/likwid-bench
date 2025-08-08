@@ -33,6 +33,7 @@ extern "C" }
     do { \
         if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \
         size_t iter = MIN_ITERATIONS; \
+        double min_runtime = ((data->runtime == -1.0) ? MIN_RUNTIME: data->runtime); \
         uint64_t runtime = 0; \
         int doubled = 0; \
         do { \
@@ -47,9 +48,9 @@ extern "C" }
             lb_timer_stop(&timedata); \
             lb_timer_as_ns(&timedata, &runtime); \
             lb_timer_close(&timedata); \
-            if (((double)runtime / NANOS_PER_SEC ) < MIN_RUNTIME) { iter <<= 1; doubled = 1; }\
+            if (((double)runtime / NANOS_PER_SEC ) < min_runtime) { iter <<= 1; doubled = 1; }\
             else { doubled = 0; } \
-        } while (((double)runtime / NANOS_PER_SEC ) < MIN_RUNTIME); \
+        } while (((double)runtime / NANOS_PER_SEC ) < min_runtime); \
         if (doubled) iter >>= 1; \
         myData->iters = iter; \
         if (data->barrier) pthread_barrier_wait(&data->barrier->barrier); \

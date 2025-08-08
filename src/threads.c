@@ -802,7 +802,7 @@ int update_threads(RuntimeConfig* runcfg)
             bdestroy(bthreads);
             bdestroy(btid);
             thread->codelines = NULL;
-            thread->runtime = 0.0;
+            thread->runtime = runcfg->runtime;
             thread->cycles = 0;
             thread->barrier = &wg->barrier;
             // printf("Num threads: %d\n", group->num_threads);
