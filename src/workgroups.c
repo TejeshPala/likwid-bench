@@ -23,7 +23,7 @@
 #define MAX(a, b) ((a > b) ? (a) : (b))
 
 
-void delete_workgroup(RuntimeWorkgroupConfig* wg)
+void delete_workgroup(RuntimeConfig* runcfg, RuntimeWorkgroupConfig* wg)
 {
     if (wg->results)
     {
@@ -47,6 +47,12 @@ void delete_workgroup(RuntimeWorkgroupConfig* wg)
     {
         bdestroy(wg->str);
         wg->str = NULL;
+    }
+    if (runcfg->global_results)
+    {
+        destroy_result(runcfg->global_results);
+        free(runcfg->global_results);
+        runcfg->global_results = NULL;
     }
 }
 
@@ -97,7 +103,7 @@ int resolve_workgroup(RuntimeWorkgroupConfig* wg, int maxThreads)
     return 0;
 }
 
-int allocate_workgroup_stuff(int detailed, RuntimeWorkgroupConfig* wg)
+int allocate_workgroup_stuff(RuntimeConfig* runcfg, int detailed, RuntimeWorkgroupConfig* wg)
 {
     int err = 0;
     if ((!wg) || (wg->num_threads <= 0) || (!wg->hwthreads))
@@ -116,6 +122,19 @@ int allocate_workgroup_stuff(int detailed, RuntimeWorkgroupConfig* wg)
     {
         bstats = bstats2;
         num_stats = stats2_count;
+    }
+
+    runcfg->global_results = malloc(sizeof(RuntimeWorkgroupResult));
+    if (!runcfg->global_results)
+    {
+        ERROR_PRINT("Unable to allocate memory for global results");
+        return -ENOMEM;
+    }
+    err = init_result(runcfg->global_results);
+    if (err < 0)
+    {
+        free(runcfg->global_results);
+        return err;
     }
 
     double value = 0.0;
@@ -137,6 +156,8 @@ int allocate_workgroup_stuff(int detailed, RuntimeWorkgroupConfig* wg)
             }
             free(wg->results);
             wg->results = NULL;
+            free(runcfg->global_results);
+            runcfg->global_results = NULL;
             return err;
         }
         for (int s = 0; s < num_stats; s++)
@@ -154,6 +175,8 @@ int allocate_workgroup_stuff(int detailed, RuntimeWorkgroupConfig* wg)
         }
         free(wg->results);
         wg->results = NULL;
+        free(runcfg->global_results);
+        runcfg->global_results = NULL;
         return -ENOMEM;
     }
     DEBUG_PRINT(DEBUGLEV_DEVELOP, "Init result storage for workgroup %s", bdata(wg->str));
@@ -168,12 +191,14 @@ int allocate_workgroup_stuff(int detailed, RuntimeWorkgroupConfig* wg)
         wg->results = NULL;
         free(wg->group_results);
         wg->group_results = NULL;
+        free(runcfg->global_results);
+        runcfg->global_results = NULL;
         return err;
     }
     return err;
 }
 
-int resolve_workgroups(int detailed, int num_wgroups, RuntimeWorkgroupConfig* wgroups)
+int resolve_workgroups(RuntimeConfig* runcfg, int detailed, int num_wgroups, RuntimeWorkgroupConfig* wgroups)
 {
     int hwthreads = get_num_hw_threads();
     if (hwthreads <= 0)
@@ -186,13 +211,13 @@ int resolve_workgroups(int detailed, int num_wgroups, RuntimeWorkgroupConfig* wg
         int err = resolve_workgroup(&wgroups[i], hwthreads);
         if (err == 0)
         {
-            err = allocate_workgroup_stuff(detailed, &wgroups[i]);
+            err = allocate_workgroup_stuff(runcfg, detailed, &wgroups[i]);
             if (err != 0)
             {
-                delete_workgroup(&wgroups[i]);
+                delete_workgroup(runcfg, &wgroups[i]);
                 for (int j = 0; j < i; j++)
                 {
-                    delete_workgroup(&wgroups[j]);
+                    delete_workgroup(runcfg, &wgroups[j]);
                 }
                 return err;
             }

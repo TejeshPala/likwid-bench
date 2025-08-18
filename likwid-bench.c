@@ -592,7 +592,7 @@ int main(int argc, char** argv)
     /*
      * Analyse workgroups
      */
-    err = resolve_workgroups(runcfg->detailed, runcfg->num_wgroups, runcfg->wgroups);
+    err = resolve_workgroups(runcfg, runcfg->detailed, runcfg->num_wgroups, runcfg->wgroups);
     if (err < 0)
     {
         ERROR_PRINT("Error resolving workgroups");
@@ -628,18 +628,6 @@ int main(int argc, char** argv)
      * Evaluate variables, constants, ... for remaining operations
      * There should be now all values available
      */
-    runcfg->global_results = malloc(sizeof(RuntimeWorkgroupResult));
-    if (!runcfg->global_results)
-    {
-        ERROR_PRINT("Unable to allocate memory for global results");
-        goto main_out;
-    }
-    err = init_result(runcfg->global_results);
-    if (err < 0)
-    {
-        ERROR_PRINT("Error initializing global result storage");
-        goto main_out;
-    }
     err = fill_results(runcfg);
     if (err < 0)
     {
