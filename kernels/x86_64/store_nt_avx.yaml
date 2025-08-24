@@ -1,0 +1,48 @@
+---
+- Name: store_nt_avx
+- Description: Double-precision store, using non-temporal stores AVX
+- RequireWorkgroup: true
+- FeatureFlag: 
+    - avx
+- Parameters:
+  - N:
+      description: Size of array that should be stored, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      initialization: rand
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+- Variables:
+  STORES_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 1
+  STORES_PER_ITER: 16
+  ELEMS_PER_ITER: 16
+  BYTES_PER_ITER: 128
+  INST_PER_ITER: 4
+  INST_LOOP: 7
+  UOPS_PER_ITER: 4
+  UOPS_LOOP: 6
+- Metrics:
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*(MEM_OPS_PER_ELEM))/time
+  Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
+  Total uops: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*UOPS_LOOP
+- Language: asm
+...
+LOOP(loop, rax=0, <, rdi=N, 16)
+vmovntpd    [STR0 + rax * 8]       , ymm0
+vmovntpd    [STR0 + rax * 8 + 32]  , ymm1
+vmovntpd    [STR0 + rax * 8 + 64]  , ymm2
+vmovntpd    [STR0 + rax * 8 + 96]  , ymm3
+LOOPEND(loop)
