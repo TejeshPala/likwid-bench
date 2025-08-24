@@ -1,0 +1,66 @@
+---
+- Name: copy_avx512
+- Description: Double-precision copy, optimized for AVX-512
+- RequireWorkgroup: true
+- FeatureFlag:
+    - avx512f
+- Parameters:
+  - N:
+      description: Size of array that should be copied, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      initialization: rand
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR1:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+- Variables:
+  LOADS_PER_ELEM: 1
+  STORES_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 2
+  LOADS_PER_ITER: 32
+  STORES_PER_ITER: 32
+  ELEMS_PER_ITER: 32
+  BYTES_PER_ITER: 512
+  INST_PER_ITER: 8
+  INST_LOOP: 11
+  UOPS_PER_ITER: 8
+  UOPS_LOOP: 10
+- Metrics:
+  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*MEM_OPS_PER_ELEM)/time
+  Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
+  Total uops: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*UOPS_LOOP
+- Language: asm
+...
+LOOP(loop, rax=0, <, rdi=N, 32)
+vmovapd    zmm0, [STR0 + rax * 8]
+vmovapd    zmm1, [STR0 + rax * 8 + 64]
+vmovapd    zmm2, [STR0 + rax * 8 + 128]
+vmovapd    zmm3, [STR0 + rax * 8 + 192]
+vmovapd    [STR1 + rax * 8]       , zmm0
+vmovapd    [STR1 + rax * 8 + 64]  , zmm1
+vmovapd    [STR1 + rax * 8 + 128] , zmm2
+vmovapd    [STR1 + rax * 8 + 192] , zmm3
+LOOPEND(loop)
