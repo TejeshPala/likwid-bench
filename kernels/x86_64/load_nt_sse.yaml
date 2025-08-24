@@ -1,9 +1,9 @@
 ---
-- Name: load
-- Description: Double-precision load, only scalar operations
+- Name: load_nt_sse
+- Description: Double-precision load, using non-temporal loads SSE
 - RequireWorkgroup: true
 - FeatureFlag:
-    - sse2
+    - sse4_1
 - Parameters:
   - N:
       description: Size of array that should be loaded, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
@@ -29,8 +29,8 @@
   LOADS_PER_ITER: 8
   ELEMS_PER_ITER: 8
   BYTES_PER_ITER: 64
-  INST_PER_ITER: 8
-  INST_LOOP: 11
+  INST_PER_ITER: 4
+  INST_LOOP: 7
   UOPS_PER_ITER: 8
   UOPS_LOOP: 10
 - Metrics:
@@ -41,12 +41,8 @@
 - Language: asm
 ...
 LOOP(loop, rax=0, <, rdi=N, 8)
-movsd    xmm0, [STR0 + rax * 8]
-movsd    xmm1, [STR0 + rax * 8 + 8]
-movsd    xmm2, [STR0 + rax * 8 + 16]
-movsd    xmm3, [STR0 + rax * 8 + 24]
-movsd    xmm4, [STR0 + rax * 8 + 32]
-movsd    xmm5, [STR0 + rax * 8 + 40]
-movsd    xmm6, [STR0 + rax * 8 + 48]
-movsd    xmm7, [STR0 + rax * 8 + 56]
+movntdqa    xmm0, [STR0 + rax * 8]
+movntdqa    xmm1, [STR0 + rax * 8 + 16]
+movntdqa    xmm2, [STR0 + rax * 8 + 32]
+movntdqa    xmm3, [STR0 + rax * 8 + 48]
 LOOPEND(loop)

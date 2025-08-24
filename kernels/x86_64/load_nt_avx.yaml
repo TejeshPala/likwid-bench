@@ -1,9 +1,9 @@
 ---
-- Name: load
-- Description: Double-precision load, only scalar operations
+- Name: load_nt_avx
+- Description: Double-precision load, using non-temporal loads AVX
 - RequireWorkgroup: true
 - FeatureFlag:
-    - sse2
+    - avx2
 - Parameters:
   - N:
       description: Size of array that should be loaded, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
@@ -26,11 +26,11 @@
 - Variables:
   LOADS_PER_ELEM: 1
   MEM_OPS_PER_ELEM: 1
-  LOADS_PER_ITER: 8
-  ELEMS_PER_ITER: 8
-  BYTES_PER_ITER: 64
-  INST_PER_ITER: 8
-  INST_LOOP: 11
+  LOADS_PER_ITER: 16
+  ELEMS_PER_ITER: 16
+  BYTES_PER_ITER: 128
+  INST_PER_ITER: 4
+  INST_LOOP: 7
   UOPS_PER_ITER: 8
   UOPS_LOOP: 10
 - Metrics:
@@ -40,13 +40,9 @@
   Total uops: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*UOPS_LOOP
 - Language: asm
 ...
-LOOP(loop, rax=0, <, rdi=N, 8)
-movsd    xmm0, [STR0 + rax * 8]
-movsd    xmm1, [STR0 + rax * 8 + 8]
-movsd    xmm2, [STR0 + rax * 8 + 16]
-movsd    xmm3, [STR0 + rax * 8 + 24]
-movsd    xmm4, [STR0 + rax * 8 + 32]
-movsd    xmm5, [STR0 + rax * 8 + 40]
-movsd    xmm6, [STR0 + rax * 8 + 48]
-movsd    xmm7, [STR0 + rax * 8 + 56]
+LOOP(loop, rax=0, <, rdi=N, 16)
+vmovntdqa    ymm0, [STR0 + rax * 8]
+vmovntdqa    ymm1, [STR0 + rax * 8 + 32]
+vmovntdqa    ymm2, [STR0 + rax * 8 + 64]
+vmovntdqa    ymm3, [STR0 + rax * 8 + 96]
 LOOPEND(loop)
