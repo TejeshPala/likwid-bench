@@ -1,0 +1,98 @@
+---
+- Name: triad_nt_sse
+- Description: Double-precision triad A[i] = B[i] * C[i] + D[i], optimized for SSE and non-temporal stores
+- RequireWorkgroup: true
+- FeatureFlag:
+    - sse2
+- Parameters:
+  - N:
+      description: Size of array that should be copied, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      initialization: rand
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR1:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR2:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR3:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+- Variables:
+  LOADS_PER_ELEM: 3
+  STORES_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 4
+  LOADS_PER_ITER: 24
+  STORES_PER_ITER: 8
+  ELEMS_PER_ITER: 8
+  BYTES_PER_ITER: 256
+  INST_PER_ITER: 16
+  INST_LOOP: 19
+  UOPS_PER_ITER: 16
+  UOPS_LOOP: 18
+  FLOPS_PER_ITER: 2
+- Metrics:
+  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*(MEM_OPS_PER_ELEM))/time
+  Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
+  Total uops: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*UOPS_LOOP
+  Total flops [MFlops/s]: (1.0E-06*ITER*((N/SIZEOF_DOUBLE)/NUM_THREADS)*(FLOPS_PER_ITER))/time
+- Language: asm
+...
+LOOP(loop, rax=0, <, rdi=N, 8)
+movapd  xmm0, [STR1 + rax * 8]
+movapd  xmm1, [STR1 + rax * 8 + 16]
+movapd  xmm2, [STR1 + rax * 8 + 32]
+movapd  xmm3, [STR1 + rax * 8 + 48]
+mulpd   xmm0, [STR2 + rax * 8]
+mulpd   xmm1, [STR2 + rax * 8 + 16]
+mulpd   xmm2, [STR2 + rax * 8 + 32]
+mulpd   xmm3, [STR2 + rax * 8 + 48]
+addpd   xmm0, [STR3 + rax * 8]
+addpd   xmm1, [STR3 + rax * 8 + 16]
+addpd   xmm2, [STR3 + rax * 8 + 32]
+addpd   xmm3, [STR3 + rax * 8 + 48]
+movntpd [STR0 + rax * 8]        , xmm0
+movntpd [STR0 + rax * 8 + 16]   , xmm1
+movntpd [STR0 + rax * 8 + 32]   , xmm2
+movntpd [STR0 + rax * 8 + 48]   , xmm3
+LOOPEND(loop)

@@ -1,0 +1,102 @@
+---
+- Name: triad_nt_avx_fma
+- Description: Double-precision triad A[i] = B[i] * C[i] + D[i], optimized for AVX FMAs and non-temporal stores
+- RequireWorkgroup: true
+- FeatureFlag:
+    - avx512vl
+    - avx512f
+    - avx
+    - fma
+    - sse2
+- Parameters:
+  - N:
+      description: Size of array that should be copied, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      initialization: rand
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR1:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR2:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR3:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+- Variables:
+  LOADS_PER_ELEM: 3
+  STORES_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 4
+  LOADS_PER_ITER: 48
+  STORES_PER_ITER: 16
+  ELEMS_PER_ITER: 16
+  BYTES_PER_ITER: 512
+  INST_PER_ITER: 16
+  INST_LOOP: 19
+  UOPS_PER_ITER: 20
+  UOPS_LOOP: 22
+  FLOPS_PER_ITER: 2
+- Metrics:
+  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*(MEM_OPS_PER_ELEM))/time
+  Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
+  Total uops: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*UOPS_LOOP
+  Total flops [MFlops/s]: (1.0E-06*ITER*((N/SIZEOF_DOUBLE)/NUM_THREADS)*(FLOPS_PER_ITER))/time
+- Language: asm
+...
+LOOP(loop, rax=0, <, rdi=N, 16)
+vmovapd     ymm0, [STR1 + rax * 8]
+vmovapd     ymm1, [STR1 + rax * 8 + 32]
+vmovapd     ymm2, [STR1 + rax * 8 + 64]
+vmovapd     ymm3, [STR1 + rax * 8 + 96]
+vmovapd     ymm4, [STR2 + rax * 8]
+vmovapd     ymm5, [STR2 + rax * 8 + 32]
+vmovapd     ymm6, [STR2 + rax * 8 + 64]
+vmovapd     ymm7, [STR2 + rax * 8 + 96]
+vfmadd213pd ymm0, ymm4, [STR3 + rax * 8]
+vfmadd213pd ymm1, ymm5, [STR3 + rax * 8 + 32]
+vfmadd213pd ymm2, ymm6, [STR3 + rax * 8 + 64]
+vfmadd213pd ymm3, ymm7, [STR3 + rax * 8 + 96]
+vmovntpd    [STR0 + rax * 8]        , ymm0
+vmovntpd    [STR0 + rax * 8 + 32]   , ymm1
+vmovntpd    [STR0 + rax * 8 + 64]   , ymm2
+vmovntpd    [STR0 + rax * 8 + 96]   , ymm3
+LOOPEND(loop)

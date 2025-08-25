@@ -1,0 +1,98 @@
+---
+- Name: triad_avx512
+- Description: Double-precision triad A[i] = B[i] * C[i] + D[i], optimized for AVX-512
+- RequireWorkgroup: true
+- FeatureFlag:
+    - avx512f
+- Parameters:
+  - N:
+      description: Size of array that should be copied, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      initialization: rand
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR1:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR2:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR3:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+- Variables:
+  LOADS_PER_ELEM: 3
+  STORES_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 4
+  LOADS_PER_ITER: 96
+  STORES_PER_ITER: 32
+  ELEMS_PER_ITER: 32
+  BYTES_PER_ITER: 1024
+  INST_PER_ITER: 16
+  INST_LOOP: 19
+  UOPS_PER_ITER: 24
+  UOPS_LOOP: 26
+  FLOPS_PER_ITER: 2
+- Metrics:
+  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*(MEM_OPS_PER_ELEM))/time
+  Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
+  Total uops: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*UOPS_LOOP
+  Total flops [MFlops/s]: (1.0E-06*ITER*((N/SIZEOF_DOUBLE)/NUM_THREADS)*(FLOPS_PER_ITER))/time
+- Language: asm
+...
+LOOP(loop, rax=0, <, rdi=N, 32)
+vmovapd  zmm0, [STR1 + rax * 8]
+vmovapd  zmm1, [STR1 + rax * 8 + 64]
+vmovapd  zmm2, [STR1 + rax * 8 + 128]
+vmovapd  zmm3, [STR1 + rax * 8 + 192]
+vmulpd   zmm0, zmm0, [STR2 + rax * 8]
+vmulpd   zmm1, zmm1, [STR2 + rax * 8 + 64]
+vmulpd   zmm2, zmm2, [STR2 + rax * 8 + 128]
+vmulpd   zmm3, zmm3, [STR2 + rax * 8 + 192]
+vaddpd   zmm0, zmm0, [STR3 + rax * 8]
+vaddpd   zmm1, zmm1, [STR3 + rax * 8 + 64]
+vaddpd   zmm2, zmm2, [STR3 + rax * 8 + 128]
+vaddpd   zmm3, zmm3, [STR3 + rax * 8 + 192]
+vmovapd  [STR0 + rax * 8]       , zmm0
+vmovapd  [STR0 + rax * 8 + 64]  , zmm1
+vmovapd  [STR0 + rax * 8 + 128] , zmm2
+vmovapd  [STR0 + rax * 8 + 192] , zmm3
+LOOPEND(loop)
