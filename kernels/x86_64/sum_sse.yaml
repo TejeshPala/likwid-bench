@@ -1,0 +1,54 @@
+---
+- Name: sum_sse
+- Description: Double-precision sum of a vector, optimized for SSE
+- RequireWorkgroup: true
+- FeatureFlag:
+    - sse2
+- Parameters:
+  - N:
+      description: Size of array that should be loaded, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      initialization: rand
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+- Variables:
+  LOADS_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 1
+  LOADS_PER_ITER: 8
+  ELEMS_PER_ITER: 16
+  BYTES_PER_ITER: 128
+  UOPS_PER_ITER: 8
+  UOPS_LOOP: 11
+  INST_PER_ITER: 8
+  INST_LOOP: 10
+  FLOPS_PER_ITER: 1
+- Metrics:
+  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*(MEM_OPS_PER_ELEM))/time
+  Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
+  Total uops: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*UOPS_LOOP
+  Total flops [MFlops/s]: (1.0E-06*ITER*((N/SIZEOF_DOUBLE)/NUM_THREADS)*(FLOPS_PER_ITER))/time
+- Language: asm
+...
+LOOP(loop, rax=0, <, rdi=N, 16)
+addpd    xmm0, [STR0 + rax * 8]
+addpd    xmm1, [STR0 + rax * 8 + 16]
+addpd    xmm2, [STR0 + rax * 8 + 32]
+addpd    xmm3, [STR0 + rax * 8 + 48]
+addpd    xmm4, [STR0 + rax * 8 + 64]
+addpd    xmm5, [STR0 + rax * 8 + 80]
+addpd    xmm6, [STR0 + rax * 8 + 96]
+addpd    xmm7, [STR0 + rax * 8 + 112]
+LOOPEND(loop)
