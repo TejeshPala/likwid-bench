@@ -1,0 +1,90 @@
+---
+- Name: stream_avx
+- Description: Double-precision stream triad A[i] = B[i] + d * C[i], optimized for AVX
+- RequireWorkgroup: true
+- FeatureFlag:
+    - avx
+    - avx512f
+    - avx512vl
+- Parameters:
+  - N:
+      description: Size of array that should be copied, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      initialization: rand
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR1:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR2:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+- Variables:
+  LOADS_PER_ELEM: 2
+  STORES_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 3
+  LOADS_PER_ITER: 32
+  STORES_PER_ITER: 16
+  ELEMS_PER_ITER: 16
+  BYTES_PER_ITER: 384
+  INST_PER_ITER: 16
+  INST_LOOP: 19
+  UOPS_PER_ITER: 20
+  UOPS_LOOP: 22
+  FLOPS_PER_ITER: 2
+- Metrics:
+  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*(MEM_OPS_PER_ELEM))/time
+  Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
+  Total uops: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*UOPS_LOOP
+  Total flops [MFlops/s]: (1.0E-06*ITER*((N/SIZEOF_DOUBLE)/NUM_THREADS)*(FLOPS_PER_ITER))/time
+- Language: asm
+...
+vmovapd    ymm4, [rip + SCALAR]
+LOOP(loop, rax=0, <, rdi=N, 16)
+vmovapd    ymm0, [STR1 + rax * 8]
+vmovapd    ymm1, [STR1 + rax * 8 + 32]
+vmovapd    ymm2, [STR1 + rax * 8 + 64]
+vmovapd    ymm3, [STR1 + rax * 8 + 96]
+vmulpd     ymm0, ymm0, ymm4
+vmulpd     ymm1, ymm1, ymm4
+vmulpd     ymm2, ymm2, ymm4
+vmulpd     ymm3, ymm3, ymm4
+vaddpd     ymm0, ymm0, [STR2 + rax * 8]
+vaddpd     ymm1, ymm1, [STR2 + rax * 8 + 32]
+vaddpd     ymm2, ymm2, [STR2 + rax * 8 + 64]
+vaddpd     ymm3, ymm3, [STR2 + rax * 8 + 96]
+vmovapd    [STR0 + rax * 8]        , ymm0
+vmovapd    [STR0 + rax * 8 + 32]   , ymm1
+vmovapd    [STR0 + rax * 8 + 64]   , ymm2
+vmovapd    [STR0 + rax * 8 + 96]   , ymm3
+LOOPEND(loop)
