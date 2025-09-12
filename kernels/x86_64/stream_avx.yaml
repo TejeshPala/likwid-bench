@@ -4,8 +4,6 @@
 - RequireWorkgroup: true
 - FeatureFlag:
     - avx
-    - avx512f
-    - avx512vl
 - Parameters:
   - N:
       description: Size of array that should be copied, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
