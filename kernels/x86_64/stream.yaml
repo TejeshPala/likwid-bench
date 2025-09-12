@@ -1,0 +1,88 @@
+---
+- Name: stream
+- Description: Double-precision stream triad A[i] = B[i] + d * C[i], only scalar operations
+- RequireWorkgroup: true
+- FeatureFlag:
+    - sse2
+- Parameters:
+  - N:
+      description: Size of array that should be copied, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      initialization: rand
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR1:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR2:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+- Variables:
+  LOADS_PER_ELEM: 2
+  STORES_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 3
+  LOADS_PER_ITER: 8
+  STORES_PER_ITER: 4
+  ELEMS_PER_ITER: 4
+  BYTES_PER_ITER: 96
+  INST_PER_ITER: 16
+  INST_LOOP: 19
+  UOPS_PER_ITER: 16
+  UOPS_LOOP: 18
+  FLOPS_PER_ITER: 2
+- Metrics:
+  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*(MEM_OPS_PER_ELEM))/time
+  Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
+  Total uops: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*UOPS_LOOP
+  Total flops [MFlops/s]: (1.0E-06*ITER*((N/SIZEOF_DOUBLE)/NUM_THREADS)*(FLOPS_PER_ITER))/time
+- Language: asm
+...
+movsd    xmm4, [rip + SCALAR]
+LOOP(loop, rax=0, <, rdi=N, 4)
+movsd    xmm0, [STR1 + rax * 8]
+movsd    xmm1, [STR1 + rax * 8 + 8]
+movsd    xmm2, [STR1 + rax * 8 + 16]
+movsd    xmm3, [STR1 + rax * 8 + 24]
+mulsd    xmm0, xmm4
+mulsd    xmm1, xmm4
+mulsd    xmm2, xmm4
+mulsd    xmm3, xmm4
+addsd    xmm0, [STR2 + rax * 8]
+addsd    xmm1, [STR2 + rax * 8 + 8]
+addsd    xmm2, [STR2 + rax * 8 + 16]
+addsd    xmm3, [STR2 + rax * 8 + 24]
+movsd    [STR0 + rax * 8]       , xmm0
+movsd    [STR0 + rax * 8 + 8]   , xmm1
+movsd    [STR0 + rax * 8 + 16]  , xmm2
+movsd    [STR0 + rax * 8 + 24]  , xmm3
+LOOPEND(loop)

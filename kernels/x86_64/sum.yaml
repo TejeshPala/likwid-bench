@@ -1,6 +1,6 @@
 ---
-- Name: load
-- Description: Double-precision load, only scalar operations
+- Name: sum
+- Description: Double-precision sum of a vector, only scalar operations
 - RequireWorkgroup: true
 - FeatureFlag:
     - sse2
@@ -33,20 +33,22 @@
   INST_LOOP: 11
   UOPS_PER_ITER: 8
   UOPS_LOOP: 10
+  FLOPS_PER_ITER: 1
 - Metrics:
   Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
   Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*(MEM_OPS_PER_ELEM))/time
   Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
   Total uops: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*UOPS_LOOP
+  Total flops [MFlops/s]: (1.0E-06*ITER*((N/SIZEOF_DOUBLE)/NUM_THREADS)*(FLOPS_PER_ITER))/time
 - Language: asm
 ...
 LOOP(loop, rax=0, <, rdi=N, 8)
-movsd    xmm0, [STR0 + rax * 8]
-movsd    xmm1, [STR0 + rax * 8 + 8]
-movsd    xmm2, [STR0 + rax * 8 + 16]
-movsd    xmm3, [STR0 + rax * 8 + 24]
-movsd    xmm4, [STR0 + rax * 8 + 32]
-movsd    xmm5, [STR0 + rax * 8 + 40]
-movsd    xmm6, [STR0 + rax * 8 + 48]
-movsd    xmm7, [STR0 + rax * 8 + 56]
+addsd    xmm0, [STR0 + rax * 8]
+addsd    xmm1, [STR0 + rax * 8 + 8]
+addsd    xmm2, [STR0 + rax * 8 + 16]
+addsd    xmm3, [STR0 + rax * 8 + 24]
+addsd    xmm4, [STR0 + rax * 8 + 32]
+addsd    xmm5, [STR0 + rax * 8 + 40]
+addsd    xmm6, [STR0 + rax * 8 + 48]
+addsd    xmm7, [STR0 + rax * 8 + 56]
 LOOPEND(loop)

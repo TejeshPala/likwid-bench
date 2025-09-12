@@ -1,0 +1,77 @@
+---
+- Name: daxpy_sse
+- Description: Double-precision linear combination of two vectors y[i] = a * x[i] + y[i], optimized for SSE
+- RequireWorkgroup: true
+- FeatureFlag:
+    - sse
+- Parameters:
+  - N:
+      description: Size of array that should be copied, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      initialization: rand
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR1:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+- Variables:
+  LOADS_PER_ELEM: 2
+  STORES_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 3
+  LOADS_PER_ITER: 16
+  STORES_PER_ITER: 8
+  ELEMS_PER_ITER: 8
+  BYTES_PER_ITER: 192
+  INST_PER_ITER: 16
+  INST_LOOP: 19
+  UOPS_PER_ITER: 16
+  UOPS_LOOP: 18
+  FLOPS_PER_ITER: 2
+- Metrics:
+  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*(MEM_OPS_PER_ELEM))/time
+  Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
+  Total uops: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*UOPS_LOOP
+  Total flops [MFlops/s]: (1.0E-06*ITER*((N/SIZEOF_DOUBLE)/NUM_THREADS)*(FLOPS_PER_ITER))/time
+- Language: asm
+...
+movapd  xmm4, [rip + SCALAR] 
+LOOP(loop, rax=0, <, rdi=N, 8)
+movapd  xmm0, [STR0 + rax * 8]
+movapd  xmm1, [STR0 + rax * 8 + 16]
+movapd  xmm2, [STR0 + rax * 8 + 32]
+movapd  xmm3, [STR0 + rax * 8 + 48]
+mulpd   xmm0, xmm4
+mulpd   xmm1, xmm4
+mulpd   xmm2, xmm4
+mulpd   xmm3, xmm4
+addpd   xmm0, [STR1 + rax * 8]
+addpd   xmm1, [STR1 + rax * 8 + 16]
+addpd   xmm2, [STR1 + rax * 8 + 32]
+addpd   xmm3, [STR1 + rax * 8 + 48]
+movapd  [STR1 + rax * 8]        , xmm0
+movapd  [STR1 + rax * 8 + 16]   , xmm1
+movapd  [STR1 + rax * 8 + 32]   , xmm2
+movapd  [STR1 + rax * 8 + 48]   , xmm3
+LOOPEND(loop)

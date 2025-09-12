@@ -1,12 +1,12 @@
 ---
-- Name: load
-- Description: Double-precision load, only scalar operations
+- Name: update_avx
+- Description: Double-precision vector update, optimized for AVX
 - RequireWorkgroup: true
 - FeatureFlag:
-    - sse2
+    - avx
 - Parameters:
   - N:
-      description: Size of array that should be loaded, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      description: Size of array that should be copied, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
       options:
         - bytes
         - required
@@ -25,28 +25,31 @@
         - N/NUM_THREADS
 - Variables:
   LOADS_PER_ELEM: 1
-  MEM_OPS_PER_ELEM: 1
-  LOADS_PER_ITER: 8
-  ELEMS_PER_ITER: 8
-  BYTES_PER_ITER: 64
+  STORES_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 2
+  LOADS_PER_ITER: 16
+  STORES_PER_ITER: 16
+  ELEMS_PER_ITER: 16
+  BYTES_PER_ITER: 256
   INST_PER_ITER: 8
   INST_LOOP: 11
   UOPS_PER_ITER: 8
   UOPS_LOOP: 10
 - Metrics:
   Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
   Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*(MEM_OPS_PER_ELEM))/time
   Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
   Total uops: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*UOPS_LOOP
 - Language: asm
 ...
-LOOP(loop, rax=0, <, rdi=N, 8)
-movsd    xmm0, [STR0 + rax * 8]
-movsd    xmm1, [STR0 + rax * 8 + 8]
-movsd    xmm2, [STR0 + rax * 8 + 16]
-movsd    xmm3, [STR0 + rax * 8 + 24]
-movsd    xmm4, [STR0 + rax * 8 + 32]
-movsd    xmm5, [STR0 + rax * 8 + 40]
-movsd    xmm6, [STR0 + rax * 8 + 48]
-movsd    xmm7, [STR0 + rax * 8 + 56]
+LOOP(loop, rax=0, <, rdi=N, 16)
+vmovapd    ymm0, [STR0 + rax * 8]
+vmovapd    ymm1, [STR0 + rax * 8 + 32]
+vmovapd    ymm2, [STR0 + rax * 8 + 64]
+vmovapd    ymm3, [STR0 + rax * 8 + 96]
+vmovapd    [STR0 + rax * 8]         , ymm0
+vmovapd    [STR0 + rax * 8 + 32]    , ymm1
+vmovapd    [STR0 + rax * 8 + 64]    , ymm2
+vmovapd    [STR0 + rax * 8 + 96]    , ymm3
 LOOPEND(loop)

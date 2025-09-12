@@ -1,12 +1,12 @@
 ---
-- Name: load
-- Description: Double-precision load, only scalar operations
+- Name: sum_avx512
+- Description: Double-precision sum of a vector, optimized for AVX-512
 - RequireWorkgroup: true
 - FeatureFlag:
-    - sse2
+    - avx512f
 - Parameters:
   - N:
-      description: Size of array that should be loaded, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      description: Size of array that should be loaded, Possible Values - B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
       options:
         - bytes
         - required
@@ -27,26 +27,28 @@
   LOADS_PER_ELEM: 1
   MEM_OPS_PER_ELEM: 1
   LOADS_PER_ITER: 8
-  ELEMS_PER_ITER: 8
-  BYTES_PER_ITER: 64
+  ELEMS_PER_ITER: 64
+  BYTES_PER_ITER: 512
   INST_PER_ITER: 8
   INST_LOOP: 11
-  UOPS_PER_ITER: 8
-  UOPS_LOOP: 10
+  UOPS_PER_ITER: 16
+  UOPS_LOOP: 18
+  FLOPS_PER_ITER: 1
 - Metrics:
   Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
   Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*(MEM_OPS_PER_ELEM))/time
   Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
   Total uops: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*UOPS_LOOP
+  Total flops [MFlops/s]: (1.0E-06*ITER*((N/SIZEOF_DOUBLE)/NUM_THREADS)*(FLOPS_PER_ITER))/time
 - Language: asm
 ...
-LOOP(loop, rax=0, <, rdi=N, 8)
-movsd    xmm0, [STR0 + rax * 8]
-movsd    xmm1, [STR0 + rax * 8 + 8]
-movsd    xmm2, [STR0 + rax * 8 + 16]
-movsd    xmm3, [STR0 + rax * 8 + 24]
-movsd    xmm4, [STR0 + rax * 8 + 32]
-movsd    xmm5, [STR0 + rax * 8 + 40]
-movsd    xmm6, [STR0 + rax * 8 + 48]
-movsd    xmm7, [STR0 + rax * 8 + 56]
+LOOP(loop, rax=0, <, rdi=N, 64)
+vaddpd    zmm0, zmm0, [STR0 + rax * 8]
+vaddpd    zmm1, zmm1, [STR0 + rax * 8 + 64]
+vaddpd    zmm2, zmm2, [STR0 + rax * 8 + 128]
+vaddpd    zmm3, zmm3, [STR0 + rax * 8 + 192]
+vaddpd    zmm4, zmm4, [STR0 + rax * 8 + 256]
+vaddpd    zmm5, zmm5, [STR0 + rax * 8 + 320]
+vaddpd    zmm6, zmm6, [STR0 + rax * 8 + 384]
+vaddpd    zmm7, zmm7, [STR0 + rax * 8 + 448]
 LOOPEND(loop)

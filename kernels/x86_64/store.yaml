@@ -1,12 +1,12 @@
 ---
-- Name: load
-- Description: Double-precision load, only scalar operations
+- Name: store
+- Description: Double-precision store, only scalar operations
 - RequireWorkgroup: true
-- FeatureFlag:
+- FeatureFlag: 
     - sse2
 - Parameters:
   - N:
-      description: Size of array that should be loaded, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      description: Size of array that should be stored, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
       options:
         - bytes
         - required
@@ -24,9 +24,9 @@
       sizes:
         - N/NUM_THREADS
 - Variables:
-  LOADS_PER_ELEM: 1
+  STORES_PER_ELEM: 1
   MEM_OPS_PER_ELEM: 1
-  LOADS_PER_ITER: 8
+  STORES_PER_ITER: 8
   ELEMS_PER_ITER: 8
   BYTES_PER_ITER: 64
   INST_PER_ITER: 8
@@ -34,19 +34,19 @@
   UOPS_PER_ITER: 8
   UOPS_LOOP: 10
 - Metrics:
-  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
   Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*(MEM_OPS_PER_ELEM))/time
   Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
   Total uops: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*UOPS_LOOP
 - Language: asm
 ...
 LOOP(loop, rax=0, <, rdi=N, 8)
-movsd    xmm0, [STR0 + rax * 8]
-movsd    xmm1, [STR0 + rax * 8 + 8]
-movsd    xmm2, [STR0 + rax * 8 + 16]
-movsd    xmm3, [STR0 + rax * 8 + 24]
-movsd    xmm4, [STR0 + rax * 8 + 32]
-movsd    xmm5, [STR0 + rax * 8 + 40]
-movsd    xmm6, [STR0 + rax * 8 + 48]
-movsd    xmm7, [STR0 + rax * 8 + 56]
+movsd    [STR0 + rax * 8]       , xmm0
+movsd    [STR0 + rax * 8 + 8]   , xmm1
+movsd    [STR0 + rax * 8 + 16]  , xmm2
+movsd    [STR0 + rax * 8 + 24]  , xmm3
+movsd    [STR0 + rax * 8 + 32]  , xmm4
+movsd    [STR0 + rax * 8 + 40]  , xmm5
+movsd    [STR0 + rax * 8 + 48]  , xmm6
+movsd    [STR0 + rax * 8 + 56]  , xmm7
 LOOPEND(loop)
