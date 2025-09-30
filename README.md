@@ -1,81 +1,92 @@
 # likwid-bench
 
-New version of likwid-bench
+A reengineered **likwid-bench** for HPC microbenchmarking.
 
-## Getting started
+## Introduction
 
-The new version of likwid-bench should contain some more features than the old likwid-bench:
-- Multi-dimensional data structures
-- Benchmark kernel related metrics
-- Benchmark kernel definition in YAML files
-- No external dependency (when compiled without LIKWID MarkerAPI support)
+This project is a re-engineered implementation of the classic [`likwid-bench`](https://github.com/RRZE-HPC/likwid) microbenchmarking tool.
+It is designed to be **modular, extensible, and research-friendly**, with a focus on reproducibility and integration into HPC environments.
+
+Key highlights:
+- Multi-dimensional data structures for more realistic workload modeling
+- Kernel-related metrics collection and analysis
+- Kernel definitions via **YAML files** for simpler extension
+- No external dependency (unless compiled with LIKWID MarkerAPI support, required for Hardware PMC's)
 
 ## Building
 
-The build can be configured in the file `config.mk` like compiler to use, installation paths and features. By default, the GCC compiler is used. If you want to change settings for a compiler, check the appropriate `make/include_$(COMPILER).mk` file.
+Configuration is controlled through the `config.mk` file.
+You can customize:
+- Compiler selection (default: **GCC**, to change settings for a compiler, check `make/include_$(COMPILER).mk`)
+- Installation paths
+- Optional features (e.g., LIKWID MarkerAPI support)
 
+To build it call:
 ```
 $ make
-$ ./likwid-bench -h
-###########################################
-# likwid-bench - Micro-benchmarking suite #
-###########################################
-Option:
- -h/--help              : Print usage
- -V/--verbose           : Verbosity level (0 - 3)
- -t/--test <str>        : Name of testcase
- -f/--file <str>        : Filename for testcase
- -K/--kfolder <str>     : Benchmark folder
- -i/--iterations <str>  : Number of iterations for execution (either iterations/ runtime is allowed at a time)
- -r/--runtime <time>    : Runtime of benchmark (default in s, accepts ms, s, m, h, automatically determines iterations)
-
-With the testcase name or the filename, the options might expand if the benchmark requires more input
-
- -w/--workgroup <str>  : A workgroup definition like S0:2 (multiple options allowed)
-
-likwid-bench automatically detects the number of iterations (if not given) for the given or default
-runtime.
 ```
 
-## Running a benchmark kernel
+## Usage
 
-If you want a list of all provided kernels, check the folder `kernels/$(ARCHITECTURE)`.
+You can get help message with
+```
+$ ./likwid-bench -h
+---------------------------------------
+likwid-bench - Micro-benchmarking suite
+---------------------------------------
+Option:
+	-h/--help               : Help text and usage = '1'
+	-a/--all                : List available benchmarks
+	-V/--verbose            : Verbosity level (0 - 3)
+	-t/--test               : Test name
+	-f/--file               : Test file
+	-K/--kfolder            : Folder with test files to search for test name
+	-D/--tmpfolder          : Temporary folder for the object files
+	-i/--iterations         : Iterations
+	-C/--compiler           : Select compiler (gcc, icc, icx, clang)
+	-r/--runtime            : Possible Units: ms, s, m, h. Default: s. Runtime
+	-o/--output             : Set output: 'stdout', 'stderr' or a filename
+	-O/--csv                : Output results in CSV format
+	-J/--json               : Output results in JSON format
+	-d/--detailed           : Output detailed results (cycles and frequency will be printed)
+	-p/--printdomains       : List available domains available on the architecture
+```
+
+likwid-bench automatically detects the number of iterations (if not given) for the given or default runtime.
+Either runtime or iterations can be set at the time of execution.
+
+If you want a list of all provided kernels, run `$ ./likwid-bench -a`.
 
 Kernels may define new parameters for the command line. To get the output for a kernel, specify it with `-t testname` or `-f yamlfile` and add `--help`.
-
 ```
 $ ./likwid-bench -t <kernel> -h
-###########################################
-# likwid-bench - Micro-benchmarking suite #
-###########################################
-
- -h/--help              : Print usage
- -V/--verbose           : Verbosity level (0 - 3)
- -t/--test <str>        : Name of testcase
- -f/--file <str>        : Filename for testcase
- -K/--kfolder <str>     : Benchmark folder
- -i/--iterations <str>  : Number of iterations for execution (either iterations/ runtime is allowed at a time)
- -r/--runtime <time>    : Runtime of benchmark (default in s, accepts ms, s, m, h, automatically determines iterations)
-
-likwid-bench automatically detects the number of iterations (if not given) for the given or default
-runtime.
-
- -w/--workgroup <str>   : A workgroup definition like S0:2 (multiple options allowed)
- -N <value>             : Size of array that should be loaded (Options: kb, MB, GB, TB required)
+---------------------------------------
+likwid-bench - Micro-benchmarking suite
+---------------------------------------
+Options:
+	-h/--help               : Help text and usage = '1'
+	-a/--all                : List available benchmarks
+	-V/--verbose            : Verbosity level (0 - 3)
+	-t/--test               : Test name = 'load'
+	-f/--file               : Test file
+	-K/--kfolder            : Folder with test files to search for test name
+	-D/--tmpfolder          : Temporary folder for the object files
+	-i/--iterations         : Iterations
+	-C/--compiler           : Select compiler (gcc, icc, icx, clang)
+	-r/--runtime            : Possible Units: ms, s, m, h. Default: s. Runtime
+	-o/--output             : Set output: 'stdout', 'stderr' or a filename
+	-O/--csv                : Output results in CSV format
+	-J/--json               : Output results in JSON format
+	-d/--detailed           : Output detailed results (cycles and frequency will be printed)
+	-p/--printdomains       : List available domains available on the architecture
+---------------------------------------
+Commandline options for kernel '<kernel>'
+---------------------------------------
+Options:
+	-w/--workgroup          : Workgroup definition
+	-N/--N                  : Size of array that should be loaded, Possible Values -  B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
 ```
 
-
-
-## Development plan
-
-- [x] Parsing of workgroup(s) `S0:2`
-- [x] Compile assembly from YAML file to object code
-- [x] Allocate streams with given sizes
-- [x] Create threads according to workgroup(s)
-- [ ] Run benchmark (`dlopen`, etc.)
-- [ ] Evaluate given metrics using given variables and runtime measurements
-- [ ] Print out results in various formats
-
-## Decisions
-- YAML instead of JSON. The parser is much simpler and integrated. With JSON, there would be a dependency to a JSON parser lib like [JSMN](https://github.com/zserge/jsmn). It's valid YAML but quite similar to the PTT format used before.
-
+Running a benchmark kernel with 1GB array dimension:
+- iterations set to 100 `$ ./likwid-bench -t <kernel> -N 1GB -i 100 -w N:0-71` on 72 threads physical threads
+- runtime set to 5.0s `$ ./likwid-bench -t <kernel> -N 1GB -r 5.0s -w S0:0-9` on Socket 1 with 10 threads
