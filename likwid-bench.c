@@ -43,7 +43,7 @@ extern "C" }
 int global_verbosity = DEBUGLEV_ONLY_ERROR;
 #endif
 
-static struct tagbstring app_title = bsStatic("likwid-bench");
+static struct tagbstring app_title = bsStatic("likwid-bench - Micro-benchmarking suite");
 
 static RuntimeConfig* global_runcfg = NULL;
 
