@@ -160,8 +160,8 @@ int loopheader(struct bstrList* code, bstring loopname, bstring loopreg, bstring
 
         // bstrListAddChar(code, "whilelo  p0.d, GPR6, ARG1");
         bstring whilelo = bformat("whilelo p0.d, %s, %s", bdata(loopreg), bdata(condreg));
-        bstrListAdd(code, ptrue);
-        bdestroy(ptrue);
+        bstrListAdd(code, whilelo);
+        bdestroy(whilelo);
 
         for (int i = 0; i < 6; i++)
         {
