@@ -88,10 +88,14 @@ static inline uint64_t _rd_tsc()
 
 #elif defined(__aarch64__) || defined(__arm__)
 #include <arm_neon.h>
+#include <arm_sve.h>
 static inline uint64_t _rd_cf(void)
 {
-    uint64_t cf;
-    __asm__ __volatile__("dsb ish; isb; mrs %0, cntfrq_el0" : "=r" (cf) : : "memory");
+    static uint64_t cf;
+    if (__builtin_expect(cf == 0, 0))
+    {
+        __asm__ __volatile__("dsb ish; isb; mrs %0, cntfrq_el0" : "=r" (cf) : : "memory");
+    }
     return cf;
 }
 
@@ -209,24 +213,29 @@ static inline uint64_t _rd_freq(TimerDataLB* tdata)
                 freq = 0ULL;
                 break;
             case TIMER_RDTSC:
+#if defined(__x86_64) || defined(__i386__) || defined(__x86_64__)
                 for (int i = 0; i < iters; i++)
                 {
-#if defined(__x86_64) || defined(__i386__) || defined(__x86_64__)
                     start = _rd_tsc();
                     lb_timer_sleep(NANOS_PER_SEC);
                     end = _rd_tsc();
                     measure[i] = end - start;
+                    sum += measure[i];
+                }
+                freq = (double)sum / iters;
 #elif defined(__aarch64__) || defined(__arm__)
-                    measure[i] = _rd_cf();
+                freq = _rd_cf();
 #elif defined(__powerpc) || defined(__ppc__) || defined(__PPC__)
+                for (int i = 0; i < iters; i++)
+                {
                     start = _rd_timebase();
                     lb_timer_sleep(NANOS_PER_SEC);
                     end = _rd_timebase();
                     measure[i] = end - start;
-#endif
                     sum += measure[i];
                 }
                 freq = (double)sum / iters;
+#endif
                 break;
         }
     }
@@ -264,7 +273,7 @@ int lb_timer_as_ns(TimerDataLB* tdata, uint64_t *ns)
         return -EINVAL;
     }
     uint64_t diff = 0ULL;
-    if (tdata->stop.uint64 <= 0ULL && tdata->start.uint64 <= 0ULL && (tdata->stop.uint64 <= tdata->start.uint64))
+    if (tdata->stop.uint64 == 0ULL || tdata->start.uint64 == 0ULL || (tdata->stop.uint64 <= tdata->start.uint64))
     {
         ERROR_PRINT("Invalid time err %d: %s", errno, strerror(errno));
         return -errno;
@@ -279,7 +288,7 @@ int lb_timer_as_ns(TimerDataLB* tdata, uint64_t *ns)
         case TIMER_RDTSC:
             if (tdata->ci.freq != 0ULL)
             {
-                *ns = (double) diff * NANOS_PER_SEC / tdata->ci.freq;
+                *ns = (double) (diff * ((double)NANOS_PER_SEC / tdata->ci.freq));
                 return 0;
             }
             else
@@ -306,17 +315,14 @@ int lb_timer_as_cycles(TimerDataLB* tdata, uint64_t* cycles)
             *cycles = diff;
             return -ENOTSUP;
         case TIMER_RDTSC:
-            if (tdata->stop.uint64 > 0ULL && tdata->start.uint64 > 0ULL && (tdata->stop.uint64 > tdata->start.uint64))
-            {
-                diff = tdata->stop.uint64 - tdata->start.uint64;
-                // printf("cycles diff: %llu, stop: %llu, start: %llu\n", diff, tdata->stop.uint64, tdata->start.uint64);
-                *cycles = diff;
-                return 0;
-            }
-            else
+            if (tdata->stop.uint64 == 0ULL || tdata->start.uint64 == 0ULL || (tdata->stop.uint64 <= tdata->start.uint64))
             {
                 return -EINVAL;
             }
+            diff = tdata->stop.uint64 - tdata->start.uint64;
+            // printf("cycles diff: %llu, stop: %llu, start: %llu\n", diff, tdata->stop.uint64, tdata->start.uint64);
+            *cycles = diff;
+            return 0;
         default:
             return -EINVAL;
     }
