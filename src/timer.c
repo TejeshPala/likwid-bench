@@ -148,7 +148,7 @@ static uint64_t _get_time_in_ns(void)
         ERROR_PRINT("clock_gettime failed with err %d: %s", errno, strerror(errno));
         return 0; // exit(EXIT_FAILURE);
     }
-    uint64_t ns = (uint64_t)(ts.tv_sec * NANOS_PER_SEC + ts.tv_nsec);
+    uint64_t ns = ((uint64_t)ts.tv_sec * NANOS_PER_SEC) + (uint64_t)ts.tv_nsec;
     return ns;
 }
 
@@ -288,7 +288,7 @@ int lb_timer_as_ns(TimerDataLB* tdata, uint64_t *ns)
         case TIMER_RDTSC:
             if (tdata->ci.freq != 0ULL)
             {
-                *ns = (double) (diff * ((double)NANOS_PER_SEC / tdata->ci.freq));
+                *ns = (uint64_t) (((__int128_t)diff * NANOS_PER_SEC) / tdata->ci.freq);
                 return 0;
             }
             else
