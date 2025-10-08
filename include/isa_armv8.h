@@ -81,17 +81,17 @@ int header(struct bstrList* code, bstring funcname)
     bstrListAdd(code, typeline);
     bstrListAdd(code, label);
 
-    bstrListAddChar(code, "stp x29, x30, [sp, -144]!");
+    bstrListAddChar(code, "stp x29, x30, [sp, -192]!");
     bstrListAddChar(code, "mov x29, sp");
     bstrListAddChar(code, "stp x19, x20, [sp, 16]");
     bstrListAddChar(code, "stp x21, x22, [sp, 32]");
     bstrListAddChar(code, "stp x24, x25, [sp, 48]");
     bstrListAddChar(code, "stp x26, x27, [sp, 64]");
     bstrListAddChar(code, "str x28, [sp, 80]");
-    bstrListAddChar(code, "str d15, [sp, 88]");
     bstrListAddChar(code, "stp d8, d9, [sp, 96]");
     bstrListAddChar(code, "stp d10, d11, [sp, 112]");
-    bstrListAddChar(code, "stp d12, d14, [sp, 128]");
+    bstrListAddChar(code, "stp d12, d13, [sp, 128]");
+    bstrListAddChar(code, "stp d14, d15, [sp, 144]");
 
     bstring streamline = bformat("%s", bdata(&bstrptr));
     bstrListAdd(code, streamline);
@@ -111,16 +111,16 @@ int footer(struct bstrList* code, bstring funcname)
     
     bstrListAddChar(code, ".exit:");
 
-    bstrListAddChar(code, "ldp x19, x20, [sp, 16]");
-    bstrListAddChar(code, "ldp x21, x22, [sp, 32]");
-    bstrListAddChar(code, "ldp x24, x25, [sp, 48]");
-    bstrListAddChar(code, "ldp x26, x27, [sp, 64]");
-    bstrListAddChar(code, "ldr x28, [sp, 80]");
-    bstrListAddChar(code, "ldr d15, [sp, 88]");
-    bstrListAddChar(code, "ldp d8, d9, [sp, 96]");
+    bstrListAddChar(code, "ldp d14, d15, [sp, 144]");
+    bstrListAddChar(code, "ldp d12, d13, [sp, 128]");
     bstrListAddChar(code, "ldp d10, d11, [sp, 112]");
-    bstrListAddChar(code, "ldp d12, d14, [sp, 128]");
-    bstrListAddChar(code, "ldp x29, x30, [sp], 144");
+    bstrListAddChar(code, "ldp d8, d9, [sp, 96]");
+    bstrListAddChar(code, "ldr x28, [sp, 80]");
+    bstrListAddChar(code, "ldp x26, x27, [sp, 64]");
+    bstrListAddChar(code, "ldp x24, x25, [sp, 48]");
+    bstrListAddChar(code, "ldp x21, x22, [sp, 32]");
+    bstrListAddChar(code, "ldp x19, x20, [sp, 16]");
+    bstrListAddChar(code, "ldp x29, x30, [sp], 192");
 
     bstrListAddChar(code, "ret");
 
@@ -154,7 +154,8 @@ int loopheader(struct bstrList* code, bstring loopname, bstring loopreg, bstring
 
     if (is_sve_bstr(loopname))
     {
-        bstring ptrue = bformat("ptrue p1.d, vl%s", bdata(step));
+        bstring ptrue = bformat("ptrue p0.d"); // activate all vector lanes
+        // bstring ptrue = bformat("ptrue p0.d, vl%s", bdata(step)); // Only the vector lanes as per step
         bstrListAdd(code, ptrue);
         bdestroy(ptrue);
 
@@ -163,9 +164,10 @@ int loopheader(struct bstrList* code, bstring loopname, bstring loopreg, bstring
         bstrListAdd(code, whilelo);
         bdestroy(whilelo);
 
-        for (int i = 0; i < 6; i++)
+        // the predicates copy would be essential if unroll > 1, else ports are wasted
+        for (int i = 1; i < 6; i++)
         {
-            bstring pcopy = bformat("mov     p%d.b, p1.b", i+2);
+            bstring pcopy = bformat("mov     p%d.b, p0.b", i);
             bstrListAdd(code, pcopy);
             bdestroy(pcopy);
         }
@@ -186,21 +188,26 @@ int loopfooter(struct bstrList* code, bstring loopname, bstring loopreg, bstring
     //bstring bloop = bfromcstr(loopname);
     int sve = is_sve_bstr(loopname);
 
-    //bstring bstep = bformat("add GPR6, GPR6, #%d", step);
-    bstring bstep = bformat("add %s, %s, #%s", bdata(loopreg), bdata(loopreg), bdata(step));
-    bstrListAdd(code, bstep);
-    bdestroy(bstep);
-
     bstring jumpline;
     bstring cmpline;
     if (sve)
     {
+        //bstring bstep = bformat("incd GPR6", step);
+        bstring bstep = bformat("incd %s", bdata(loopreg)); // auto VL on sve usage
+        bstrListAdd(code, bstep);
+        bdestroy(bstep);
+
         //bstrListAddChar(code, "whilelo  p0.d, GPR6, ARG1");
         jumpline = bformat("bne %s", bdata(loopname));
         cmpline = bformat("whilelo  p0.d, %s, %s", bdata(loopreg), bdata(condreg));
     }
     else
     {
+        //bstring bstep = bformat("add GPR6, GPR6, #%d", step);
+        bstring bstep = bformat("add %s, %s, #%s", bdata(loopreg), bdata(loopreg), bdata(step));
+        bstrListAdd(code, bstep);
+        bdestroy(bstep);
+
         //bstrListAddChar(code, "cmp   GPR6, ARG1");
         cmpline = bformat("cmp %s, %s", bdata(loopreg), bdata(condreg));
         jumpline = bformat("blt %s", bdata(loopname));
@@ -239,10 +246,17 @@ struct tagbstring Registers[] = {
     bsStatic("x20"),
     bsStatic("x21"),
     bsStatic("x22"),
+    bsStatic("x23"),
+    bsStatic("x24"),
+    bsStatic("x25"),
+    bsStatic("x26"),
+    bsStatic("x27"),
+    bsStatic("x28"),
     bsStatic("")
 };
 
-struct tagbstring RegisterSptr = bsStatic("sp");
-struct tagbstring RegisterBptr = bsStatic("rbp");
+struct tagbstring RegisterSptr = bsStatic("sp"); // x31, zero or streaming pointer
+struct tagbstring RegisterBptr = bsStatic("x29"); // frame pointer
+struct tagbstring RegisterLptr = bsStatic("x30"); // link register
 
 #endif /* LIKWID_BENCH_ISA_ARMV8_H */
