@@ -42,7 +42,8 @@ TESTS = test_read_yaml_ptt \
 	test_calculator \
 	test_bench \
 	test_bstrlib_helper \
-	test_timer-rdtsc \
+	test_timer-rdtsc-mono \
+	test_timer-rdtsc-mono-raw \
 	test_timer-gettime \
 	test_table \
 	test_bitmask
@@ -145,8 +146,11 @@ test_bstrlib_helper: test_bstrlib_helper.c $(BSTRLIB_HEADER) $(BSTRLIB_OBJ)
 test_bench: test_bench.c $(BENCH_OBJ) $(BENCH_HEADER) $(TIMER_OBJ) $(TIMER_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) test_bench.c $(BENCH_OBJ) $(TIMER_OBJ) -o $@ -lpthread
 
-test_timer-rdtsc: test_timer-rdtsc.c $(TIMER_OBJ) $(TIMER_HEADER)
-	$(CC) $(INCLUDES) $(CFLAGS) test_timer-rdtsc.c $(TIMER_OBJ) -o $@
+test_timer-rdtsc-mono: test_timer-rdtsc-mono.c $(TIMER_OBJ) $(TIMER_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) test_timer-rdtsc-mono.c $(TIMER_OBJ) -o $@
+
+test_timer-rdtsc-mono-raw: test_timer-rdtsc-mono-raw.c $(TIMER_OBJ) $(TIMER_HEADER)
+	$(CC) $(INCLUDES) $(CFLAGS) test_timer-rdtsc-mono-raw.c $(TIMER_OBJ) -o $@
 
 test_timer-gettime: test_timer-gettime.c $(TIMER_OBJ) $(TIMER_HEADER)
 	$(CC) $(INCLUDES) $(CFLAGS) test_timer-gettime.c $(TIMER_OBJ) -o $@

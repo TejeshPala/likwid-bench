@@ -46,6 +46,7 @@ likwid-bench
 /tests/**/test_calculator
 /tests/**/test_bench
 /tests/**/test_timer-gettime
-/tests/**/test_timer-rdtsc
 /tests/**/test_table
 /tests/**/test_bitmask
+/tests/**/test_timer-rdtsc-mono
+/tests/**/test_timer-rdtsc-mono-raw

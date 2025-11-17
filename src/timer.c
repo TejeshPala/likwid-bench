@@ -124,14 +124,29 @@ static inline uint64_t _rd_timebase()
 #endif
 
 
+/*
+ * Ref: https://man7.org/linux/man-pages/man2/clock_gettime.2.html
+ * Clock Selection Strategy (Most to Least Accurate for Benchmarking)
+ * 1. CLOCK_MONOTONIC_RAW:
+                            - Reflects the underlying hardware clocksource.
+                            - Subject to no NTP adjustments, no kernel time correction.
+ * 2. CLOCK_MONOTONIC: Monotonic (never jumps backward), adjusted by NTP or kernel to correct the drift.
+ * 3. CLOCK_REALTIME: Represents wall-clock time (can jump forward/backward), affected by many factors.
+ */
 static clockid_t _get_clockid()
 {
-#if defined(__x86_64) || defined(__i386__) || defined(__x86_64__)
-    return CLOCK_MONOTONIC;
-#elif defined(__aarch64__) || defined(__arm__)
-    return CLOCK_MONOTONIC;
-#elif defined(__powerpc) || defined(__ppc__) || defined(__PPC__)
-    return CLOCK_MONOTONIC;
+#if defined(__linux__) && defined(CLOCK_MONOTONIC_RAW)
+    return CLOCK_MONOTONIC_RAW;
+#elif defined(CLOCK_MONOTONIC)
+    #if defined(__x86_64) || defined(__i386__) || defined(__x86_64__)
+        return CLOCK_MONOTONIC;
+    #elif defined(__aarch64__) || defined(__arm__)
+        return CLOCK_MONOTONIC;
+    #elif defined(__powerpc) || defined(__ppc__) || defined(__PPC__)
+        return CLOCK_MONOTONIC;
+    #else
+        return CLOCK_MONOTONIC;
+    #endif
 #else
     printf("Using CLOCK_REALTIME as CLOCK_MONOTONIC is unavailable on the architecture!\n");
     return CLOCK_REALTIME;
@@ -334,6 +349,11 @@ int lb_timer_supports_cycles(TimerEvents type)
     return (type == TIMER_RDTSC);
 }
 
+
+/*
+ * Ref: https://man7.org/linux/man-pages/man2/clock_nanosleep.2.html
+ * Only CLOCK_MONOTONIC or CLOCK_REALTIME are valid here.
+ */
 int lb_timer_sleep(uint64_t nanoseconds)
 {
     int err = -1;
@@ -341,7 +361,11 @@ int lb_timer_sleep(uint64_t nanoseconds)
     ts.tv_sec = nanoseconds / NANOS_PER_SEC;
     ts.tv_nsec = nanoseconds % NANOS_PER_SEC;
     // printf("sleep for %lfs\n", (nanoseconds * SECONDS_PER_NANO + nanoseconds % SECONDS_PER_NANO));
-    clockid_t clockid = _get_clockid();
+#if defined(CLOCK_MONOTONIC)
+    clockid_t clockid = CLOCK_MONOTONIC;
+#else
+    clockid_t clockid = CLOCK_REALTIME;
+#endif
     while ((err = clock_nanosleep(clockid, 0, &ts, &rem)) == EINTR)
     {
         ts = rem;
