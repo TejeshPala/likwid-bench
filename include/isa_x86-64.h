@@ -101,21 +101,51 @@ int footer(struct bstrList* code, bstring funcname)
 int loopheader(struct bstrList* code, bstring loopname, bstring loopreg, bstring start, bstring condreg, bstring cond, bstring step)
 {
     struct tagbstring bzero = bsStatic("0");
+    struct tagbstring bplus = bsStatic("+");
+    struct tagbstring bminus = bsStatic("-");
 
     bstring initline;
     if (bstrncmp(start, &bzero, blength(&bzero)) == BSTR_OK)
         initline = bformat("xor %s, %s", bdata(loopreg), bdata(loopreg));
     else
-        initline = bformat("mov %s, #%s", bdata(loopreg), bdata(start));
+        initline = bformat("mov %s, %s", bdata(loopreg), bdata(start));
     bstrListAdd(code, initline);
     bdestroy(initline);
 
     bstring condline;
+    int pos = 0;
     if (bstrncmp(cond, &bzero, blength(&bzero)) == BSTR_OK)
+    {
         condline = bformat("xor %s, %s", bdata(condreg), bdata(condreg));
+        bstrListAdd(code, condline);
+    }
+    else if ( (pos = binstr(cond, 0, &bplus)) > 0)
+    {
+        bstring base = bmidstr(cond, 0, pos);
+        bstring offset = bmidstr(cond, pos + 1, blength(cond) - pos - 1);
+        condline = bformat("mov %s, #%s", bdata(condreg), bdata(base));
+        bstrListAdd(code, condline);
+        condline = bformat("add %s, %s", bdata(condreg), bdata(offset));
+        bstrListAdd(code, condline);
+        bdestroy(base);
+        bdestroy(offset);
+    }
+    else if ( (pos = binstr(cond, 0, &bminus)) > 0)
+    {
+        bstring base = bmidstr(cond, 0, pos);
+        bstring offset = bmidstr(cond, pos + 1, blength(cond) - pos - 1);
+        condline = bformat("mov %s, #%s", bdata(condreg), bdata(base));
+        bstrListAdd(code, condline);
+        condline = bformat("sub %s, %s", bdata(condreg), bdata(offset));
+        bstrListAdd(code, condline);
+        bdestroy(base);
+        bdestroy(offset);
+    }
     else
+    {
         condline = bformat("mov %s, #%s", bdata(condreg), bdata(cond));
-    bstrListAdd(code, condline);
+        bstrListAdd(code, condline);
+    }
     bdestroy(condline);
 
     bstrListAddChar(code, ".align 16");
