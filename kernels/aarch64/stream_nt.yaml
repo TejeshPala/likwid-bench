@@ -1,0 +1,79 @@
+---
+- Name: stream_nt
+- Description: Double-precision stream A[i] = B[i] * c + D[i], optimized for Non-temporal instructions as pairs
+- RequireWorkgroup: true
+- FeatureFlag: 
+    - fp
+- Parameters:
+  - N:
+      description: Size of array that should be copied, Possible Values - B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      initialization: rand
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR1:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR2:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+- Variables:
+  LOADS_PER_ELEM: 2
+  STORES_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 3
+  LOADS_PER_ITER: 2
+  STORES_PER_ITER: 1
+  ELEMS_PER_ITER: 2
+  BYTES_PER_ITER: 48
+  INST_PER_ITER: 10
+  INST_LOOP: 13
+  FLOPS_PER_ITER: 2
+- Metrics:
+  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*MEM_OPS_PER_ELEM)/time
+  Total flops [MFlops/s]: (1.0E-06*ITER*((N/SIZEOF_DOUBLE)/NUM_THREADS)*(FLOPS_PER_ITER))/time
+  Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
+- Language: asm
+...
+fmov    d6, 4.0e+0
+LOOP(loop, x1=0, <, x0=N, 2)
+ldnp    d2, d3, [STR0]
+ldnp    d4, d5, [STR1]
+fmul    d2, d2, d6
+fmul    d3, d3, d6
+fadd    d2, d2, d4
+fadd    d3, d3, d5
+stnp    d2, d3, [STR2]
+add     STR0, STR0, 16
+add     STR1, STR1, 16
+add     STR2, STR2, 16
+LOOPEND(loop)

@@ -1,0 +1,73 @@
+---
+- Name: stream_sve256_fma
+- Description: Double-precision stream A[i] = B[i] * c + D[i], optimized for SVE with a vector length of 256 bit with FMA
+- RequireWorkgroup: true
+- FeatureFlag: 
+    - sve
+- Parameters:
+  - N:
+      description: Size of array that should be copied, Possible Values - B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      initialization: rand
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR1:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR2:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+- Variables:
+  LOADS_PER_ELEM: 2
+  STORES_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 3
+  LOADS_PER_ITER: 2
+  STORES_PER_ITER: 1
+  ELEMS_PER_ITER: 4
+  BYTES_PER_ITER: 96
+  INST_PER_ITER: 4
+  INST_LOOP: 7
+  FLOPS_PER_ITER: 2
+- Metrics:
+  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*MEM_OPS_PER_ELEM)/time
+  Total flops [MFlops/s]: (1.0E-06*ITER*((N/SIZEOF_DOUBLE)/NUM_THREADS)*(FLOPS_PER_ITER))/time
+  Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
+- Language: asm
+...
+fmov    z2.d, #4.0e+0
+LOOP(sveloop, x1=0, <, x0=N, 4)
+ld1d    z0.d, p0/z, [STR0, x1, lsl 3]
+ld1d    z1.d, p0/z, [STR1, x1, lsl 3]
+fmla    z0.d, p0/m, z2.d, z1.d
+st1d    z0.d, p0, [STR2, x1, lsl 3]
+LOOPEND(sveloop)
