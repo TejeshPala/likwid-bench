@@ -1,0 +1,55 @@
+---
+- Name: copy
+- Description: Double-precision copy, only scalar operations
+- RequireWorkgroup: true
+- FeatureFlag: 
+    - fp
+- Parameters:
+  - N:
+      description: Size of array that should be copied, Possible Values - B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      initialization: rand
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR1:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+- Variables:
+  LOADS_PER_ELEM: 1
+  STORES_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 2
+  LOADS_PER_ITER: 1
+  STORES_PER_ITER: 1
+  ELEMS_PER_ITER: 1
+  BYTES_PER_ITER: 16
+  INST_PER_ITER: 2
+  INST_LOOP: 5
+- Metrics:
+  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*MEM_OPS_PER_ELEM)/time
+  Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
+- Language: asm
+...
+LOOP(loop, x6=0, <, x0=N, 1)
+ldr     x4, [STR0, x6, lsl 3]
+str     x4, [STR1, x6, lsl 3]
+LOOPEND(loop)

@@ -1,9 +1,9 @@
 ---
-- Name: load
-- Description: Double-precision load, only scalar operations
+- Name: load_sve256
+- Description: Double-precision load, optimized for SVE  with a vector length of 256 bit
 - RequireWorkgroup: true
 - FeatureFlag: 
-    - fp
+    - sve
 - Parameters:
   - N:
       description: Size of array that should be loaded, Possible Values - B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
@@ -24,10 +24,10 @@
       sizes:
         - N/NUM_THREADS
 - Variables:
-  LOADS_PER_ITER: 1
-  ELEMS_PER_ITER: 1
   LOADS_PER_ELEM: 1
-  BYTES_PER_ITER: 8
+  LOADS_PER_ITER: 1
+  ELEMS_PER_ITER: 4
+  BYTES_PER_ITER: 32
   INST_PER_ITER: 1
   INST_LOOP: 4
 - Metrics:
@@ -36,6 +36,6 @@
   Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
 - Language: asm
 ...
-LOOP(loop, x6=0, <, x0=N, 1)
-ldr     x4, [STR0, x6, lsl 3]
-LOOPEND(loop)
+LOOP(loopsve, x6=0, <, x0=N, 4)
+ld1d    z0.d, p0/z, [STR0, x6, lsl 3]
+LOOPEND(loopsve)

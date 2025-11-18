@@ -1,0 +1,74 @@
+---
+- Name: stream
+- Description: Double-precision stream A[i] = B[i] * c + D[i], only scalar operations
+- RequireWorkgroup: true
+- FeatureFlag: 
+    - fp
+- Parameters:
+  - N:
+      description: Size of array that should be copied, Possible Values - B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      initialization: rand
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR1:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR2:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+- Variables:
+  LOADS_PER_ELEM: 2
+  STORES_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 3
+  LOADS_PER_ITER: 2
+  STORES_PER_ITER: 1
+  ELEMS_PER_ITER: 1
+  BYTES_PER_ITER: 24
+  INST_PER_ITER: 5
+  INST_LOOP: 8
+  FLOPS_PER_ITER: 2
+- Metrics:
+  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*MEM_OPS_PER_ELEM)/time
+  Total flops [MFlops/s]: (1.0E-06*ITER*((N/SIZEOF_DOUBLE)/NUM_THREADS)*(FLOPS_PER_ITER))/time
+  Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
+- Language: asm
+...
+fmov    d4, 4.0e+0
+LOOP(loop, x1=0, <, x0=N, 1)
+ldr     d2, [STR0, x1, lsl 3]
+ldr     d3, [STR1, x1, lsl 3]
+fmul    d2, d2, d4
+fadd    d2, d2, d3
+str     d2, [STR2, x1, lsl 3]
+LOOPEND(loop)
