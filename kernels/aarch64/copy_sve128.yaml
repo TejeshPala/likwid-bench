@@ -1,0 +1,55 @@
+---
+- Name: copy_sve128
+- Description: Double-precision copy, optimized for SVE with a vector length of 128 bit
+- RequireWorkgroup: true
+- FeatureFlag: 
+    - sve
+- Parameters:
+  - N:
+      description: Size of array that should be copied, Possible Values - B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      initialization: rand
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR1:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+- Variables:
+  LOADS_PER_ELEM: 1
+  STORES_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 2
+  LOADS_PER_ITER: 1
+  STORES_PER_ITER: 1
+  ELEMS_PER_ITER: 2
+  BYTES_PER_ITER: 32
+  INST_PER_ITER: 2
+  INST_LOOP: 5
+- Metrics:
+  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*MEM_OPS_PER_ELEM)/time
+  Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
+- Language: asm
+...
+LOOP(loopsve, x1=0, <, x0=N, 2)
+ld1d    z0.d, p0/z, [STR0, x1, lsl 3]
+st1d    z0.d, p0, [STR1, x1, lsl 3]
+LOOPEND(loopsve)

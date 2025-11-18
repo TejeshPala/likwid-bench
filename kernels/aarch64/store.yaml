@@ -1,12 +1,12 @@
 ---
-- Name: load
-- Description: Double-precision load, only scalar operations
+- Name: store
+- Description: Double-precision store, only scalar operations
 - RequireWorkgroup: true
 - FeatureFlag: 
     - fp
 - Parameters:
   - N:
-      description: Size of array that should be loaded, Possible Values - B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      description: Size of array that should be stored, Possible Values - B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
       options:
         - bytes
         - required
@@ -24,18 +24,18 @@
       sizes:
         - N/NUM_THREADS
 - Variables:
-  LOADS_PER_ITER: 1
+  STORES_PER_ITER: 1
   ELEMS_PER_ITER: 1
-  LOADS_PER_ELEM: 1
+  STORES_PER_ELEM: 1
   BYTES_PER_ITER: 8
   INST_PER_ITER: 1
   INST_LOOP: 4
 - Metrics:
-  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS))/time
+  Write bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS))/time
   Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS))/time
   Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
 - Language: asm
 ...
 LOOP(loop, x6=0, <, x0=N, 1)
-ldr     x4, [STR0, x6, lsl 3]
+str     x4, [STR0, x6, lsl 3]
 LOOPEND(loop)

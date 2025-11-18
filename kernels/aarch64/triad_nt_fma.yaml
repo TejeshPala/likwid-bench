@@ -1,0 +1,89 @@
+---
+- Name: triad_nt_fma
+- Description: Double-precision triad A[i] = B[i] * C[i] + D[i], optimized for Non-temporal instructions as pairs with fma
+- RequireWorkgroup: true
+- FeatureFlag: 
+    - fp
+- Parameters:
+  - N:
+      description: Size of array that should be copied, Possible Values - B, KB, MB, GB, TB, KiB, MiB, GiB, TiB
+      options:
+        - bytes
+        - required
+- Streams:
+  - STR0:
+      dimensions: 1
+      datatype: double
+      initialization: rand
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR1:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR2:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+  - STR3:
+      dimensions: 1
+      datatype: double
+      dimsizes:
+        - N
+      options:
+        - perthread
+      offsets:
+        - THREAD_ID*(N/NUM_THREADS)
+      sizes:
+        - N/NUM_THREADS
+- Variables:
+  LOADS_PER_ELEM: 3
+  STORES_PER_ELEM: 1
+  MEM_OPS_PER_ELEM: 4
+  LOADS_PER_ITER: 3
+  STORES_PER_ITER: 1
+  ELEMS_PER_ITER: 2
+  BYTES_PER_ITER: 64
+  INST_PER_ITER: 10
+  INST_LOOP: 13
+  FLOPS_PER_ITER: 2
+- Metrics:
+  Read bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*LOADS_PER_ELEM)/time
+  Store bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*STORES_PER_ELEM)/time
+  Total bandwidth [MByte/s]: (1.0E-06*ITER*(N/NUM_THREADS)*MEM_OPS_PER_ELEM)/time
+  Total flops [MFlops/s]: (1.0E-06*ITER*((N/SIZEOF_DOUBLE)/NUM_THREADS)*(FLOPS_PER_ITER))/time
+  Total instructions: ITER*(((N/NUM_THREADS)/SIZEOF_DOUBLE)/ELEMS_PER_ITER)*INST_LOOP
+- Language: asm
+...
+LOOP(loop, x1=0, <, x0=N, 2)
+ldnp    d2, d3, [STR0]
+ldnp    d4, d5, [STR1]
+ldnp    d6, d7, [STR2]
+fmadd   d2, d2, d6, d4
+fmadd   d3, d3, d7, d5
+stnp    d2, d3, [STR3]
+add     STR0, STR0, 16
+add     STR1, STR1, 16
+add     STR2, STR2, 16
+add     STR3, STR3, 16
+LOOPEND(loop)
